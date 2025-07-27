@@ -1,0 +1,142 @@
+/* ===== GLASSMORPHISM SYSTEM ===== */
+
+/* === BASE GLASS EFFECTS === */
+
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+}
+
+.glass-light {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 16px 0 rgba(31, 38, 135, 0.2);
+}
+
+.glass-heavy {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 48px 0 rgba(31, 38, 135, 0.5);
+}
+
+/* === DARK MODE GLASS === */
+
+.dark .glass {
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.dark .glass-light {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.2);
+}
+
+.dark .glass-heavy {
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 48px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* === COLORED GLASS === */
+
+.glass-primary {
+  background: rgba(59, 130, 246, 0.1);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(59, 130, 246,0.2);
+box-shadow: 0 8px 32px 0 rgba(59, 130, 246, 0.3);
+}
+
+.glass-secondary {
+background: rgba(168, 85, 247, 0.1);
+backdrop-filter: blur(16px);
+border: 1px solid rgba(168, 85, 247, 0.2);
+box-shadow: 0 8px 32px 0 rgba(168, 85, 247, 0.3);
+}
+.glass-success {
+background: rgba(34, 197, 94, 0.1);
+backdrop-filter: blur(16px);
+border: 1px solid rgba(34, 197, 94, 0.2);
+box-shadow: 0 8px 32px 0 rgba(34, 197, 94, 0.3);
+}
+.glass-warning {
+background: rgba(245, 158, 11, 0.1);
+backdrop-filter: blur(16px);
+border: 1px solid rgba(245, 158, 11, 0.2);
+box-shadow: 0 8px 32px 0 rgba(245, 158, 11, 0.3);
+}
+.glass-error {
+background: rgba(239, 68, 68, 0.1);
+backdrop-filter: blur(16px);
+border: 1px solid rgba(239, 68, 68, 0.2);
+box-shadow: 0 8px 32px 0 rgba(239, 68, 68, 0.3);
+}
+/* === GLASS CARDS === */
+.glass-card {
+background: rgba(255, 255, 255, 0.1);
+backdrop-filter: blur(16px);
+border: 1px solid rgba(255, 255, 255, 0.2);
+border-radius: var(--radius-lg);
+padding: var(--space-6);
+transition: all var(--duration-300) var(--ease-out);
+}
+.glass-card:hover {
+background: rgba(255, 255, 255, 0.15);
+transform: translateY(-2px);
+box-shadow: 0 12px 48px 0 rgba(31, 38, 135, 0.4);
+}
+.dark .glass-card {
+background: rgba(0, 0, 0, 0.1);
+border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.dark .glass-card:hover {
+background: rgba(0, 0, 0, 0.15);
+box-shadow: 0 12px 48px 0 rgba(0, 0, 0, 0.4);
+}
+/* === GLASS MODALS === */
+.glass-modal {
+background: rgba(255, 255, 255, 0.8);
+backdrop-filter: blur(20px);
+border: 1px solid rgba(255, 255, 255, 0.3);
+border-radius: var(--radius-xl);
+box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+.dark .glass-modal {
+background: rgba(0, 0, 0, 0.8);
+border: 1px solid rgba(255, 255, 255, 0.2);
+}
+/* === GLASS NAVIGATION === */
+.glass-nav {
+background: rgba(255, 255, 255, 0.8);
+backdrop-filter: blur(12px);
+border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+box-shadow: 0 4px 16px 0 rgba(31, 38, 135, 0.1);
+}
+.dark .glass-nav {
+background: rgba(0, 0, 0, 0.8);
+border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+/* === FROSTED GLASS === */
+.frosted-glass {
+background: rgba(255, 255, 255, 0.05);
+backdrop-filter: blur(30px) saturate(180%);
+border: 1px solid rgba(255, 255, 255, 0.1);
+box-shadow:
+0 8px 32px 0 rgba(31, 38, 135, 0.37),
+inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.dark .frosted-glass {
+background: rgba(0, 0, 0, 0.05);
+border: 1px solid rgba(255, 255, 255, 0.05);
+box-shadow:
+0 8px 32px 0 rgba(0, 0, 0, 0.37),
+inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}

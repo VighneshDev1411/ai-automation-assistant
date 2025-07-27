@@ -1,0 +1,4 @@
+
+TODO:
+❌ Team invitation system (can add later)
+

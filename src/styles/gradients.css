@@ -1,0 +1,190 @@
+/* ===== GRADIENT SYSTEM ===== */
+
+/* === BRAND GRADIENTS === */
+
+.gradient-primary {
+  background: linear-gradient(135deg, var(--brand-primary-500), var(--brand-primary-700));
+}
+
+.gradient-primary-soft {
+  background: linear-gradient(135deg, var(--brand-primary-100), var(--brand-primary-200));
+}
+
+.gradient-secondary {
+  background: linear-gradient(135deg, var(--brand-purple-500), var(--brand-purple-700));
+}
+
+.gradient-secondary-soft {
+  background: linear-gradient(135deg, var(--brand-purple-100), var(--brand-purple-200));
+}
+
+/* === SEMANTIC GRADIENTS === */
+
+.gradient-success {
+  background: linear-gradient(135deg, var(--color-success-400), var(--color-success-600));
+}
+
+.gradient-warning {
+  background: linear-gradient(135deg, var(--color-warning-400), var(--color-warning-600));
+}
+
+.gradient-error {
+  background: linear-gradient(135deg, var(--color-error-400), var(--color-error-600));
+}
+
+.gradient-info {
+  background: linear-gradient(135deg, var(--color-info-400), var(--color-info-600));
+}
+
+/* === DIRECTIONAL GRADIENTS === */
+
+.gradient-to-r {
+  background: linear-gradient(to right, var(--brand-primary-500), var(--brand-purple-500));
+}
+
+.gradient-to-l {
+  background: linear-gradient(to left, var(--brand-primary-500), var(--brand-purple-500));
+}
+
+.gradient-to-b {
+  background: linear-gradient(to bottom, var(--brand-primary-500), var(--brand-purple-500));
+}
+
+.gradient-to-t {
+  background: linear-gradient(to top, var(--brand-primary-500), var(--brand-purple-500));
+}
+
+.gradient-to-br {
+  background: linear-gradient(to bottom right, var(--brand-primary-500), var(--brand-purple-500));
+}
+
+.gradient-to-bl {
+  background: linear-gradient(to bottom left, var(--brand-primary-500), var(--brand-purple-500));
+}
+
+.gradient-to-tr {
+  background: linear-gradient(to top right, var(--brand-primary-500), var(--brand-purple-500));
+}
+
+.gradient-to-tl {
+  background: linear-gradient(to top left, var(--brand-primary-500), var(--brand-purple-500));
+}
+
+/* === RADIAL GRADIENTS === */
+
+.gradient-radial {
+  background: radial-gradient(circle, var(--brand-primary-500), var(--brand-purple-500));
+}
+
+.gradient-radial-soft {
+  background: radial-gradient(circle, var(--brand-primary-100), var(--brand-purple-100));
+}
+
+/* === GRADIENT TEXT === */
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--brand-primary-500), var(--brand-purple-500));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-success {
+  background: linear-gradient(135deg, var(--color-success-500), var(--color-success-700));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-warning {
+  background: linear-gradient(135deg, var(--color-warning-500), var(--color-warning-700));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-error {
+  background: linear-gradient(135deg, var(--color-error-500), var(--color-error-700));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* === ANIMATED GRADIENTS === */
+
+.gradient-animated {
+  background: linear-gradient(
+    -45deg,
+    var(--brand-primary-500),
+    var(--brand-purple-500),
+    var(--brand-primary-600),
+    var(--brand-purple-600)
+  );
+  background-size: 400% 400%;
+  animation: gradientShift 4s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* === MESH GRADIENTS === */
+
+.gradient-mesh {
+  background: 
+    radial-gradient(at 40% 20%, var(--brand-primary-400) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, var(--brand-purple-400) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, var(--color-info-400) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, var(--brand-primary-300) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, var(--brand-purple-300) 0px, transparent 50%),
+    radial-gradient(at 80% 100%, var(--color-info-300) 0px, transparent 50%),
+    radial-gradient(at 0% 0%, var(--brand-primary-200) 0px, transparent 50%);
+}
+
+/* === GRADIENT OVERLAYS === */
+
+.gradient-overlay-dark {
+  position: relative;
+}
+
+.gradient-overlay-dark::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.8) 100%
+  );
+  pointer-events: none;
+}
+
+.gradient-overlay-light {
+  position: relative;
+}
+
+.gradient-overlay-light::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.8) 100%
+  );
+  pointer-events: none;
+}
