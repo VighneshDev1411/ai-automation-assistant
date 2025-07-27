@@ -66,6 +66,32 @@ export default function HomePage() {
         {/* Navigation Links */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
           <Link
+            href="/profile"
+            className="glass-card p-6 hover-lift hover-glow transition-all duration-300 group"
+          >
+            <div className="text-center">
+              <div className="text-3xl mb-2 group-hover:animate-bounce-in">
+                👤
+              </div>
+              <h3 className="font-semibold mb-1">Profile</h3>
+              <p className="text-sm text-muted-foreground">User info</p>
+            </div>
+          </Link>
+
+          <Link
+            href="/settings"
+            className="glass-card p-6 hover-lift hover-glow transition-all duration-300 group"
+          >
+            <div className="text-center">
+              <div className="text-3xl mb-2 group-hover:animate-bounce-in">
+                ⚙️
+              </div>
+              <h3 className="font-semibold mb-1">Settings</h3>
+              <p className="text-sm text-muted-foreground">Account</p>
+            </div>
+          </Link>
+
+          <Link
             href="/login"
             className="glass-card p-6 hover-lift hover-glow transition-all duration-300 group"
           >

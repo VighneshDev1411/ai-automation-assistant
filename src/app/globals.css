@@ -1,13 +1,55 @@
-
-@import '../styles/design-tokens.css';
-@import '../styles/animations.css';
-@import '../styles/gradients.css';
-@import '../styles/glassmorphism.css';
-
-/* Tailwind CSS */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light theme - Clean and bright */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* Dark theme - Rich and vibrant */
+    --background: 224 71.4% 4.1%;
+    --foreground: 210 20% 98%;
+    --card: 224 71.4% 4.1%;
+    --card-foreground: 210 20% 98%;
+    --popover: 224 71.4% 4.1%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 215 27.9% 16.9%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+    --accent: 215 27.9% 16.9%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 221.2 83.2% 53.3%;
+  }
+}
 
 @layer base {
   * {
@@ -16,257 +58,33 @@
   
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-primary);
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
 
-  /* Smooth scrolling */
-  html {
-    scroll-behavior: smooth;
+  /* Ensure text is always visible */
+  h1, h2, h3, h4, h5, h6, p, span, div, label {
+    @apply text-foreground;
   }
 
-  /* Selection styles */
-  ::selection {
-    background: hsl(var(--primary) / 0.2);
-    color: var(--foreground);
+  /* Dark mode specific fixes */
+  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+    @apply text-white;
   }
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  .dark p, .dark span, .dark div, .dark label {
+    @apply text-gray-100;
   }
 
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: var(--radius-full);
-    transition: background var(--duration-200) var(--ease-out);
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--muted-foreground);
-  }
-
-  /* Firefox scrollbar */
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
+  .dark .text-muted-foreground {
+    @apply text-gray-400;
   }
 }
 
-@layer components {
-  /* Typography utilities */
-  .text-gradient {
-    @apply gradient-text;
-  }
-
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  .text-pretty {
-    text-wrap: pretty;
-  }
-
-  /* Layout utilities */
-  .container {
-    @apply w-full mx-auto px-4 sm:px-6 lg:px-8;
-    max-width: 1280px;
-  }
-
-  .section {
-    @apply py-16 lg:py-24;
-  }
-
-  .grid-auto-fit {
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  }
-
-  .grid-auto-fill {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  }
-
-  /* Focus utilities */
-  .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
-  }
-
-  /* Button enhancements */
-  .btn-shine {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .btn-shine::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.2),
-      transparent
-    );
-    transition: left var(--duration-500) var(--ease-out);
-  }
-
-  .btn-shine:hover::before {
-    left: 100%;
-  }
-
-  /* Card enhancements */
-  .card-interactive {
-    @apply transition-all duration-300 ease-out hover:shadow-lg hover:-translate-y-1;
-  }
-
-  .card-glow {
-    @apply transition-all duration-300 ease-out;
-  }
-
-  .card-glow:hover {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
-  }
-
-  /* Loading states */
-  .skeleton {
-    @apply loading-skeleton rounded;
-  }
-
-  .pulse-slow {
-    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  /* Status indicators */
-  .status-online {
-    @apply bg-green-500 animate-pulse;
-  }
-
-  .status-offline {
-    @apply bg-gray-400;
-  }
-
-  .status-busy {
-    @apply bg-red-500;
-  }
-
-  .status-away {
-    @apply bg-yellow-500;
-  }
+/* Remove all glass effects - they're causing issues */
+.glass-card {
+  @apply bg-card border border-border shadow-lg;
 }
 
-@layer utilities {
-  /* Spacing utilities using design tokens */
-  .space-1 { margin: var(--space-1); }
-  .space-2 { margin: var(--space-2); }
-  .space-3 { margin: var(--space-3); }
-  .space-4 { margin: var(--space-4); }
-  .space-5 { margin: var(--space-5); }
-  .space-6 { margin: var(--space-6); }
-  .space-8 { margin: var(--space-8); }
-
-  /* Shadow utilities using design tokens */
-  .shadow-xs { box-shadow: var(--shadow-xs); }
-  .shadow-sm { box-shadow: var(--shadow-sm); }
-  .shadow-base { box-shadow: var(--shadow-base); }
-  .shadow-md { box-shadow: var(--shadow-md); }
-  .shadow-lg { box-shadow: var(--shadow-lg); }
-  .shadow-xl { box-shadow: var(--shadow-xl); }
-  .shadow-2xl { box-shadow: var(--shadow-2xl); }
-
-  /* Border radius utilities */
-  .rounded-xs { border-radius: var(--radius-sm); }
-  .rounded-sm { border-radius: var(--radius-base); }
-  .rounded-base { border-radius: var(--radius-md); }
-  .rounded-md { border-radius: var(--radius-lg); }
-  .rounded-lg { border-radius: var(--radius-xl); }
-  .rounded-xl { border-radius: var(--radius-2xl); }
-  .rounded-2xl { border-radius: var(--radius-3xl); }
-
-  /* Typography utilities */
-  .text-xs { font-size: var(--text-xs); }
-  .text-sm { font-size: var(--text-sm); }
-  .text-base { font-size: var(--text-base); }
-  .text-lg { font-size: var(--text-lg); }
-  .text-xl { font-size: var(--text-xl); }
-  .text-2xl { font-size: var(--text-2xl); }
-  .text-3xl { font-size: var(--text-3xl); }
-  .text-4xl { font-size: var(--text-4xl); }
-  .text-5xl { font-size: var(--text-5xl); }
-  .text-6xl { font-size: var(--text-6xl); }
-
-  /* Animation utilities */
-  .animate-in {
-    animation-name: slideInUp;
-    animation-duration: var(--duration-300);
-    animation-timing-function: var(--ease-out);
-    animation-fill-mode: both;
-  }
-
-  .animate-out {
-    animation-name: slideOutDown;
-    animation-duration: var(--duration-200);
-    animation-timing-function: var(--ease-in);
-    animation-fill-mode: both;
-  }
-
-  /* Interaction utilities */
-  .interactive {
-    @apply transition-all duration-200 ease-out hover:scale-105 active:scale-95;
-  }
-
-  .interactive-lift {
-    @apply transition-transform duration-200 ease-out hover:-translate-y-1;
-  }
-
-  .interactive-glow {
-    @apply transition-shadow duration-300 ease-out hover:shadow-lg;
-  }
-}
-
-/* Print styles */
-@media print {
-  .no-print {
-    display: none !important;
-  }
-  
-  * {
-    color-adjust: exact;
-    -webkit-print-color-adjust: exact;
-  }
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  :root {
-    --border: #000000;
-    --ring: #000000;
-  }
-  
-  .dark {
-    --border: #ffffff;
-    --ring: #ffffff;
-  }
-}
-
-/* Reduced motion support */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-  
-  .animate-pulse {
-    animation: none;
-  }
+.dark .glass-card {
+  @apply bg-gray-900 border-gray-800;
 }

@@ -41,13 +41,8 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      // TODO: Implement actual login logic with Supabase
       console.log('Login attempt:', values)
-      
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // For now, just redirect to dashboard
       router.push('/dashboard')
     } catch (err) {
       setError('Invalid email or password. Please try again.')
@@ -61,7 +56,6 @@ export default function LoginPage() {
     setError(null)
     
     try {
-      // TODO: Implement social login with Supabase
       console.log(`${provider} login`)
       await new Promise(resolve => setTimeout(resolve, 1000))
       router.push('/dashboard')
@@ -73,25 +67,25 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <>
       {/* Header */}
-      <div className="flex justify-between items-start">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Welcome back</h1>
-          <p className="text-muted-foreground mt-2">
-            Sign in to your account to continue
-          </p>
+          <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
+          <p className="text-muted-foreground">Sign in to your account</p>
         </div>
         <ThemeToggle variant="icon" />
       </div>
 
-      <Card className="glass-card">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Sign In</CardTitle>
-          <CardDescription className="text-center">
+      {/* Login Card */}
+      <Card className="shadow-xl border-0 bg-card">
+        <CardHeader className="text-center space-y-2">
+          <CardTitle className="text-2xl text-card-foreground">Sign In</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Choose your preferred sign in method
           </CardDescription>
         </CardHeader>
+        
         <CardContent className="space-y-6">
           {/* Social Login */}
           <SocialLogin
@@ -103,10 +97,10 @@ export default function LoginPage() {
           {/* Divider */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
+              <span className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
+              <span className="bg-card px-2 text-muted-foreground">
                 Or continue with email
               </span>
             </div>
@@ -114,7 +108,7 @@ export default function LoginPage() {
 
           {/* Error Alert */}
           {error && (
-            <Alert variant="destructive" className="animate-slide-in-up">
+            <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
@@ -128,13 +122,13 @@ export default function LoginPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel className="text-card-foreground">Email</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
                         placeholder="Enter your email"
                         {...field}
-                        className="h-12"
+                        className="h-11 bg-background text-foreground"
                       />
                     </FormControl>
                     <FormMessage />
@@ -147,26 +141,26 @@ export default function LoginPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel className="text-card-foreground">Password</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <Input
                           type={showPassword ? 'text' : 'password'}
                           placeholder="Enter your password"
                           {...field}
-                          className="h-12 pr-12"
+                          className="h-11 bg-background text-foreground pr-10"
                         />
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                           onClick={() => setShowPassword(!showPassword)}
                         >
                           {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
                           ) : (
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-4 w-4 text-muted-foreground" />
                           )}
                         </Button>
                       </div>
@@ -181,13 +175,13 @@ export default function LoginPage() {
                   href="/forgot-password" 
                   className="text-sm text-primary hover:underline"
                 >
-                  Forgot your password?
+                  Forgot password?
                 </Link>
               </div>
 
               <Button 
                 type="submit" 
-                className="w-full h-12 btn-shine" 
+                className="w-full h-11" 
                 disabled={isLoading}
               >
                 {isLoading ? 'Signing in...' : 'Sign In'}
@@ -208,17 +202,17 @@ export default function LoginPage() {
       </Card>
 
       {/* Demo credentials */}
-      <Card className="glass-card border-dashed">
+      <Card className="bg-muted/30 border-dashed">
         <CardContent className="pt-6">
           <div className="text-center space-y-2">
-            <p className="text-sm font-medium">Demo Credentials</p>
-            <div className="text-xs text-muted-foreground space-y-1">
+            <p className="text-sm font-medium text-card-foreground">Demo Credentials</p>
+            <div className="text-xs text-muted-foreground">
               <p>Email: demo@example.com</p>
               <p>Password: demo123</p>
             </div>
           </div>
         </CardContent>
       </Card>
-    </div>
+    </>
   )
 }

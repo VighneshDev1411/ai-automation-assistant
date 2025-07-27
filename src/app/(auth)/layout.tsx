@@ -1,80 +1,70 @@
-import { Metadata } from 'next'
-import React from 'react'
-
-export const metadata: Metadata = {
-  title: 'Authentication | AI Automation Platform',
-  description: 'Sign in to access your automation workflows and AI agents',
-}
-
-const AuthLayout = ({ children }: { children: React.ReactNode }) => {
+export default function AuthLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-mesh relative overflow-hidden">
+    <div className="min-h-screen grid lg:grid-cols-2">
+      {/* Left side - Modern hero section */}
+      <div className="relative hidden lg:flex bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800">
+        {/* Background effects */}
         <div className="absolute inset-0 bg-black/20" />
-        <div className="relative z-10 flex flex-col justify-center px-16 text-white">
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <span className="text-white font-bold text-xl">AI</span>
+        
+        {/* Content */}
+        <div className="relative z-10 flex items-center justify-center p-12">
+          <div className="max-w-md text-center text-white">
+            {/* Logo */}
+            <div className="mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-2xl backdrop-blur mb-4">
+                <span className="text-2xl font-bold">AI</span>
               </div>
-              <span className="text-2xl font-bold">Automation Platform</span>
-            </div>
-            <h1 className="text-4xl font-bold mb-4">
-              Automate Everything with AI
-            </h1>
-            <p className="text-xl text-white/80 mb-8">
-              Connect 20+ apps, build workflows, and let AI agents handle the
-              rest.
-            </p>
-          </div>
-
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                <span className="text-2xl">🚀</span>
-              </div>
-              <div>
-                <h3 className="font-semibold">10x Faster Workflows</h3>
-                <p className="text-white/70">
-                  Automate repetitive tasks in minutes
-                </p>
-              </div>
+              <h1 className="text-3xl font-bold">Automation Platform</h1>
+              <p className="text-blue-100">Enterprise Grade Workflows</p>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                <span className="text-2xl">🤖</span>
-              </div>
-              <div>
-                <h3 className="font-semibold">AI-Powered Intelligence</h3>
-                <p className="text-white/70">
-                  Smart agents that learn and adapt
-                </p>
-              </div>
-            </div>
+            {/* Hero content */}
+            <div className="space-y-6">
+              <h2 className="text-4xl font-bold leading-tight">
+                Build Powerful 
+                <span className="block text-yellow-300">AI Workflows</span>
+              </h2>
+              
+              <p className="text-xl text-blue-100 leading-relaxed">
+                Connect apps, automate processes, and let AI handle the complexity.
+              </p>
 
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                <span className="text-2xl">🔒</span>
-              </div>
-              <div>
-                <h3 className="font-semibold">Enterprise Security</h3>
-                <p className="text-white/70">
-                  SOC 2 compliant with advanced encryption
-                </p>
+              {/* Features */}
+              <div className="grid gap-4 mt-8">
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                    <span className="text-lg">⚡</span>
+                  </div>
+                  <span className="text-blue-100">10x faster automation</span>
+                </div>
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                    <span className="text-lg">🤖</span>
+                  </div>
+                  <span className="text-blue-100">AI-powered intelligence</span>
+                </div>
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                    <span className="text-lg">🔒</span>
+                  </div>
+                  <span className="text-blue-100">Enterprise security</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Right side - Auth forms */}
-      <div className="flex-1 flex flex-col justify-center px-8 sm:px-16 lg:px-24">
-        <div className="w-full max-w-md mx-auto">{children}</div>
+      {/* Right side - Clean form area */}
+      <div className="flex items-center justify-center p-8">
+        <div className="w-full max-w-md space-y-6">
+          {children}
+        </div>
       </div>
     </div>
   )
 }
-
-export default AuthLayout
