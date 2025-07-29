@@ -1,3 +1,4 @@
+// src/app/(auth)/register/page.tsx
 'use client'
 
 import { useState } from 'react'
@@ -6,12 +7,15 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
+import { useAuth } from '@/lib/auth/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -22,408 +26,316 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from '@/components/ui/form'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { SocialLogin } from '@/components/auth/social-login'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Separator } from '@/components/ui/separator'
+import { Logo } from '@/components/common/logo'
 import { ThemeToggle } from '@/components/common/theme-toggle'
-import { Progress } from '@/components/ui/progress'
-import { Eye, EyeOff, AlertCircle, Check, X } from 'lucide-react'
+import { Sparkles, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
+import { FaGoogle, FaGithub, FaMicrosoft } from 'react-icons/fa'
 
-const registerSchema = z
-  .object({
-    firstName: z.string().min(2, 'First name must be at least 2 characters'),
-    lastName: z.string().min(2, 'Last name must be at least 2 characters'),
-    email: z.string().email('Please enter a valid email address'),
-    password: z
-      .string()
-      .min(8, 'Password must be at least 8 characters')
-      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-      .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-      .regex(/[0-9]/, 'Password must contain at least one number'),
-    confirmPassword: z.string(),
-    agreeToTerms: z
-      .boolean()
-      .refine(val => val === true, 'You must agree to the terms'),
-  })
-  .refine(data => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ['confirmPassword'],
-  })
-
-type RegisterForm = z.infer<typeof registerSchema>
+const registerSchema = z.object({
+  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+  email: z.string().email('Invalid email address'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+  confirmPassword: z.string(),
+  acceptTerms: z.boolean().refine((val) => val === true, {
+    message: 'You must accept the terms and conditions',
+  }),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ['confirmPassword'],
+})
 
 export default function RegisterPage() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const router = useRouter()
+  const { signUp, signInWithProvider } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
+  const [success, setSuccess] = useState(false)
 
-  const form = useForm<RegisterForm>({
+  const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
+      fullName: '',
       email: '',
       password: '',
       confirmPassword: '',
-      agreeToTerms: false,
+      acceptTerms: false,
     },
   })
 
-  const password = form.watch('password')
-
-  const getPasswordStrength = (password: string) => {
-    let strength = 0
-    if (password.length >= 8) strength += 25
-    if (/[A-Z]/.test(password)) strength += 25
-    if (/[a-z]/.test(password)) strength += 25
-    if (/[0-9]/.test(password)) strength += 25
-    return strength
-  }
-
-  const getPasswordRequirements = (password: string) => [
-    { text: 'At least 8 characters', met: password.length >= 8 },
-    { text: 'One uppercase letter', met: /[A-Z]/.test(password) },
-    { text: 'One lowercase letter', met: /[a-z]/.test(password) },
-    { text: 'One number', met: /[0-9]/.test(password) },
-  ]
-
-  const onSubmit = async (values: RegisterForm) => {
-    setIsLoading(true)
-    setError(null)
-
+  async function onSubmit(values: z.infer<typeof registerSchema>) {
     try {
-      // TODO: Implement actual registration logic with Supabase
-      console.log('Registration attempt:', values)
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      // For now, just redirect to dashboard
-      router.push(`/verify-email?email=${encodeURIComponent(values.email)}`)
-    } catch (err) {
-      setError('Failed to create account. Please try again.')
+      setIsLoading(true)
+      setError(null)
+      
+      await signUp(values.email, values.password, {
+        full_name: values.fullName,
+      })
+      
+      setSuccess(true)
+      // Show success message - user needs to verify email
+    } catch (error: any) {
+      setError(error.message || 'Failed to create account')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleSocialLogin = async (provider: string) => {
-    setIsLoading(true)
-    setError(null)
-
+  async function handleProviderSignIn(provider: 'google' | 'github' | 'azure') {
     try {
-      // TODO: Implement social login with Supabase
-      console.log(`${provider} registration`)
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      router.push('/dashboard')
-    } catch (err) {
-      setError(`Failed to sign up with ${provider}. Please try again.`)
-    } finally {
+      setIsLoading(true)
+      setError(null)
+      await signInWithProvider(provider)
+    } catch (error: any) {
+      setError(error.message || `Failed to sign up with ${provider}`)
       setIsLoading(false)
     }
   }
 
-  const passwordStrength = getPasswordStrength(password)
-  const passwordRequirements = getPasswordRequirements(password)
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+        <Card className="glass-card max-w-md w-full">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center mb-4">
+              <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+            </div>
+            <CardTitle>Check your email</CardTitle>
+            <CardDescription>
+              We've sent you a verification link to <strong>{form.getValues('email')}</strong>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-center text-muted-foreground">
+              Click the link in the email to verify your account and get started.
+              You can close this page.
+            </p>
+          </CardContent>
+          <CardFooter className="flex justify-center">
+            <Button variant="outline" onClick={() => router.push('/login')}>
+              Back to login
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold">Create your account</h1>
-          <p className="text-muted-foreground mt-2">
-            Start automating your workflows today
-          </p>
-        </div>
-        <ThemeToggle variant="icon" />
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
       </div>
 
-      <Card className="glass-card">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Sign Up</CardTitle>
-          <CardDescription className="text-center">
-            Create your account to get started
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Social Login */}
-          <SocialLogin
-            onGoogleLogin={() => handleSocialLogin('Google')}
-            onGitHubLogin={() => handleSocialLogin('GitHub')}
-            onMicrosoftLogin={() => handleSocialLogin('Microsoft')}
-          />
-
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with email
-              </span>
-            </div>
+      <div className="w-full max-w-md space-y-8">
+        <div className="text-center">
+          <div className="flex justify-center mb-4">
+            <Logo size="lg" />
           </div>
+          <h1 className="text-3xl font-bold tracking-tight">Create your account</h1>
+          <p className="text-muted-foreground mt-2">
+            Start automating your workflows with AI
+          </p>
+        </div>
 
-          {/* Error Alert */}
-          {error && (
-            <Alert variant="destructive" className="animate-slide-in-up">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle>Sign up</CardTitle>
+            <CardDescription>
+              Choose your preferred sign up method
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          {/* Registration Form */}
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="John" {...field} className="h-12" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Doe" {...field} className="h-12" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="john.doe@example.com"
-                        {...field}
-                        className="h-12"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          type={showPassword ? 'text' : 'password'}
-                          placeholder="Create a strong password"
-                          {...field}
-                          className="h-12 pr-12"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </FormControl>
-
-                    {password && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground">
-                            Strength:
-                          </span>
-                          <Progress
-                            value={passwordStrength}
-                            className="h-2 flex-1"
-                            variant={
-                              passwordStrength < 50
-                                ? 'destructive'
-                                : passwordStrength < 75
-                                  ? 'warning'
-                                  : 'success'
-                            }
-                          />
-                          <span className="text-xs text-muted-foreground">
-                            {passwordStrength < 50
-                              ? 'Weak'
-                              : passwordStrength < 75
-                                ? 'Medium'
-                                : 'Strong'}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-1 text-xs">
-                          {passwordRequirements.map((req, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-1"
-                            >
-                              {req.met ? (
-                                <Check className="h-3 w-3 text-green-500" />
-                              ) : (
-                                <X className="h-3 w-3 text-muted-foreground" />
-                              )}
-                              <span
-                                className={
-                                  req.met
-                                    ? 'text-green-600'
-                                    : 'text-muted-foreground'
-                                }
-                              >
-                                {req.text}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          type={showConfirmPassword ? 'text' : 'password'}
-                          placeholder="Confirm your password"
-                          {...field}
-                          className="h-12 pr-12"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() =>
-                            setShowConfirmPassword(!showConfirmPassword)
-                          }
-                        >
-                          {showConfirmPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="agreeToTerms"
-                  {...form.register('agreeToTerms')}
-                  className="rounded border-gray-300"
-                />
-                <label htmlFor="agreeToTerms" className="text-sm">
-                  I agree to the{' '}
-                  <Link href="/terms" className="text-primary hover:underline">
-                    Terms of Service
-                  </Link>{' '}
-                  and{' '}
-                  <Link
-                    href="/privacy"
-                    className="text-primary hover:underline"
-                  >
-                    Privacy Policy
-                  </Link>
-                </label>
-              </div>
-              {form.formState.errors.agreeToTerms && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.agreeToTerms.message}
-                </p>
-              )}
-
+            <div className="grid grid-cols-3 gap-2">
               <Button
-                type="submit"
-                className="w-full h-12 btn-shine"
+                variant="outline"
+                onClick={() => handleProviderSignIn('google')}
                 disabled={isLoading}
+                className="hover-lift"
               >
-                {isLoading ? 'Creating account...' : 'Create Account'}
+                <FaGoogle className="h-4 w-4" />
+                <span className="sr-only">Google</span>
               </Button>
-            </form>
-          </Form>
-          {/* Sign in link */}
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">
-              Already have an account?{' '}
-              <Link
-                href="/login"
-                className="text-primary hover:underline font-medium"
+              <Button
+                variant="outline"
+                onClick={() => handleProviderSignIn('github')}
+                disabled={isLoading}
+                className="hover-lift"
               >
+                <FaGithub className="h-4 w-4" />
+                <span className="sr-only">GitHub</span>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleProviderSignIn('azure')}
+                disabled={isLoading}
+                className="hover-lift"
+              >
+                <FaMicrosoft className="h-4 w-4" />
+                <span className="sr-only">Microsoft</span>
+              </Button>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or continue with email
+                </span>
+              </div>
+            </div>
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="John Doe"
+                          autoComplete="name"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="name@company.com"
+                          autoComplete="email"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="Create a strong password"
+                          autoComplete="new-password"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="Confirm your password"
+                          autoComplete="new-password"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="acceptTerms"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="text-sm font-normal">
+                          I agree to the{' '}
+                          <Link
+                            href="/terms"
+                            className="text-primary hover:underline"
+                          >
+                            Terms of Service
+                          </Link>{' '}
+                          and{' '}
+                          <Link
+                            href="/privacy"
+                            className="text-primary hover:underline"
+                          >
+                            Privacy Policy
+                          </Link>
+                        </FormLabel>
+                        <FormMessage />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="submit"
+                  className="w-full hover-lift"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating account...
+                    </>
+                  ) : (
+                    <>
+                      Create account
+                      <Sparkles className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-4">
+            <div className="text-sm text-center text-muted-foreground">
+              Already have an account?{' '}
+              <Link href="/login" className="text-primary hover:underline">
                 Sign in
               </Link>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Features preview */}
-      <Card className="glass-card border-dashed">
-        <CardContent className="pt-6">
-          <div className="text-center space-y-3">
-            <p className="text-sm font-medium">What you'll get:</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>Unlimited workflows</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span>AI agent assistance</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                <span>200+ integrations</span>
-              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
   )
 }
