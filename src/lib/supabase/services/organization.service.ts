@@ -41,25 +41,24 @@ export class OrganizationService extends BaseService<'organizations'> {
     return data
   }
 
-  async getOrganizationMembers(organizationId: string) {
-    const { data, error } = await this.supabase
-      .from('organization_members')
-      .select(`
-        *,
-        profiles (
-          id,
-          email,
-          full_name,
-          avatar_url,
-          job_title
-        )
-      `)
-      .eq('organization_id', organizationId)
+async getOrganizationMembers(organizationId: string) {
+  const { data, error } = await this.supabase
+    .from('organization_members')
+    .select(`
+      *,
+      user:profiles!organization_members_user_id_fkey (
+        id,
+        email,
+        full_name,
+        avatar_url,
+        job_title
+      )
+    `)
+    .eq('organization_id', organizationId)
 
-    if (error) throw error
-    return data
-  }
-
+  if (error) throw error
+  return data
+}
   async inviteMember(
     organizationId: string,
     userEmail: string,

@@ -37,6 +37,7 @@ import {
   Edit,
   Trash
 } from 'lucide-react'
+import { supabase } from '@/lib/supabase/supabase-test'
 
 interface TestResult {
   name: string
@@ -71,51 +72,93 @@ export default function DataLayerTestPage() {
     setTestResults(prev => [...prev, result])
   }
 
-  // Test 1: Organization Service
-  const testOrganizationService = async () => {
-    const testName = 'Organization Service'
-    addTestResult({ name: testName, status: 'running' })
+const testOrganizationService = async () => {
+  const testName = 'Organization Service'
+  addTestResult({ name: testName, status: 'running' })
 
-    try {
-      const supabase = createClient()
-      const service = new OrganizationService(supabase)
+  try {
+    const supabase = createClient()
+    
+    // Get organizations with proper join
+    const { data: orgs, error: orgsError } = await supabase
+      .from('organization_members')
+      .select(`
+        organization_id,
+        role,
+        joined_at,
+        organization:organizations!inner (
+          id,
+          name,
+          slug,
+          description
+        )
+      `)
+      .eq('user_id', user?.id)
+      .not('joined_at', 'is', null)
 
-      // Test finding organizations
-      const orgs = await service.findAll()
+    if (orgsError) throw orgsError
+
+    // Get members for current organization
+    if (currentOrganization) {
+      const { data: members, error: membersError } = await supabase
+        .from('organization_members')
+        .select(`
+          *,
+          user:profiles!organization_members_user_id_fkey (
+            id,
+            email,
+            full_name,
+            avatar_url,
+            job_title
+          )
+        `)
+        .eq('organization_id', currentOrganization.id)
+
+      if (membersError) throw membersError
       
-      // Test getting members
-      if (currentOrganization) {
-        const members = await service.getOrganizationMembers(currentOrganization.id)
-        
-        updateTestResult(testName, {
-          status: 'success',
-          message: `Found ${orgs?.length || 0} organizations, ${members?.length || 0} members`,
-          data: { organizations: orgs, members }
-        })
-      } else {
-        updateTestResult(testName, {
-          status: 'error',
-          message: 'No current organization selected'
-        })
-      }
-    } catch (error: any) {
+      updateTestResult(testName, {
+        status: 'success',
+        message: `Found ${orgs?.length || 0} organizations, ${members?.length || 0} members`,
+        data: { 
+          organizations: orgs?.map(o => ({
+            ...o.organization,
+            role: o.role
+          })), 
+          members 
+        }
+      })
+    } else {
       updateTestResult(testName, {
         status: 'error',
-        message: error.message
+        message: 'No current organization selected'
       })
     }
+  } catch (error: any) {
+    updateTestResult(testName, {
+      status: 'error',
+      message: error.message
+    })
   }
+}  
 
   // Test 2: Workflow CRUD
   const testWorkflowCRUD = async () => {
-    const testName = 'Workflow CRUD Operations'
-    addTestResult({ name: testName, status: 'running' })
+  const testName = 'Workflow CRUD Operations'
+  addTestResult({ name: testName, status: 'running' })
 
-    try {
-      // Create a test workflow
-      const newWorkflow = await createWorkflow.mutateAsync({
+  try {
+    if (!currentOrganization || !user) {
+      throw new Error('No organization or user found')
+    }
+
+    // Create a test workflow with explicit values
+    const { data: newWorkflow, error: createError } = await supabase
+      .from('workflows')
+      .insert({
         name: `Test Workflow ${Date.now()}`,
         description: 'Created by data layer test',
+        organization_id: currentOrganization.id,
+        created_by: user.id,
         trigger_config: {
           type: 'manual',
           config: {}
@@ -131,40 +174,53 @@ export default function DataLayerTestPage() {
         }],
         status: 'draft'
       })
+      .select()
+      .single()
 
-      setSelectedWorkflow(newWorkflow.id)
+    if (createError) throw createError
 
-      // Update the workflow
-      const supabase = createClient()
-      const service = new WorkflowService(supabase)
-      
-      const updated = await service.update(newWorkflow.id, {
+    setSelectedWorkflow(newWorkflow.id)
+
+    // Update the workflow
+    const { data: updated, error: updateError } = await supabase
+      .from('workflows')
+      .update({
         description: 'Updated by test'
       })
+      .eq('id', newWorkflow.id)
+      .select()
+      .single()
 
-      // Read the workflow
-      const fetched = await service.findById(newWorkflow.id)
+    if (updateError) throw updateError
 
-      updateTestResult(testName, {
-        status: 'success',
-        message: 'Successfully created, updated, and fetched workflow',
-        data: {
-          created: newWorkflow,
-          updated,
-          fetched
-        }
-      })
+    // Read the workflow
+    const { data: fetched, error: fetchError } = await supabase
+      .from('workflows')
+      .select('*')
+      .eq('id', newWorkflow.id)
+      .single()
 
-      // Refresh the workflows list
-      refetchWorkflows()
-    } catch (error: any) {
-      updateTestResult(testName, {
-        status: 'error',
-        message: error.message
-      })
-    }
+    if (fetchError) throw fetchError
+
+    updateTestResult(testName, {
+      status: 'success',
+      message: 'Successfully created, updated, and fetched workflow',
+      data: {
+        created: newWorkflow,
+        updated,
+        fetched
+      }
+    })
+
+    // Refresh the workflows list
+    refetchWorkflows()
+  } catch (error: any) {
+    updateTestResult(testName, {
+      status: 'error',
+      message: error.message
+    })
   }
-
+}
   // Test 3: Integration Service
   const testIntegrationService = async () => {
     const testName = 'Integration Service'
@@ -201,33 +257,37 @@ export default function DataLayerTestPage() {
     }
   }
 
-  // Test 4: API Routes
-  const testAPIRoutes = async () => {
-    const testName = 'API Routes'
-    addTestResult({ name: testName, status: 'running' })
+const testAPIRoutes = async () => {
+  const testName = 'API Routes'
+  addTestResult({ name: testName, status: 'running' })
 
-    try {
-      // Test workflows endpoint
-      const response = await fetch('/api/workflows')
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'API request failed')
+  try {
+    // Test workflows endpoint without query parameters
+    const response = await fetch('/api/workflows', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
       }
+    })
+    
+    const data = await response.json()
 
-      updateTestResult(testName, {
-        status: 'success',
-        message: `API returned ${data.workflows?.length || 0} workflows`,
-        data
-      })
-    } catch (error: any) {
-      updateTestResult(testName, {
-        status: 'error',
-        message: error.message
-      })
+    if (!response.ok) {
+      throw new Error(data.error || 'API request failed')
     }
-  }
 
+    updateTestResult(testName, {
+      status: 'success',
+      message: `API returned ${data.workflows?.length || 0} workflows`,
+      data
+    })
+  } catch (error: any) {
+    updateTestResult(testName, {
+      status: 'error',
+      message: error.message
+    })
+  }
+}
   // Test 5: Real-time Subscriptions
   const testRealtimeSubscriptions = async () => {
     const testName = 'Real-time Subscriptions'

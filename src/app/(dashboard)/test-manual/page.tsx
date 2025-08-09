@@ -4,7 +4,13 @@
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth/auth-context'
 import { createClient } from '@/lib/supabase/client'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -24,8 +30,12 @@ export default function ManualTestPage() {
 
   // Form states
   const [workflowName, setWorkflowName] = useState('Test Workflow')
-  const [workflowDescription, setWorkflowDescription] = useState('Created from manual test')
-  const [createdWorkflowId, setCreatedWorkflowId] = useState<string | null>(null)
+  const [workflowDescription, setWorkflowDescription] = useState(
+    'Created from manual test'
+  )
+  const [createdWorkflowId, setCreatedWorkflowId] = useState<string | null>(
+    null
+  )
 
   const supabase = createClient()
 
@@ -52,24 +62,21 @@ export default function ManualTestPage() {
             name: workflowName,
             description: workflowDescription,
             organization_id: currentOrganization?.id,
-            created_by: user?.id,
+            // created_by: user?.id,     <-- REMOVE this; let the default fill it
             status: 'draft',
-            trigger_config: {
-              type: 'manual',
-              config: {}
-            },
-            actions: [{
-              id: '1',
-              type: 'http',
-              name: 'Test HTTP Action',
-              config: {
-                url: 'https://api.example.com/webhook',
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                }
-              }
-            }]
+            trigger_config: { type: 'manual', config: {} },
+            actions: [
+              {
+                id: '1',
+                type: 'http',
+                name: 'Test HTTP Action',
+                config: {
+                  url: 'https://api.example.com/webhook',
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                },
+              },
+            ],
           })
           .select()
           .single()
@@ -132,8 +139,9 @@ export default function ManualTestPage() {
           .from('workflows')
           .update({
             name: workflowName + ' (Updated)',
-            description: workflowDescription + ' - Updated at ' + new Date().toISOString(),
-            status: 'active'
+            description:
+              workflowDescription + ' - Updated at ' + new Date().toISOString(),
+            status: 'active',
           })
           .eq('id', createdWorkflowId)
           .select()
@@ -171,13 +179,20 @@ export default function ManualTestPage() {
 
       setIsLoading(true)
       try {
-        const { data, error } = await supabase.rpc('execute_workflow', {
-          workflow_id: createdWorkflowId,
-          trigger_data: {
-            test: true,
-            timestamp: new Date().toISOString()
-          }
-        })
+        // const { data, error } = await supabase.rpc('execute_workflow', {
+        //   workflow_id: createdWorkflowId,
+        //   trigger_data: {
+        //     test: true,
+        //     timestamp: new Date().toISOString(),
+        //   },
+        // })
+
+        // replace the old RPC call
+const { data, error } = await supabase.rpc('execute_workflow_v2', {
+  workflow_id: createdWorkflowId,
+  trigger_data: { test: true, timestamp: new Date().toISOString() },
+});
+
 
         if (error) throw error
 
@@ -199,24 +214,25 @@ export default function ManualTestPage() {
     },
 
     // 5. Check Organization Access
-    checkAccess: async () => {
-      setIsLoading(true)
-      try {
-        const { data, error } = await supabase.rpc('check_organization_membership', {
-          org_id: currentOrganization?.id,
-          user_id: user?.id
-        })
+checkAccess: async () => {
+  setIsLoading(true)
+  try {
+    const orgId = currentOrganization?.id
+    if (!orgId) throw new Error('No organization selected')
 
-        if (error) throw error
+    const { data, error } = await supabase.rpc('check_org_membership_self', {
+  org_id_input: currentOrganization!.id,
+})
 
-        showResult({ has_access: data })
-      } catch (err: any) {
-        showResult(null, err.message)
-      } finally {
-        setIsLoading(false)
-      }
-    },
 
+    if (error) throw error
+    showResult({ has_access: data })
+  } catch (err: any) {
+    showResult(null, err.message)
+  } finally {
+    setIsLoading(false)
+  }
+},
     // 6. Get Workflow Stats
     getStats: async () => {
       if (!createdWorkflowId) {
@@ -232,7 +248,7 @@ export default function ManualTestPage() {
       try {
         const { data, error } = await supabase.rpc('get_workflow_stats', {
           workflow_id: createdWorkflowId,
-          time_range: '30 days'
+          time_range: '30 days',
         })
 
         if (error) throw error
@@ -293,14 +309,14 @@ export default function ManualTestPage() {
             event: '*',
             schema: 'public',
             table: 'workflows',
-            filter: `organization_id=eq.${currentOrganization?.id}`
+            filter: `organization_id=eq.${currentOrganization?.id}`,
           },
-          (payload) => {
+          payload => {
             showResult({
               message: 'Real-time event received!',
               event: payload.eventType,
               data: payload.new,
-              old: payload.old
+              old: payload.old,
             })
             toast({
               title: 'Real-time Event',
@@ -310,9 +326,10 @@ export default function ManualTestPage() {
         )
         .subscribe()
 
-      showResult({ 
-        message: 'Listening for changes... Try creating or updating a workflow in another tab!',
-        subscription: 'active'
+      showResult({
+        message:
+          'Listening for changes... Try creating or updating a workflow in another tab!',
+        subscription: 'active',
       })
 
       // Clean up after 30 seconds
@@ -323,7 +340,7 @@ export default function ManualTestPage() {
           description: 'Real-time subscription closed',
         })
       }, 30000)
-    }
+    },
   }
 
   if (!user || !currentOrganization) {
@@ -361,7 +378,7 @@ export default function ManualTestPage() {
                 <Input
                   id="workflow-name"
                   value={workflowName}
-                  onChange={(e) => setWorkflowName(e.target.value)}
+                  onChange={e => setWorkflowName(e.target.value)}
                   placeholder="Enter workflow name"
                 />
               </div>
@@ -370,7 +387,7 @@ export default function ManualTestPage() {
                 <Textarea
                   id="workflow-description"
                   value={workflowDescription}
-                  onChange={(e) => setWorkflowDescription(e.target.value)}
+                  onChange={e => setWorkflowDescription(e.target.value)}
                   placeholder="Enter workflow description"
                   rows={3}
                 />
