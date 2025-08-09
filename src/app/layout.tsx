@@ -4,6 +4,7 @@ import { AuthProvider } from '@/lib/auth/auth-context'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
+import { QueryProvider } from '@/components/providers/query-provider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -48,10 +49,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <QueryProvider>
           <AuthProvider>
             {children}
             <Toaster />
           </AuthProvider>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

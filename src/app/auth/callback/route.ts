@@ -13,11 +13,24 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error) {
-      // Successfully authenticated, redirect to next URL or dashboard
+      // Check if user needs onboarding
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarded')
+          .eq('id', user.id)
+          .single()
+        
+        if (profile && !profile.onboarded) {
+          return NextResponse.redirect(`${origin}/onboarding`)
+        }
+      }
+      
       return NextResponse.redirect(`${origin}${next}`)
     }
   }
 
-  // Return the user to an error page with instructions
+  // Return the user to login page with error
   return NextResponse.redirect(`${origin}/login?error=auth_callback_error`)
 }
