@@ -152,30 +152,25 @@ const testOrganizationService = async () => {
     }
 
     // Create a test workflow with explicit values
-    const { data: newWorkflow, error: createError } = await supabase
-      .from('workflows')
-      .insert({
-        name: `Test Workflow ${Date.now()}`,
-        description: 'Created by data layer test',
-        organization_id: currentOrganization.id,
-        created_by: user.id,
-        trigger_config: {
-          type: 'manual',
-          config: {}
-        },
-        actions: [{
-          id: '1',
-          type: 'http',
-          name: 'Test Action',
-          config: {
-            url: 'https://example.com',
-            method: 'POST'
-          }
-        }],
-        status: 'draft'
-      })
-      .select()
-      .single()
+// in testWorkflowCRUD
+const { data: newWorkflow, error: createError } = await supabase
+  .from('workflows')
+  .insert({
+    name: `Test Workflow ${Date.now()}`,
+    description: 'Created by data layer test',
+    organization_id: currentOrganization.id,
+    // created_by: user.id,  <-- remove this
+    trigger_config: { type: 'manual', config: {} },
+    actions: [{
+      id: '1',
+      type: 'http',
+      name: 'Test Action',
+      config: { url: 'https://example.com', method: 'POST' }
+    }],
+    status: 'draft'
+  })
+  .select()
+  .single()
 
     if (createError) throw createError
 
@@ -263,12 +258,11 @@ const testAPIRoutes = async () => {
 
   try {
     // Test workflows endpoint without query parameters
-    const response = await fetch('/api/workflows', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    })
+    const response = await fetch('/api/workflows?q=&page=1&limit=10&orderBy=created_at&order=desc', {
+  method: 'GET',
+  headers: { 'Content-Type': 'application/json' },
+})
+
     
     const data = await response.json()
 

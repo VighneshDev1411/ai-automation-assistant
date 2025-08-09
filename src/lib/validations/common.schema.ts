@@ -10,14 +10,25 @@ export const paginationSchema = z.object({
   order: z.enum(['asc', 'desc']).default('desc').optional(),
 })
 
+// export const searchSchema = z.object({
+//   q: z.string().optional(),
+//   filters: z.record(z.any()).optional(),
+//   page: z.coerce.number().min(1).default(1).optional(),
+//   limit: z.coerce.number().min(1).max(100).default(20).optional(),
+//   orderBy: z.string().optional(),
+//   order: z.enum(['asc', 'desc']).default('desc').optional(),
+// })
+
+// import { z } from 'zod'
+
 export const searchSchema = z.object({
-  q: z.string().optional(),
-  filters: z.record(z.any()).optional(),
-  page: z.coerce.number().min(1).default(1).optional(),
-  limit: z.coerce.number().min(1).max(100).default(20).optional(),
-  orderBy: z.string().optional(),
-  order: z.enum(['asc', 'desc']).default('desc').optional(),
+  q: z.string().default(''),                       // allow empty
+  page: z.coerce.number().int().min(1).default(1), // coerce from string
+  limit: z.coerce.number().int().min(1).default(10),
+  orderBy: z.string().default('created_at'),
+  order: z.enum(['asc','desc']).default('desc'),
 })
+
 
 // Fix 6: Update the API route to handle empty query params
 // src/app/api/workflows/route.ts (update the GET handler)
