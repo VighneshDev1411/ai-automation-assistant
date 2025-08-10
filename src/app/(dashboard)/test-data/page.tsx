@@ -142,6 +142,7 @@ const testOrganizationService = async () => {
 }  
 
   // Test 2: Workflow CRUD
+ 
   const testWorkflowCRUD = async () => {
   const testName = 'Workflow CRUD Operations'
   addTestResult({ name: testName, status: 'running' })
@@ -151,51 +152,42 @@ const testOrganizationService = async () => {
       throw new Error('No organization or user found')
     }
 
-    // Create a test workflow with explicit values
-// in testWorkflowCRUD
-const { data: newWorkflow, error: createError } = await supabase
-  .from('workflows')
-  .insert({
-    name: `Test Workflow ${Date.now()}`,
-    description: 'Created by data layer test',
-    organization_id: currentOrganization.id,
-    // created_by: user.id,  <-- remove this
-    trigger_config: { type: 'manual', config: {} },
-    actions: [{
-      id: '1',
-      type: 'http',
-      name: 'Test Action',
-      config: { url: 'https://example.com', method: 'POST' }
-    }],
-    status: 'draft'
-  })
-  .select()
-  .single()
+    // Use the mutation hook which properly handles auth
+    const newWorkflow = await createWorkflow.mutateAsync({
+      name: `Test Workflow ${Date.now()}`,
+      description: 'Created by data layer test',
+      trigger_config: {
+        type: 'manual',
+        config: {}
+      },
+      actions: [{
+        id: '1',
+        type: 'http',
+        name: 'Test Action',
+        config: {
+          url: 'https://example.com',
+          method: 'POST'
+        }
+      }],
+      status: 'draft'
+    })
 
-    if (createError) throw createError
+    if (!newWorkflow) {
+      throw new Error('Failed to create workflow')
+    }
 
     setSelectedWorkflow(newWorkflow.id)
 
-    // Update the workflow
-    const { data: updated, error: updateError } = await supabase
-      .from('workflows')
-      .update({
-        description: 'Updated by test'
-      })
-      .eq('id', newWorkflow.id)
-      .select()
-      .single()
-
-    if (updateError) throw updateError
+    // Update using the service
+    const supabase = createClient()
+    const service = new WorkflowService(supabase)
+    
+    const updated = await service.update(newWorkflow.id, {
+      description: 'Updated by test at ' + new Date().toISOString()
+    })
 
     // Read the workflow
-    const { data: fetched, error: fetchError } = await supabase
-      .from('workflows')
-      .select('*')
-      .eq('id', newWorkflow.id)
-      .single()
-
-    if (fetchError) throw fetchError
+    const fetched = await service.findById(newWorkflow.id)
 
     updateTestResult(testName, {
       status: 'success',
@@ -216,6 +208,7 @@ const { data: newWorkflow, error: createError } = await supabase
     })
   }
 }
+
   // Test 3: Integration Service
   const testIntegrationService = async () => {
     const testName = 'Integration Service'

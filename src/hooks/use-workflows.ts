@@ -34,17 +34,20 @@ export function useWorkflow(workflowId: string) {
 
 export function useCreateWorkflow() {
   const queryClient = useQueryClient()
-  const { currentOrganization } = useAuth()
+  const { currentOrganization, user } = useAuth()
   const supabase = createClient()
   const service = new WorkflowService(supabase)
 
   return useMutation({
-    mutationFn: async (data: Database['public']['Tables']['workflows']['Insert']) => {
-      if (!currentOrganization) throw new Error('No organization selected')
+    mutationFn: async (data: Omit<Database['public']['Tables']['workflows']['Insert'], 'organization_id' | 'created_by'>) => {
+      if (!currentOrganization || !user) {
+        throw new Error('No organization or user selected')
+      }
       
       return service.create({
         ...data,
         organization_id: currentOrganization.id,
+        created_by: user.id, // Add this line
       })
     },
     onSuccess: () => {
@@ -63,7 +66,6 @@ export function useCreateWorkflow() {
     },
   })
 }
-
 export function useUpdateWorkflow(workflowId: string) {
   const queryClient = useQueryClient()
   const supabase = createClient()
