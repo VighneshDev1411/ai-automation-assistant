@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-import { Container } from '@/components/layout/container'
+import { ResponsiveContainer } from '@/components/layout/container'
 import { PageHeader } from '@/components/layout/page-header'
 import { 
   CheckCircle, 
@@ -419,18 +419,18 @@ const testAPIRoutes = async () => {
 
   if (!user || !currentOrganization) {
     return (
-      <Container>
+      <ResponsiveContainer>
         <Alert>
           <AlertDescription>
             Please log in and select an organization to test the data layer.
           </AlertDescription>
         </Alert>
-      </Container>
+      </ResponsiveContainer>
     )
   }
 
   return (
-    <Container>
+    <ResponsiveContainer>
       <PageHeader
         title="Data Layer Test"
         description="Test all CRUD operations and verify the data layer is working correctly"
@@ -593,6 +593,6 @@ const testAPIRoutes = async () => {
           </Tabs>
         </div>
       </div>
-    </Container>
+    </ResponsiveContainer>
   )
 }

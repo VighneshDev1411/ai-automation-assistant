@@ -9,7 +9,7 @@ import * as z from 'zod'
 import { useAuth } from '@/lib/auth/auth-context'
 import { createClient } from '@/lib/supabase/client'
 import { PageHeader } from '@/components/layout/page-header'
-import { Container } from '@/components/layout/container'
+import { ResponsiveContainer } from '@/components/layout/container'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -238,7 +238,7 @@ export default function ProfilePage() {
     : 'Unknown'
 
   return (
-    <Container>
+    <ResponsiveContainer>
       <PageHeader
         title="Profile Settings"
         description="Manage your personal information and account preferences"
@@ -579,6 +579,6 @@ export default function ProfilePage() {
           </Card>
         </div>
       </div>
-    </Container>
+    </ResponsiveContainer>
   )
 }

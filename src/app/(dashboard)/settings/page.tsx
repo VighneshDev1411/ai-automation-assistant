@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { PageHeader } from '@/components/layout/page-header'
-import { Container } from '@/components/layout/container'
+import { ResponsiveContainer } from '@/components/layout/container'
 import {
   Card,
   CardContent,
@@ -150,7 +150,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <Container>
+    <ResponsiveContainer>
       <PageHeader
         title="Settings"
         description="Manage your account settings and preferences"
@@ -585,6 +585,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </div>
-    </Container>
+    </ResponsiveContainer>
   )
 }

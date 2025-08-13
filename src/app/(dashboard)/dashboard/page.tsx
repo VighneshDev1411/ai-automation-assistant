@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { PageHeader } from '@/components/layout/page-header'
-import { Container } from '@/components/layout/container'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ResponsiveGrid } from '@/components/layout/responsive-grid'
@@ -13,6 +12,7 @@ import {
   Workflow,
   Zap
 } from 'lucide-react'
+import { ResponsiveContainer } from '@/components/layout/container'
 
 // Mock data - in real app, this would come from Supabase
 const mockStats = [
@@ -21,7 +21,7 @@ const mockStats = [
     value: '24',
     change: '+12%',
     changeType: 'positive' as const,
-    icon: Workflow,
+    icon: Workflow, // fixed here
   },
   {
     title: 'Executions Today',
@@ -46,13 +46,14 @@ const mockStats = [
   },
 ]
 
+
 export default function DashboardPage() {
   // TODO: Add authentication check
   // const user = await getUser()
   // if (!user) redirect('/login')
 
   return (
-    <Container>
+    <ResponsiveContainer>
       <PageHeader
         title="Dashboard"
         description="Welcome back! Here's what's happening with your automations."
@@ -122,6 +123,6 @@ export default function DashboardPage() {
           </p>
         </CardContent>
       </Card>
-    </Container>
+    </ResponsiveContainer>
   )
 }

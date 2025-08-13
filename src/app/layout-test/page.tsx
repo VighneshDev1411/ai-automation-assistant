@@ -7,7 +7,7 @@ import {
   ResponsiveCard,
   ResponsiveCardGrid,
 } from '@/components/ui/responsive-card'
-import { Container } from '@/components/layout/container'
+import { ResponsiveContainer } from '@/components/layout/container'
 import { Button } from '@/components/ui/button'
 import { useBreakpoint } from '@/hooks/use-breakpoint'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -27,7 +27,7 @@ export default function LayoutTestPage() {
 
   return (
     <AppLayout>
-      <Container>
+      <ResponsiveContainer>
         {/* Page Header */}
         <PageHeader
           title="Responsive Layout System"
@@ -298,37 +298,37 @@ export default function LayoutTestPage() {
             </ResponsiveCardGrid>
           </div>
 
-          {/* Container Examples */}
+          {/* ResponsiveContainer Examples */}
           <div>
-            <h2 className="text-2xl font-bold mb-4">Container Variations</h2>
+            <h2 className="text-2xl font-bold mb-4">ResponsiveContainer Variations</h2>
 
             <div className="space-y-4">
-              <Container size="sm" className="bg-muted/50 rounded-lg p-4">
+              <ResponsiveContainer size="sm" className="bg-muted/50 rounded-lg p-4">
                 <div className="text-center">
-                  <h3 className="font-semibold">Small Container</h3>
+                  <h3 className="font-semibold">Small ResponsiveContainer</h3>
                   <p className="text-sm text-muted-foreground">
                     Max width: 768px
                   </p>
                 </div>
-              </Container>
+              </ResponsiveContainer>
 
-              <Container size="md" className="bg-muted/50 rounded-lg p-4">
+              <ResponsiveContainer size="md" className="bg-muted/50 rounded-lg p-4">
                 <div className="text-center">
-                  <h3 className="font-semibold">Medium Container</h3>
+                  <h3 className="font-semibold">Medium ResponsiveContainer</h3>
                   <p className="text-sm text-muted-foreground">
                     Max width: 1024px
                   </p>
                 </div>
-              </Container>
+              </ResponsiveContainer>
 
-              <Container size="lg" className="bg-muted/50 rounded-lg p-4">
+              <ResponsiveContainer size="lg" className="bg-muted/50 rounded-lg p-4">
                 <div className="text-center">
-                  <h3 className="font-semibold">Large Container (Default)</h3>
+                  <h3 className="font-semibold">Large ResponsiveContainer (Default)</h3>
                   <p className="text-sm text-muted-foreground">
                     Max width: 1280px
                   </p>
                 </div>
-              </Container>
+              </ResponsiveContainer>
             </div>
           </div>
 
@@ -364,7 +364,7 @@ export default function LayoutTestPage() {
             </ResponsiveCard>
           </div>
         </div>
-      </Container>
+      </ResponsiveContainer>
     </AppLayout>
   )
 }

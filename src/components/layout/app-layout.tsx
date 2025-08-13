@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import { Header } from './header'
-import { Sidebar } from './sidebar'
+// import {  } from './sidebar'
+import { ResponsiveSidebar } from './sidebar'
 import { MobileNav } from './mobile-navigation'
 
 interface AppLayoutProps {
@@ -38,7 +39,7 @@ export function AppLayout({ children, className }: AppLayoutProps) {
       <div className="flex h-screen overflow-hidden">
         {/* Sidebar - Hidden on mobile */}
         {!isMobile && (
-          <Sidebar 
+          <ResponsiveSidebar
             isCollapsed={isTablet && !sidebarOpen}
             onToggle={() => setSidebarOpen(!sidebarOpen)}
           />

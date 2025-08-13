@@ -7,7 +7,7 @@ import * as z from 'zod'
 import { AppLayout } from '@/components/layout/app-layout'
 import { PageHeader } from '@/components/layout/page-header'
 import { ResponsiveGrid, GridItem } from '@/components/layout/responsive-grid'
-import { Container } from '@/components/layout/container'
+import { ResponsiveContainer } from '@/components/layout/container'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -67,7 +67,7 @@ export default function ComponentsPage() {
   return (
     <TooltipProvider>
       <AppLayout>
-        <Container>
+        <ResponsiveContainer>
           <PageHeader
             title="UI Component Library"
             description="Comprehensive showcase of all available components"
@@ -604,7 +604,7 @@ export default function ComponentsPage() {
           </Card>
         </div>
       </div>
-    </Container>
+    </ResponsiveContainer>
   </AppLayout>
 </TooltipProvider>
   )}

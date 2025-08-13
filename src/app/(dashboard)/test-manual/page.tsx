@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea'
 // import { Label} from '@/components/ui/label'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Container } from '@/components/layout/container'
+import { ResponsiveContainer } from '@/components/layout/container'
 import { PageHeader } from '@/components/layout/page-header'
 import { toast } from '@/components/ui/use-toast'
 import { Copy, Play, Trash2, Edit2, Save, X } from 'lucide-react'
@@ -345,18 +345,18 @@ checkAccess: async () => {
 
   if (!user || !currentOrganization) {
     return (
-      <Container>
+      <ResponsiveContainer>
         <Alert>
           <AlertDescription>
             Please log in and select an organization to test data operations.
           </AlertDescription>
         </Alert>
-      </Container>
+      </ResponsiveContainer>
     )
   }
 
   return (
-    <Container>
+    <ResponsiveContainer>
       <PageHeader
         title="Manual Data Operations Test"
         description="Test individual database operations step by step"
@@ -530,6 +530,6 @@ checkAccess: async () => {
           </CardContent>
         </Card>
       </div>
-    </Container>
+    </ResponsiveContainer>
   )
 }
