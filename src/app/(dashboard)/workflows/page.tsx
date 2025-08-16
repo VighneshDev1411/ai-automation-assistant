@@ -2,17 +2,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { useAuth } from '@/lib/auth/auth-context'
-// import { Respon } from '@/components/layout/ResponsiveContainer'
-import { ResponsiveContainer } from '@/components/layout/container'
-import { PageHeader } from '@/components/layout/page-header'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -21,6 +20,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -28,448 +35,516 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { SkeletonTable, RefreshIndicator } from '@/components/ui/loading-state'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-// import { 
-//   WorkflowLoadingState,
-//   NoWorkflowsState,
-//   NoResultsState
-// } from '@/components/ui/loading-states'
-import { WorkflowLoadingState } from '@/components/ui/loading-states/workflow-loading'
-
-import { ResponsiveGrid } from '@/components/layout/responsive-grid'
-import { WorkflowCard } from '@/components/workflows/workflow-card'
-import { StatsCard } from '@/components/common/stat-card'
-import { toast, toastSuccess, toastError } from '@/components/ui/use-toast'
-import {
+  Workflow,
   Plus,
   Search,
   Filter,
-  Download,
-  Upload,
   MoreVertical,
   Play,
   Pause,
   Edit,
   Copy,
-  Trash,
+  Trash2,
+  Clock,
   Zap,
-  Activity,
   CheckCircle,
   XCircle,
   AlertCircle,
-  TrendingUp,
-  Clock,
-  BarChart,
-  RefreshCw,
+  ArrowUpDown,
+  FileText,
+  Settings,
 } from 'lucide-react'
-import type { Database } from '@/types/database'
-import { NoResultsState, NoWorkflowsState } from '@/components/ui/empty-states'
 
+// Mock workflow data (will be replaced with Supabase)
+interface Workflow {
+  id: string
+  name: string
+  description: string
+  status: 'active' | 'inactive' | 'error' | 'draft'
+  lastRun: string
+  nextRun: string
+  executions: number
+  successRate: number
+  createdAt: string
+  tags: string[]
+}
 
-type Workflow = Database['public']['Tables']['workflows']['Row']
-
-export default function WorkflowsPage() {
-  const router = useRouter()
-  const { user, currentOrganization } = useAuth()
+function useWorkflows() {
   const [workflows, setWorkflows] = useState<Workflow[]>([])
-  const [filteredWorkflows, setFilteredWorkflows] = useState<Workflow[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<string>('created_at')
-  const [deleteDialog, setDeleteDialog] = useState<{
-    open: boolean
-    workflow?: Workflow
-  }>({ open: false })
-  
-  const supabase = createClient()
+  const [sortBy, setSortBy] = useState<'name' | 'lastRun' | 'executions'>(
+    'lastRun'
+  )
 
-  // Statistics
-  const stats = {
-    total: workflows.length,
-    active: workflows.filter(w => w.status === 'active').length,
-    paused: workflows.filter(w => w.status === 'paused').length,
-    draft: workflows.filter(w => w.status === 'draft').length,
-    error: workflows.filter(w => w.status === 'error').length,
-  }
-
-  // Load workflows
   useEffect(() => {
-    if (currentOrganization) {
-      loadWorkflows()
-      subscribeToWorkflows()
-    }
-  }, [currentOrganization])
+    // Simulate loading workflows
+    setTimeout(() => {
+      setWorkflows([
+        {
+          id: '1',
+          name: 'Daily Sales Report',
+          description: 'Generates daily sales report and sends to team',
+          status: 'active',
+          lastRun: '2 hours ago',
+          nextRun: 'in 22 hours',
+          executions: 365,
+          successRate: 99.2,
+          createdAt: '2024-01-15',
+          tags: ['sales', 'reporting', 'daily'],
+        },
+        {
+          id: '2',
+          name: 'Customer Onboarding',
+          description:
+            'Automated customer onboarding workflow with AI assistance',
+          status: 'active',
+          lastRun: '30 min ago',
+          nextRun: 'on trigger',
+          executions: 1247,
+          successRate: 97.8,
+          createdAt: '2024-02-20',
+          tags: ['customer', 'onboarding', 'ai'],
+        },
+        {
+          id: '3',
+          name: 'Data Sync Pipeline',
+          description: 'Syncs data between CRM and database',
+          status: 'error',
+          lastRun: '1 day ago',
+          nextRun: 'paused',
+          executions: 892,
+          successRate: 94.5,
+          createdAt: '2024-01-10',
+          tags: ['data', 'sync', 'integration'],
+        },
+        {
+          id: '4',
+          name: 'Social Media Scheduler',
+          description: 'AI-powered social media content scheduling',
+          status: 'inactive',
+          lastRun: '3 days ago',
+          nextRun: 'disabled',
+          executions: 156,
+          successRate: 100,
+          createdAt: '2024-03-01',
+          tags: ['social', 'marketing', 'ai'],
+        },
+        {
+          id: '5',
+          name: 'Invoice Processing',
+          description: 'Automated invoice processing and approval',
+          status: 'active',
+          lastRun: '5 hours ago',
+          nextRun: 'in 1 hour',
+          executions: 2341,
+          successRate: 98.9,
+          createdAt: '2024-01-05',
+          tags: ['finance', 'automation', 'approval'],
+        },
+        {
+          id: '6',
+          name: 'Lead Scoring Model',
+          description: 'ML-based lead scoring and routing',
+          status: 'draft',
+          lastRun: 'never',
+          nextRun: 'draft',
+          executions: 0,
+          successRate: 0,
+          createdAt: '2024-03-15',
+          tags: ['ml', 'leads', 'sales'],
+        },
+      ])
+      setIsLoading(false)
+    }, 1000)
+  }, [])
 
   // Filter workflows
-  useEffect(() => {
-    let filtered = [...workflows]
+  const filteredWorkflows = workflows.filter(workflow => {
+    const matchesSearch =
+      workflow.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      workflow.description.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus =
+      statusFilter === 'all' || workflow.status === statusFilter
+    return matchesSearch && matchesStatus
+  })
 
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter(w => 
-        w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        w.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+  // Sort workflows
+  const sortedWorkflows = [...filteredWorkflows].sort((a, b) => {
+    switch (sortBy) {
+      case 'name':
+        return a.name.localeCompare(b.name)
+      case 'executions':
+        return b.executions - a.executions
+      case 'lastRun':
+      default:
+        return 0 // In real app, would sort by actual timestamp
     }
+  })
 
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(w => w.status === statusFilter)
-    }
+  return {
+    workflows: sortedWorkflows,
+    isLoading,
+    searchTerm,
+    setSearchTerm,
+    statusFilter,
+    setStatusFilter,
+    sortBy,
+    setSortBy,
+  }
+}
 
-    // Sort
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'name':
-          return a.name.localeCompare(b.name)
-        case 'status':
-          return a.status.localeCompare(b.status)
-        case 'updated_at':
-          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-        case 'created_at':
-        default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      }
-    })
+export default function WorkflowsPage() {
+  const {
+    workflows,
+    isLoading,
+    searchTerm,
+    setSearchTerm,
+    statusFilter,
+    setStatusFilter,
+    sortBy,
+    setSortBy,
+  } = useWorkflows()
 
-    setFilteredWorkflows(filtered)
-  }, [workflows, searchQuery, statusFilter, sortBy])
+  const [selectedWorkflows, setSelectedWorkflows] = useState<string[]>([])
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const loadWorkflows = async () => {
-    setIsLoading(true)
-    try {
-      const { data, error } = await supabase
-        .from('workflows')
-        .select('*')
-        .eq('organization_id', currentOrganization?.id)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      setWorkflows(data || [])
-    } catch (error: any) {
-      toastError('Failed to load workflows', error.message)
-    } finally {
-      setIsLoading(false)
-    }
+  const handleRefresh = () => {
+    setIsRefreshing(true)
+    setTimeout(() => setIsRefreshing(false), 1000)
   }
 
-  const subscribeToWorkflows = () => {
-    const channel = supabase
-      .channel('workflows-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'workflows',
-          filter: `organization_id=eq.${currentOrganization?.id}`,
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setWorkflows(prev => [payload.new as Workflow, ...prev])
-            toastSuccess('New workflow created')
-          } else if (payload.eventType === 'UPDATE') {
-            setWorkflows(prev =>
-              prev.map(w => w.id === payload.new.id ? payload.new as Workflow : w)
-            )
-          } else if (payload.eventType === 'DELETE') {
-            setWorkflows(prev => prev.filter(w => w.id !== payload.old.id))
-          }
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }
-
-  const handleCreateNew = () => {
-    router.push('/workflows/new')
-  }
-
-  const handleEdit = (workflow: Workflow) => {
-    router.push(`/workflows/${workflow.id}/edit`)
-  }
-
-  const handleDuplicate = async (workflow: Workflow) => {
-    try {
-      const { data, error } = await supabase
-        .from('workflows')
-        .insert({
-          ...workflow,
-          id: undefined,
-          name: `${workflow.name} (Copy)`,
-          status: 'draft',
-          created_at: undefined,
-          updated_at: undefined,
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-      
-      toastSuccess('Workflow duplicated successfully')
-      router.push(`/workflows/${data.id}/edit`)
-    } catch (error: any) {
-      toastError('Failed to duplicate workflow', error.message)
-    }
-  }
-
-  const handleToggleStatus = async (workflow: Workflow) => {
-    const newStatus = workflow.status === 'active' ? 'paused' : 'active'
-    
-    try {
-      const { error } = await supabase
-        .from('workflows')
-        .update({ status: newStatus })
-        .eq('id', workflow.id)
-
-      if (error) throw error
-      
-      toastSuccess(
-        `Workflow ${newStatus === 'active' ? 'activated' : 'paused'}`
-      )
-    } catch (error: any) {
-      toastError('Failed to update workflow status', error.message)
-    }
-  }
-
-  const handleDelete = (workflow: Workflow) => {
-    setDeleteDialog({ open: true, workflow })
-  }
-
-  const confirmDelete = async () => {
-    if (!deleteDialog.workflow) return
-
-    try {
-      const { error } = await supabase
-        .from('workflows')
-        .delete()
-        .eq('id', deleteDialog.workflow.id)
-
-      if (error) throw error
-      
-      toastSuccess('Workflow deleted successfully')
-      setDeleteDialog({ open: false })
-    } catch (error: any) {
-      toastError('Failed to delete workflow', error.message)
-    }
-  }
-
-  const handleExecute = async (workflow: Workflow) => {
-    try {
-      // This would trigger the workflow execution
-      // In a real app, this would call an edge function or API
-      toastSuccess(`Executing workflow: ${workflow.name}`)
-    } catch (error: any) {
-      toastError('Failed to execute workflow', error.message)
-    }
-  }
-
-  const handleImport = () => {
-    toast({
-      title: 'Coming soon',
-      description: 'Workflow import will be available soon',
-    })
-  }
-
-  const handleExport = () => {
-    toast({
-      title: 'Coming soon',
-      description: 'Workflow export will be available soon',
-    })
-  }
-
-  if (isLoading) {
-    return (
-      <ResponsiveContainer>
-        <PageHeader
-          title="Workflows"
-          description="Create and manage your automation workflows"
-        />
-        <WorkflowLoadingState />
-      </ResponsiveContainer>
+  const toggleWorkflowSelection = (id: string) => {
+    setSelectedWorkflows(prev =>
+      prev.includes(id) ? prev.filter(wId => wId !== id) : [...prev, id]
     )
   }
 
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <CheckCircle className="h-4 w-4" />
+      case 'error':
+        return <XCircle className="h-4 w-4" />
+      case 'inactive':
+        return <AlertCircle className="h-4 w-4" />
+      default:
+        return <Clock className="h-4 w-4" />
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+      case 'error':
+        return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+      case 'inactive':
+        return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+      case 'draft':
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
+      default:
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
+    }
+  }
+
   return (
-    <ResponsiveContainer>
-      <PageHeader
-        title="Workflows"
-        description="Create and manage your automation workflows"
-      >
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleImport}>
-            <Upload className="h-4 w-4 mr-2" />
-            Import
-          </Button>
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button onClick={handleCreateNew}>
+    <ErrorBoundary>
+      <div className="p-6 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Workflows</h1>
+            <p className="text-muted-foreground">
+              Manage and monitor your automation workflows
+            </p>
+          </div>
+          <Button className="btn-shine">
             <Plus className="h-4 w-4 mr-2" />
             Create Workflow
           </Button>
         </div>
-      </PageHeader>
 
-      {/* Statistics */}
-      <ResponsiveGrid cols={{ default: 2, lg: 5 }} gap={4} className="mb-6">
-        <StatsCard
-          title="Total Workflows"
-          value={stats.total}
-          icon={<Zap className="h-5 w-5 text-primary" />}
-        />
-        <StatsCard
-          title="Active"
-          value={stats.active}
-          icon={<CheckCircle className="h-5 w-5 text-green-500" />}
-        />
-        <StatsCard
-          title="Paused"
-          value={stats.paused}
-          icon={<Pause className="h-5 w-5 text-yellow-500" />}
-        />
-        <StatsCard
-          title="Draft"
-          value={stats.draft}
-          icon={<AlertCircle className="h-5 w-5 text-gray-500" />}
-        />
-        <StatsCard
-          title="Errors"
-          value={stats.error}
-          icon={<XCircle className="h-5 w-5 text-red-500" />}
-        />
-      </ResponsiveGrid>
+        {/* Stats Cards */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total Workflows
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{workflows.length}</div>
+              <p className="text-xs text-muted-foreground">+2 this week</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Active</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {workflows.filter(w => w.status === 'active').length}
+              </div>
+              <p className="text-xs text-muted-foreground">Currently running</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total Executions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {workflows
+                  .reduce((sum, w) => sum + w.executions, 0)
+                  .toLocaleString()}
+              </div>
+              <p className="text-xs text-muted-foreground">All time</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">
+                Avg Success Rate
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-600">
+                {workflows.length > 0
+                  ? (
+                      workflows.reduce((sum, w) => sum + w.successRate, 0) /
+                      workflows.length
+                    ).toFixed(1)
+                  : 0}
+                %
+              </div>
+              <p className="text-xs text-muted-foreground">Last 30 days</p>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Filters and Search */}
-      <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        {/* Filters and Search */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   placeholder="Search workflows..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[150px]">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="error">Error</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={sortBy}
+                  onValueChange={(value: any) => setSortBy(value)}
+                >
+                  <SelectTrigger className="w-[150px]">
+                    <ArrowUpDown className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="lastRun">Last Run</SelectItem>
+                    <SelectItem value="name">Name</SelectItem>
+                    <SelectItem value="executions">Executions</SelectItem>
+                  </SelectContent>
+                </Select>
+                <RefreshIndicator
+                  isRefreshing={isRefreshing}
+                  onRefresh={handleRefresh}
                 />
               </div>
             </div>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-[180px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="paused">Paused</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="error">Error</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="created_at">Created Date</SelectItem>
-                <SelectItem value="updated_at">Updated Date</SelectItem>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="status">Status</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={loadWorkflows}
-              className="shrink-0"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Workflows Grid */}
-      {filteredWorkflows.length === 0 ? (
-        <Card className="p-12">
+          </CardHeader>
           <CardContent>
-            {workflows.length === 0 ? (
-              <NoWorkflowsState onCreateNew={handleCreateNew} />
+            {isLoading ? (
+              <SkeletonTable rows={6} columns={7} />
             ) : (
-              <NoResultsState />
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[50px]">
+                        <input
+                          type="checkbox"
+                          checked={
+                            selectedWorkflows.length === workflows.length
+                          }
+                          onChange={e => {
+                            if (e.target.checked) {
+                              setSelectedWorkflows(workflows.map(w => w.id))
+                            } else {
+                              setSelectedWorkflows([])
+                            }
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                      </TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Last Run</TableHead>
+                      <TableHead>Next Run</TableHead>
+                      <TableHead className="text-center">Executions</TableHead>
+                      <TableHead className="text-center">
+                        Success Rate
+                      </TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {workflows.map(workflow => (
+                      <TableRow
+                        key={workflow.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                      >
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            checked={selectedWorkflows.includes(workflow.id)}
+                            onChange={() =>
+                              toggleWorkflowSelection(workflow.id)
+                            }
+                            className="rounded border-gray-300"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{workflow.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {workflow.description}
+                            </div>
+                            <div className="flex gap-1 mt-1">
+                              {workflow.tags.map(tag => (
+                                <Badge
+                                  key={tag}
+                                  variant="outline"
+                                  className="text-xs"
+                                >
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            className={`${getStatusColor(workflow.status)} flex items-center gap-1 w-fit`}
+                          >
+                            {getStatusIcon(workflow.status)}
+                            {workflow.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{workflow.lastRun}</TableCell>
+                        <TableCell>{workflow.nextRun}</TableCell>
+                        <TableCell className="text-center">
+                          {workflow.executions}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span
+                            className={
+                              workflow.successRate > 95
+                                ? 'text-green-600'
+                                : 'text-yellow-600'
+                            }
+                          >
+                            {workflow.successRate}%
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem>
+                                <Play className="h-4 w-4 mr-2" />
+                                Run Now
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Copy className="h-4 w-4 mr-2" />
+                                Duplicate
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Settings className="h-4 w-4 mr-2" />
+                                Settings
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-destructive">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
-      ) : (
-        <ResponsiveGrid cols={{ default: 1, md: 2, lg: 3 }} gap={6}>
-          {filteredWorkflows.map((workflow) => (
-            <WorkflowCard
-              key={workflow.id}
-              workflow={{
-                id: workflow.id,
-                name: workflow.name,
-                description: workflow.description,
-                status: workflow.status as any,
-                lastRun: workflow.last_run_at 
-                  ? new Date(workflow.last_run_at).toLocaleDateString()
-                  : undefined,
-                successRate: 98, // Mock data - would come from analytics
-                executionCount: Math.floor(Math.random() * 1000), // Mock data
-              }}
-              onEdit={() => handleEdit(workflow)}
-              onDelete={() => handleDelete(workflow)}
-              onToggleStatus={() => handleToggleStatus(workflow)}
-              onDuplicate={() => handleDuplicate(workflow)}
-            />
-          ))}
-        </ResponsiveGrid>
-      )}
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false })}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Workflow</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete "{deleteDialog.workflow?.name}"? 
-              This action cannot be undone and will permanently remove the workflow 
-              and all its execution history.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialog({ open: false })}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDelete}
-            >
-              Delete Workflow
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </ResponsiveContainer>
+        {/* Bulk Actions */}
+        {selectedWorkflows.length > 0 && (
+          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
+            <Card className="shadow-lg">
+              <CardContent className="flex items-center gap-4 p-4">
+                <span className="text-sm font-medium">
+                  {selectedWorkflows.length} workflow(s) selected
+                </span>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline">
+                    <Play className="h-4 w-4 mr-1" />
+                    Run
+                  </Button>
+                  <Button size="sm" variant="outline">
+                    <Pause className="h-4 w-4 mr-1" />
+                    Pause
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+    </ErrorBoundary>
   )
 }
