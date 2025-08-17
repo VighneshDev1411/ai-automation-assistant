@@ -1,6 +1,6 @@
-
 'use client'
 
+import React from 'react'
 import { cn } from '@/lib/utils'
 
 interface ResponsiveGridProps {
@@ -12,47 +12,31 @@ interface ResponsiveGridProps {
     md?: number
     lg?: number
     xl?: number
-    '2xl'?: number
   }
   gap?: number
 }
 
-export function ResponsiveGrid({
-  children,
+export function ResponsiveGrid({ 
+  children, 
   className,
-  cols = { default: 1, md: 2, lg: 3 },
-  gap = 6
+  cols = { default: 1, sm: 1, md: 2, lg: 3, xl: 4 },
+  gap = 4
 }: ResponsiveGridProps) {
-  const getGridCols = () => {
-    const classes = []
-    
-    if (cols.default) classes.push(`grid-cols-${cols.default}`)
-    if (cols.sm) classes.push(`sm:grid-cols-${cols.sm}`)
-    if (cols.md) classes.push(`md:grid-cols-${cols.md}`)
-    if (cols.lg) classes.push(`lg:grid-cols-${cols.lg}`)
-    if (cols.xl) classes.push(`xl:grid-cols-${cols.xl}`)
-    if (cols['2xl']) classes.push(`2xl:grid-cols-${cols['2xl']}`)
-    
-    return classes.join(' ')
-  }
-
-  return (
-    <div className={cn(
-      'grid',
-      getGridCols(),
-      `gap-${gap}`,
-      className
-    )}>
-      {children}
-    </div>
+  const gridCols = cn(
+    'grid',
+    `gap-${gap}`,
+    cols.default && `grid-cols-${cols.default}`,
+    cols.sm && `sm:grid-cols-${cols.sm}`,
+    cols.md && `md:grid-cols-${cols.md}`,
+    cols.lg && `lg:grid-cols-${cols.lg}`,
+    cols.xl && `xl:grid-cols-${cols.xl}`,
+    className
   )
+
+  return <div className={gridCols}>{children}</div>
 }
 
-export function GridItem({
-  children,
-  className,
-  span
-}: {
+interface GridItemProps {
   children: React.ReactNode
   className?: string
   span?: {
@@ -62,23 +46,17 @@ export function GridItem({
     lg?: number
     xl?: number
   }
-}) {
-  const getSpanClasses = () => {
-    if (!span) return ''
-    
-    const classes = []
-    if (span.default) classes.push(`col-span-${span.default}`)
-    if (span.sm) classes.push(`sm:col-span-${span.sm}`)
-    if (span.md) classes.push(`md:col-span-${span.md}`)
-    if (span.lg) classes.push(`lg:col-span-${span.lg}`)
-    if (span.xl) classes.push(`xl:col-span-${span.xl}`)
-    
-    return classes.join(' ')
-  }
+}
 
-  return (
-    <div className={cn(getSpanClasses(), className)}>
-      {children}
-    </div>
+export function GridItem({ children, className, span }: GridItemProps) {
+  const spanClasses = cn(
+    span?.default && `col-span-${span.default}`,
+    span?.sm && `sm:col-span-${span.sm}`,
+    span?.md && `md:col-span-${span.md}`,
+    span?.lg && `lg:col-span-${span.lg}`,
+    span?.xl && `xl:col-span-${span.xl}`,
+    className
   )
+
+  return <div className={spanClasses}>{children}</div>
 }

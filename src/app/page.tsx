@@ -226,3 +226,11 @@ export default function HomePage() {
     </div>
   )
 }
+
+// export default function Page() {
+//   return (
+//     <div className="p-10 bg-green-500 text-white">
+//       <h1 className="text-4xl font-bold">✅ Tailwind v4 Works!</h1>
+//     </div>
+//   )
+// }
