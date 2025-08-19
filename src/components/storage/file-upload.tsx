@@ -1,17 +1,14 @@
 'use client'
 
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  uploadFile,
-  FILE_CONFIGS,
-  STORAGE_BUCKETS,
-} from '@/lib/supabase/storage'
+
+import { uploadFile, STORAGE_BUCKETS } from '@/lib/supabase/storage'
 import {
   Upload,
   File,
@@ -60,7 +57,7 @@ export const FileUpload = ({
   accept = '*/*',
   multiple = true,
   maxFiles = 10,
-  maxSize = FILE_CONFIGS.MAX_FILE_SIZE,
+  maxSize = 50 * 1024 * 1024,
   onUploadComplete,
   onError,
   className,
@@ -90,19 +87,18 @@ export const FileUpload = ({
       }
 
       if (accept !== '*/*') {
-  const allowed = accept.split(',').map(a => a.trim())
-  const isAllowed = allowed.some(a => {
-    if (a.endsWith('/*')) {
-      return file.type.startsWith(a.replace('/*', ''))
-    }
-    return file.type === a
-  })
-  if (!isAllowed) {
-    onError?.(`${file.name} is not a supported file type`)
-    return
-  }
-}
-
+        const allowed = accept.split(',').map(a => a.trim())
+        const isAllowed = allowed.some(a => {
+          if (a.endsWith('/*')) {
+            return file.type.startsWith(a.replace('/*', ''))
+          }
+          return file.type === a
+        })
+        if (!isAllowed) {
+          onError?.(`${file.name} is not a supported file type`)
+          return
+        }
+      }
 
       newFiles.push({
         id: `${Date.now()}-${Math.random()}`,
@@ -124,36 +120,24 @@ export const FileUpload = ({
     })
   }
   const uploadFileToSupabase = async (file: File, fileId: string) => {
+    console.log('🚀 Starting upload for:', file.name)
+
+    // Update status to uploading
     setFiles(prev =>
       prev.map(f =>
         f.id === fileId ? { ...f, status: 'uploading' as const } : f
       )
     )
-    // Simulate progress updates
-
-    const progressInterval = setInterval(() => {
-      setFiles(prev =>
-        prev.map(f => {
-          if (f.id === fileId && f.status === 'uploading') {
-            const newProgress = Math.min(f.progress + 10, 90)
-            return { ...f, progress: newProgress }
-          }
-          return f // keep the file unchanged
-        })
-      )
-    }, 200)
 
     try {
+      // Remove the progress interval - it might be causing issues
+      // Just do a simple upload
       const result = await uploadFile(file, {
         bucket,
-        folder,
-        onProgress: progress => {
-          setFiles(prev =>
-            prev.map(f => (f.id === fileId ? { ...f, progress } : f))
-          )
-        },
+        folder: folder || 'uploads',
       })
-      clearInterval(progressInterval)
+
+      console.log('📦 Upload result:', result)
 
       if (result.success && result.data) {
         setFiles(prev =>
@@ -170,25 +154,28 @@ export const FileUpload = ({
           )
         )
 
-        setTimeout(() => {
-          setFiles(prev => {
-            const allSuccess = prev.every(
-              f => f.status === 'success' || f.status === 'error'
-            )
+        console.log('✨ File upload complete!')
 
-            if (allSuccess && onUploadComplete) {
-              const successFiles = prev.filter(f => f.status === 'success')
-              onUploadComplete(successFiles)
-            }
-
-            return prev
-          })
-        }, 500)
+        // Notify parent component
+        if (onUploadComplete) {
+          onUploadComplete([
+            {
+              id: fileId,
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              url: result.data.url,
+              path: result.data.path,
+              status: 'success',
+              progress: 100,
+            },
+          ])
+        }
       } else {
         throw new Error(result.error || 'Upload failed')
       }
     } catch (error) {
-      clearInterval(progressInterval)
+      console.error('💥 Upload failed:', error)
       setFiles(prev =>
         prev.map(f =>
           f.id === fileId
@@ -201,7 +188,6 @@ export const FileUpload = ({
             : f
         )
       )
-      onError?.(error instanceof Error ? error.message : 'Upload failed')
     }
   }
 
