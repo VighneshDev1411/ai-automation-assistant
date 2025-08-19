@@ -13,6 +13,7 @@ import {
   Zap
 } from 'lucide-react'
 import { ResponsiveContainer } from '@/components/layout/container'
+import { FileUpload } from '@/components/storage/file-upload'
 
 // Mock data - in real app, this would come from Supabase
 const mockStats = [
@@ -123,6 +124,8 @@ export default function DashboardPage() {
           </p>
         </CardContent>
       </Card>
+
+      <FileUpload />
     </ResponsiveContainer>
   )
 }

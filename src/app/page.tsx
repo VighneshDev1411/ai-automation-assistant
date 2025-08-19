@@ -9,7 +9,7 @@ export default function HomePage() {
         <div className="flex justify-between items-center mb-12">
           <div>
             <h1 className="text-6xl font-bold gradient-text mb-4">
-              AI Automation Platform
+              CogniFlow
             </h1>
             <p className="text-lg text-muted-foreground">
               Enterprise-grade workflow automation with AI agents
