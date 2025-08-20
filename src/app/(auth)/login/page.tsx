@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -25,12 +25,10 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { SocialLogin } from '@/components/auth/social-login'
 import { ThemeToggle } from '@/components/common/theme-toggle'
 import { Eye, EyeOff, AlertCircle, Sparkles, Loader2 } from 'lucide-react'
 import { FaGoogle, FaGithub, FaMicrosoft } from 'react-icons/fa'
 import { useAuth } from '@/lib/auth/auth-context'
-import { tr } from 'zod/v4/locales'
 import { Separator } from '@radix-ui/react-separator'
 
 const loginSchema = z.object({
@@ -40,12 +38,12 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
-export default function LoginPage() {
+function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
-  const searchParamas = useSearchParams()
+  const searchParams = useSearchParams() // Now properly wrapped in Suspense
 
   const { signIn, signInWithProvider } = useAuth()
 
@@ -62,11 +60,9 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      setIsLoading(true)
-      setError(null)
       console.log('Login attempt:', values)
       await signIn(values.email, values.password)
-      //   router.push('/dashboard') Handle by authContext
+      // router.push('/dashboard') Handle by authContext
     } catch (err) {
       setError('Invalid email or password. Please try again.')
     } finally {
@@ -84,6 +80,7 @@ export default function LoginPage() {
       setIsLoading(false)
     }
   }
+
   return (
     <>
       {/* Header */}
@@ -222,27 +219,37 @@ export default function LoginPage() {
           </Form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-            <div className="text-sm text-center text-muted-foreground">
-              Don't have an account?{' '}
-              <Link href="/register" className="text-primary hover:underline">
-                Sign up
-              </Link>
-            </div>
-          </CardFooter>
+          <div className="text-sm text-center text-muted-foreground">
+            Don't have an account?{' '}
+            <Link href="/register" className="text-primary hover:underline">
+              Sign up
+            </Link>
+          </div>
+        </CardFooter>
       </Card>
 
       <p className="text-center text-xs text-muted-foreground">
-          By continuing, you agree to our{' '}
-          <Link href="/terms" className="underline hover:text-primary">
-            Terms of Service
-          </Link>{' '}
-          and{' '}
-          <Link href="/privacy" className="underline hover:text-primary">
-            Privacy Policy
-          </Link>
-        </p>
-
-   
+        By continuing, you agree to our{' '}
+        <Link href="/terms" className="underline hover:text-primary">
+          Terms of Service
+        </Link>{' '}
+        and{' '}
+        <Link href="/privacy" className="underline hover:text-primary">
+          Privacy Policy
+        </Link>
+      </p>
     </>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }
