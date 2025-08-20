@@ -53,8 +53,12 @@ export type Database = {
           tags: string[] | null
           created_at: string
           updated_at: string
-          // Add other workflow fields as needed
         }
+        Insert: Omit<
+          Database['public']['Tables']['workflows']['Row'],
+          'id' | 'created_at' | 'updated_at'
+        >
+        Update: Partial<Database['public']['Tables']['workflows']['Insert']>
       }
     }
     Views: {}
@@ -75,7 +79,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      // Add other functions as needed...
     }
     Enums: {
       user_role: 'owner' | 'admin' | 'member' | 'viewer'
