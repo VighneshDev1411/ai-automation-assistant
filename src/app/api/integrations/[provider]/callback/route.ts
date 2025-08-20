@@ -5,10 +5,10 @@ import { oauthCallbackSchema } from '@/lib/validations/integration.schema'
 
 export async function GET(
   request: NextRequest,
-  context: { params: Record<string, string | string[]> } // ✅ correct type
+  { params }: { params: { provider: string } } // ✅ Fixed: specific type for dynamic route
 ): Promise<NextResponse> {
   try {
-    const provider = context.params.provider as string // ✅ safely cast to string
+    const provider = params.provider // ✅ No casting needed now
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -71,7 +71,7 @@ export async function GET(
 
     // Redirect to integrations page with error message
     return NextResponse.redirect(
-      new URL(`/integrations?error=${context.params.provider}`, request.url)
+      new URL(`/integrations?error=${params.provider}`, request.url)
     )
   }
 }
