@@ -1,21 +1,34 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ThemeToggle } from '@/components/common/theme-toggle'
-import { Mail, CheckCircle, AlertCircle, RefreshCw, ArrowLeft } from 'lucide-react'
+import {
+  Mail,
+  CheckCircle,
+  AlertCircle,
+  RefreshCw,
+  ArrowLeft,
+  Loader2,
+} from 'lucide-react'
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const [isVerifying, setIsVerifying] = useState(false)
   const [isVerified, setIsVerified] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [resendLoading, setResendLoading] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
-  
+
   const router = useRouter()
   const searchParams = useSearchParams()
   const email = searchParams.get('email') || 'your email'
@@ -29,7 +42,10 @@ export default function VerifyEmailPage() {
 
   useEffect(() => {
     if (resendCooldown > 0) {
-      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000)
+      const timer = setTimeout(
+        () => setResendCooldown(resendCooldown - 1),
+        1000
+      )
       return () => clearTimeout(timer)
     }
   }, [resendCooldown])
@@ -41,19 +57,21 @@ export default function VerifyEmailPage() {
     try {
       // TODO: Implement actual email verification with Supabase
       console.log('Verifying email with token:', verificationToken)
-      
+
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000))
-      
+
       // Simulate success
       setIsVerified(true)
-      
+
       // Redirect to onboarding after 2 seconds
       setTimeout(() => {
         router.push('/onboarding')
       }, 2000)
     } catch (err) {
-      setError('Invalid or expired verification link. Please request a new one.')
+      setError(
+        'Invalid or expired verification link. Please request a new one.'
+      )
     } finally {
       setIsVerifying(false)
     }
@@ -66,10 +84,10 @@ export default function VerifyEmailPage() {
     try {
       // TODO: Implement resend verification email with Supabase
       console.log('Resending verification email to:', email)
-      
+
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
+
       setResendCooldown(60) // 1 minute cooldown
     } catch (err) {
       setError('Failed to resend verification email. Please try again.')
@@ -109,7 +127,8 @@ export default function VerifyEmailPage() {
             <div>
               <h2 className="text-2xl font-bold">Email verified!</h2>
               <p className="text-muted-foreground mt-2">
-                Your account has been successfully verified. Redirecting to onboarding...
+                Your account has been successfully verified. Redirecting to
+                onboarding...
               </p>
             </div>
             <div className="animate-pulse">
@@ -126,8 +145,8 @@ export default function VerifyEmailPage() {
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="flex justify-between items-start">
-          <Link 
-            href="/login" 
+          <Link
+            href="/login"
             className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -149,7 +168,7 @@ export default function VerifyEmailPage() {
               </CardDescription>
             </div>
           </CardHeader>
-          
+
           <CardContent className="space-y-4">
             {error && (
               <Alert variant="destructive">
@@ -160,9 +179,10 @@ export default function VerifyEmailPage() {
 
             <div className="text-center space-y-4">
               <p className="text-sm text-muted-foreground">
-                Click the link in the email to verify your account and get started.
+                Click the link in the email to verify your account and get
+                started.
               </p>
-              
+
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
                   Didn't receive the email?
@@ -173,13 +193,11 @@ export default function VerifyEmailPage() {
                   disabled={resendLoading || resendCooldown > 0}
                   className="w-full"
                 >
-                  {resendLoading ? (
-                    'Sending...'
-                  ) : resendCooldown > 0 ? (
-                    `Resend in ${resendCooldown}s`
-                  ) : (
-                    'Resend verification email'
-                  )}
+                  {resendLoading
+                    ? 'Sending...'
+                    : resendCooldown > 0
+                      ? `Resend in ${resendCooldown}s`
+                      : 'Resend verification email'}
                 </Button>
               </div>
             </div>
@@ -193,5 +211,24 @@ export default function VerifyEmailPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <Card className="glass-card w-full max-w-md">
+            <CardContent className="pt-6 text-center space-y-4">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+              <p className="text-muted-foreground">Loading...</p>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <VerifyEmailContent />
+    </Suspense>
   )
 }
