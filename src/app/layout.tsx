@@ -42,7 +42,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* <script src="https://cdn.tailwindcss.com"></script> */}
-         <Script src="https://cdn.tailwindcss.com" strategy="beforeInteractive" />
+         {/* <Script src="https://cdn.tailwindcss.com" strategy="beforeInteractive" /> */}
       </head>
       <body className={inter.className}>
         <ThemeProvider
