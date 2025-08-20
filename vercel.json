@@ -60,15 +60,6 @@
     "app/api/ai/generate/route.ts": {
       "maxDuration": 60
     }
-  },
-  "crons": [
-    {
-      "path": "/api/cron/daily-tasks",
-      "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/health-check",
-      "schedule": "*/5 * * * *"
-    }
-  ]
+  }
+  
 }
