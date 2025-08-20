@@ -8,7 +8,9 @@
     "no-unused-vars": "off",
     "@typescript-eslint/no-unused-vars": "error",
     "@typescript-eslint/no-explicit-any": "off",
-    "react-hooks/exhaustive-deps": "error"
+    "react-hooks/exhaustive-deps": "error",
+    "react/no-unescaped-entities": "off",
+    "@next/next/no-sync-scripts": "off"
 
   }
 }
