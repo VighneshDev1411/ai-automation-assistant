@@ -19,12 +19,18 @@ export async function GET(
     const service = new WorkflowService(supabase)
     const workflow = await service.findById(id)
 
-    if (!workflow) {
+    // Type guard for GenericStringError and organization_id existence
+    if (
+      !workflow ||
+      typeof workflow !== 'object' ||
+      workflow === null ||
+      (workflow as any).organization_id === undefined
+    ) {
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404 })
     }
 
     const { data: hasAccess } = await supabase.rpc('check_organization_membership', {
-      org_id: workflow.organization_id,
+      org_id: (workflow as any).organization_id,
       user_id: user.id
     })
 
@@ -62,7 +68,13 @@ export async function PATCH(
     const service = new WorkflowService(supabase)
     const workflow = await service.findById(id)
 
-    if (!workflow) {
+    // Type guard for GenericStringError
+    if (
+      !workflow ||
+      typeof workflow !== 'object' ||
+      workflow === null ||
+      (workflow as any).organization_id === undefined
+    ) {
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404 })
     }
 
@@ -70,7 +82,7 @@ export async function PATCH(
     const { data: membership } = await supabase
       .from('organization_members')
       .select('role')
-      .eq('organization_id', workflow.organization_id)
+      .eq('organization_id', (workflow as any).organization_id)
       .eq('user_id', user.id)
       .single()
 
@@ -114,7 +126,14 @@ export async function DELETE(
     const service = new WorkflowService(supabase)
     const workflow = await service.findById(id)
 
-    if (!workflow) {
+    // Handle case where service.findById returns an error object
+    if (
+      !workflow ||
+      typeof workflow !== 'object' ||
+      workflow === null ||
+      (workflow as any).organization_id === undefined ||
+      (workflow as any).status === undefined
+    ) {
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404 })
     }
 
@@ -122,7 +141,7 @@ export async function DELETE(
     const { data: membership } = await supabase
       .from('organization_members')
       .select('role')
-      .eq('organization_id', workflow.organization_id)
+      .eq('organization_id', (workflow as any).organization_id)
       .eq('user_id', user.id)
       .single()
 
@@ -131,7 +150,7 @@ export async function DELETE(
     }
 
     // Only allow deletion if workflow is not active
-    if (workflow.status === 'active') {
+    if ((workflow as any).status === 'active') {
       return NextResponse.json(
         { error: 'Cannot delete active workflow. Please pause or archive it first.' },
         { status: 400 }

@@ -27,14 +27,15 @@ export async function POST(
     const service = new WorkflowService(supabase)
     const workflow = await service.findById(id)
 
-    if (!workflow) {
+    // Handle case where findById returns an error object
+    if (!workflow || (workflow as any).status === undefined) {
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404 }) // ✅ Fixed missing return
     }
     
     const { data: hasAccess } = await supabase.rpc(
       'check_organization_membership',
       {
-        org_id: workflow.organization_id,
+        org_id: (workflow as any).organization_id,
         user_id: user.id,
       }
     )
@@ -43,7 +44,7 @@ export async function POST(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
-    if (workflow.status !== 'active') {
+    if ((workflow as any).status !== 'active') {
       return NextResponse.json(
         {
           error: 'Workflow is not active',
