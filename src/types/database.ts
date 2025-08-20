@@ -60,6 +60,44 @@ export type Database = {
         >
         Update: Partial<Database['public']['Tables']['workflows']['Insert']>
       }
+      integrations: {
+        Row: {
+          id: string
+          organization_id: string
+          provider: string
+          status: 'connected' | 'disconnected' | 'error' | 'pending'
+          credentials: any
+          error_message: string | null
+          last_synced_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<
+          Database['public']['Tables']['integrations']['Row'],
+          'id' | 'created_at' | 'updated_at'
+        >
+        Update: Partial<Database['public']['Tables']['integrations']['Insert']>
+      }
+      execution_logs: {
+        Row: {
+          id: string
+          workflow_id: string
+          trigger_data: any
+          status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+          started_at: string | null
+          completed_at: string | null
+          error_message: string | null
+          logs: any[]
+          metadata: any
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<
+          Database['public']['Tables']['execution_logs']['Row'],
+          'id' | 'created_at' | 'updated_at'
+        >
+        Update: Partial<Database['public']['Tables']['execution_logs']['Insert']>
+      }
     }
     Views: {}
     Functions: {

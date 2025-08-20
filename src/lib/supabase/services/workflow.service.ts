@@ -3,7 +3,7 @@ import { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 import { BaseService } from './base.service'
 
-type Workflow = Database['public']['Tables']['workflows']['Row']
+type Workflow = Database['public']['Tables']['workflows']['Row'] & { version?: number }
 type WorkflowInsert = Database['public']['Tables']['workflows']['Insert']
 type WorkflowUpdate = Database['public']['Tables']['workflows']['Update']
 type WorkflowStatus = Database['public']['Enums']['workflow_status']
@@ -90,10 +90,11 @@ export class WorkflowService extends BaseService<'workflows'> {
   }
 
   async createVersion(workflowId: string, config: any, changeNotes?: string) {
-    const { data: workflow, error: fetchError } = await this.findById(workflowId)
-    if (fetchError) throw fetchError
+    // Use our custom method instead of BaseService.findById
+    const workflow = await this.getWorkflowById(workflowId)
+    if (!workflow) throw new Error('Workflow not found')
 
-    const newVersion = (workflow?.version || 1) + 1
+    const newVersion = (workflow.version || 1) + 1
 
     const { data, error } = await this.supabase
       .from('workflow_versions')
@@ -107,10 +108,6 @@ export class WorkflowService extends BaseService<'workflows'> {
       .single()
 
     if (error) throw error
-
-    // Update workflow version
-    await this.update(workflowId, { version: newVersion })
-
     return data
   }
 
@@ -122,6 +119,22 @@ export class WorkflowService extends BaseService<'workflows'> {
       .order('version', { ascending: false })
 
     if (error) throw error
+    return data
+  }
+
+  // Create a new method instead of overriding findById
+  async getWorkflowById(id: string): Promise<Workflow | null> {
+    const { data, error } = await this.supabase
+      .from('workflows')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') return null // Not found
+      throw error
+    }
+
     return data
   }
 }

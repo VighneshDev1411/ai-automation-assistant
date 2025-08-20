@@ -65,8 +65,8 @@ export class ExecutionService extends BaseService<'execution_logs'> {
     if (status === 'completed' || status === 'failed') {
       updateData.completed_at = new Date().toISOString()
       
-      // Calculate duration
-      const { data: execution } = await this.findById(executionId)
+      // Calculate duration using our custom method
+      const execution = await this.getExecutionById(executionId)
       if (execution?.started_at) {
         const duration = Date.now() - new Date(execution.started_at).getTime()
         updateData.duration_ms = duration
@@ -129,6 +129,22 @@ export class ExecutionService extends BaseService<'execution_logs'> {
       .single()
 
     if (error) throw error
+    return data
+  }
+
+  // Create a new method instead of overriding findById
+  async getExecutionById(id: string): Promise<ExecutionLog | null> {
+    const { data, error } = await this.supabase
+      .from('execution_logs')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') return null // Not found
+      throw error
+    }
+
     return data
   }
 }

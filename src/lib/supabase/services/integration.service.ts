@@ -51,8 +51,8 @@ export class IntegrationService extends BaseService<'integrations'> {
   }
 
   async syncIntegration(integrationId: string) {
-    const { data: integration } = await this.findById(integrationId)
-    if (!integration) throw new Error('Integration not found')
+    const integration = await this.findById(integrationId)
+    if (!integration || (integration as any).error) throw new Error('Integration not found')
 
     // Update last synced timestamp
     await this.update(integrationId, {
