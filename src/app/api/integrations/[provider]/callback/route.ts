@@ -5,10 +5,10 @@ import { oauthCallbackSchema } from '@/lib/validations/integration.schema'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { provider: string } } // ✅ Fixed: specific type for dynamic route
+  { params }: { params: Promise<{ provider: string }> } // ✅ Fixed for Next.js 15
 ): Promise<NextResponse> {
   try {
-    const provider = params.provider // ✅ No casting needed now
+    const { provider } = await params // ✅ Await the params promise
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -70,8 +70,9 @@ export async function GET(
     console.error('OAuth callback error:', error)
 
     // Redirect to integrations page with error message
+    const { provider } = await params
     return NextResponse.redirect(
-      new URL(`/integrations?error=${params.provider}`, request.url)
+      new URL(`/integrations?error=${provider}`, request.url)
     )
   }
 }
