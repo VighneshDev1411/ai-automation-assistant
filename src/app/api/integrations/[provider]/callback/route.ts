@@ -3,14 +3,11 @@ import { createClient } from '@/lib/supabase/server'
 import { IntegrationService } from '@/lib/supabase/services'
 import { oauthCallbackSchema } from '@/lib/validations/integration.schema' 
 
-interface CallbackContext {
-  params: { provider: string }
-}
-
 export async function GET(
   request: NextRequest,
-  { params }: CallbackContext
+  context: { params: { provider: string } }   // 👈 inline type, not custom interface
 ): Promise<NextResponse> {
+  const { params } = context
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
