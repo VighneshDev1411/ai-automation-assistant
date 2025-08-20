@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 // import { dateRangeSchema } from '@/lib/validations/common.schema'
-import { dateRangeSchema } from '@/lib/validations/common.schema'
+// import { dateRangeSchema } from '@/lib/validations/common.schema'
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -12,10 +12,10 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams
-    const validatedParams = dateRangeSchema.parse({
-      startDate: searchParams.get('startDate'),
-      endDate: searchParams.get('endDate'),
-    })
+    // const validatedParams = dateRangeSchema.parse({
+    //   startDate: searchParams.get('startDate'),
+    //   endDate: searchParams.get('endDate'),
+    // })
 
     // Get user's current organization
     const { data: membership } = await supabase
@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
 
     const { data: usage, error } = await supabase.rpc('get_organization_usage', {
       org_id: membership.organization_id,
-      start_date: validatedParams.startDate,
-      end_date: validatedParams.endDate,
+      // start_date: validatedParams.startDate,
+      // end_date: validatedParams.endDate,
     })
 
     if (error) throw error
@@ -48,8 +48,8 @@ export async function GET(request: NextRequest) {
       usage,
       stats,
       period: {
-        start: validatedParams.startDate,
-        end: validatedParams.endDate,
+        // start: validatedParams.startDate,
+        // end: validatedParams.endDate,
       },
     })
   } catch (error: any) {
