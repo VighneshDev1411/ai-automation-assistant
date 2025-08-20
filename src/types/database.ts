@@ -15,7 +15,10 @@ export type Database = {
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['profiles']['Row'], 'created_at' | 'updated_at'>
+        Insert: Omit<
+          Database['public']['Tables']['profiles']['Row'],
+          'created_at' | 'updated_at'
+        >
         Update: Partial<Database['public']['Tables']['profiles']['Insert']>
       }
       organizations: {
@@ -31,10 +34,28 @@ export type Database = {
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['organizations']['Row'], 'id' | 'created_at' | 'updated_at'>
+        Insert: Omit<
+          Database['public']['Tables']['organizations']['Row'],
+          'id' | 'created_at' | 'updated_at'
+        >
         Update: Partial<Database['public']['Tables']['organizations']['Insert']>
       }
-      // Add other tables as needed...
+      workflows: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          organization_id: string
+          created_by: string
+          status: 'draft' | 'active' | 'paused' | 'archived'
+          trigger_config: any
+          actions: any[]
+          tags: string[] | null
+          created_at: string
+          updated_at: string
+          // Add other workflow fields as needed
+        }
+      }
     }
     Views: {}
     Functions: {
@@ -59,7 +80,12 @@ export type Database = {
     Enums: {
       user_role: 'owner' | 'admin' | 'member' | 'viewer'
       workflow_status: 'draft' | 'active' | 'paused' | 'archived'
-      execution_status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+      execution_status:
+        | 'pending'
+        | 'running'
+        | 'completed'
+        | 'failed'
+        | 'cancelled'
       integration_status: 'connected' | 'disconnected' | 'error' | 'pending'
       agent_type: 'conversational' | 'analytical' | 'task' | 'custom'
     }

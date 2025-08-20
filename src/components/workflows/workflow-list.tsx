@@ -48,7 +48,7 @@ export const WorkflowList = ({
 
   const filteredWorkflows = workflows.filter(workflow => {
     const matchesSearch =
-      workflow.name.toLowerCase().included(searchQuery.toLowerCase()) ||
+      workflow.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       workflow.description?.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesStatus =
