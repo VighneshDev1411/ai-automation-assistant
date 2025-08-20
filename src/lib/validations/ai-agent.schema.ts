@@ -14,7 +14,7 @@ const agentTypes = ['conversational', 'analytical', 'task', 'custom'] as const
 const toolSchema = z.object({
   name: z.string(),
   description: z.string(),
-  parameters: z.record(z.any()),
+  parameters: z.record(z.string(), z.any()),
   required: z.boolean().default(false),
 })
 

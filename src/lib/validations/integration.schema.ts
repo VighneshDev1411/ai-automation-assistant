@@ -15,13 +15,13 @@ const providers = [
 
 export const createIntegrationSchema = z.object({
   provider: z.enum(providers),
-  settings: z.record(z.any()).optional(),
-  metadata: z.record(z.any()).optional(),
+  settings: z.record(z.string(), z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 })
 
 export const updateIntegrationSchema = z.object({
-  settings: z.record(z.any()).optional(),
-  metadata: z.record(z.any()).optional(),
+  settings: z.record(z.string(), z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
   status: z.enum(['connected', 'disconnected', 'error', 'pending']).optional(),
 })
 

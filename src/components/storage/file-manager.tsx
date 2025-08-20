@@ -63,7 +63,6 @@ import {
   Archive,
   Copy,
   Move,
-  Rename,
   Info,
   Lock,
   Unlock,

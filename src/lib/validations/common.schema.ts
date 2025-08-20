@@ -10,16 +10,14 @@ export const paginationSchema = z.object({
   order: z.enum(['asc', 'desc']).default('desc').optional(),
 })
 
-// export const searchSchema = z.object({
-//   q: z.string().optional(),
-//   filters: z.record(z.any()).optional(),
-//   page: z.coerce.number().min(1).default(1).optional(),
-//   limit: z.coerce.number().min(1).max(100).default(20).optional(),
-//   orderBy: z.string().optional(),
-//   order: z.enum(['asc', 'desc']).default('desc').optional(),
-// })
-
-// import { z } from 'zod'
+export const dateRangeSchema = z.object({
+  startDate: z.string().refine(val => !isNaN(Date.parse(val)), {
+    message: 'Invalid start date',
+  }),
+  endDate: z.string().refine(val => !isNaN(Date.parse(val)), {
+    message: 'Invalid end date',
+  }),
+})
 
 export const searchSchema = z.object({
   q: z.string().default(''),                       // allow empty
@@ -29,12 +27,14 @@ export const searchSchema = z.object({
   order: z.enum(['asc','desc']).default('desc'),
 })
 
-
 // Fix 6: Update the API route to handle empty query params
 // src/app/api/workflows/route.ts (update the GET handler)
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
