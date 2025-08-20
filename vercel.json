@@ -6,16 +6,16 @@
   "framework": "nextjs",
   "regions": ["iad1"],
   "env": {
-    "NEXT_PUBLIC_SUPABASE_URL": "@supabase_url",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase_anon_key",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key",
-    "NEXT_PUBLIC_APP_URL": "@app_url"
+    "NEXT_PUBLIC_SUPABASE_URL": "https://hpelxxyntnhbtslphsar.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhwZWx4eHludG5oYnRzbHBoc2FyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1NjA5NzMsImV4cCI6MjA2OTEzNjk3M30.FiVab-L6lxGD22OyxK-9fgnDQX6mpKlTZ1wrVIb90Pw",
+    "SUPABASE_SERVICE_ROLE_KEY": "your_service_role_key",
+    "NEXT_PUBLIC_APP_URL": "http://localhost:3000"
   },
   "build": {
     "env": {
-      "NEXT_PUBLIC_SUPABASE_URL": "@supabase_url",
-      "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase_anon_key",
-      "NEXT_PUBLIC_APP_URL": "@app_url",
+      "NEXT_PUBLIC_SUPABASE_URL": "https://hpelxxyntnhbtslphsar.supabase.co",
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhwZWx4eHludG5oYnRzbHBoc2FyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1NjA5NzMsImV4cCI6MjA2OTEzNjk3M30.FiVab-L6lxGD22OyxK-9fgnDQX6mpKlTZ1wrVIb90Pw",
+      "NEXT_PUBLIC_APP_URL": "http://localhost:3000",
       "NODE_ENV": "production"
     }
   },
@@ -50,7 +50,7 @@
   "rewrites": [
     {
       "source": "/storage/:path*",
-      "destination": "https://your-project.supabase.co/storage/v1/:path*"
+      "destination": "https://hpelxxyntnhbtslphsar.supabase.co/storage/v1/:path*"
     }
   ],
   "functions": {
@@ -61,5 +61,4 @@
       "maxDuration": 60
     }
   }
-  
 }
