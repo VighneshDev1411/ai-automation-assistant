@@ -33,7 +33,7 @@ const mockStats = [
   },
   {
     title: 'Success Rate',
-    value: '98.2%',
+    value: '94.2%',
     change: '+2.1%',
     changeType: 'positive' as const,
     icon: TrendingUp,
