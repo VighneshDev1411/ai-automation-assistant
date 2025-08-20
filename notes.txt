@@ -121,3 +121,54 @@ export async function downloadFile(bucket: any, path: string) {
     error: error?.message
   }
 }
+
+
+
+
+export const FILE_CONFIGS = {
+  ALLOWED_IMAGE_TYPES: [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/svg+xml',
+  ],
+  ALLOWED_DOCUMENT_TYPES: [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain',
+    'text/csv',
+    'application/json',
+  ],
+  MAX_FILE_SIZE: 50 * 1024 * 1024, // 50MB
+  MAX_IMAGE_SIZE: 10 * 1024 * 1024, // 10MB
+  IMAGE_QUALITY: 0.9,
+  THUMBNAIL_SIZE: { width: 200, height: 200 },
+  PREVIEW_SIZE: { width: 800, height: 800 },
+}
+
+// File upload options interface
+interface UploadOptions {
+  bucket: keyof typeof STORAGE_BUCKETS
+  folder?: string
+  fileName?: string
+  metadata?: Record<string, any>
+  onProgress?: (progress: number) => void
+}
+
+// File upload responses interface
+interface UploadResponse {
+  success: boolean
+  data?: {
+    id: string
+    path: string
+    url: string
+    size: number
+    type: string
+    metadata?: Record<string, any>
+  }
+  error?: string
+}
