@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { WorkflowService } from '@/lib/supabase/services'
 import { executeWorkflowSchema } from '@/lib/validations/workflow.schema'
-import { error } from 'console'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ Fixed for Next.js 15
 ) {
   try {
+    const { id } = await params // ✅ Await the params promise
     const supabase = await createClient()
     const {
       data: { user },
@@ -20,16 +20,17 @@ export async function POST(
 
     const body = await request.json()
     const validatedData = executeWorkflowSchema.parse({
-      workflow_id: params.id,
+      workflow_id: id,
       trigger_data: body.trigger_data,
     })
 
     const service = new WorkflowService(supabase)
-    const workflow = await service.findById(params.id)
+    const workflow = await service.findById(id)
 
     if (!workflow) {
-      NextResponse.json({ error: 'Workflow not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Workflow not found' }, { status: 404 }) // ✅ Fixed missing return
     }
+    
     const { data: hasAccess } = await supabase.rpc(
       'check_organization_membership',
       {
@@ -58,10 +59,10 @@ export async function POST(
 
     await supabase.rpc('track_api_usage', {
       service_name: 'workflow_execution',
-      endpoint_name: `/workflows/${params.id}/execute`,
+      endpoint_name: `/workflows/${id}/execute`,
       tokens: 0,
       cost_in_cents: 10, // Example cost
-      usage_metadata: { workflow_id: params.id },
+      usage_metadata: { workflow_id: id },
     })
 
     return NextResponse.json({ execution_id: executionId }, { status: 202 })

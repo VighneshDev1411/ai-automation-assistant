@@ -2,49 +2,53 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { WorkflowService } from "@/lib/supabase/services";
 import { updateWorkflowSchema } from "@/lib/validations/workflow.schema";
-import { error } from "console";
 
-export async function GET(request: NextRequest, {params}: {params: {id: string}}) {
-    try {
-        const supabase = await createClient()
-        const {data: {user}} = await supabase.auth.getUser()
+export async function GET(
+  request: NextRequest, 
+  { params }: { params: Promise<{ id: string }> } // ✅ Fixed for Next.js 15
+) {
+  try {
+    const { id } = await params // ✅ Await the params promise
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-        if(!user) {
-            return NextResponse.json({error: "Unauthorized"}, {status: 401})
-        }
-
-        const service = new WorkflowService(supabase)
-        const workflow = await service.findById(params.id)
-
-        if(!workflow) {
-            return NextResponse.json({error: 'Workflow not found'}, {status: 404})
-        }
-
-        const {data: hasAccess} = await supabase.rpc('check_organization_membership', {
-            org_id: workflow.organization_id,
-            user_id: user.id
-        })
-
-        if(!hasAccess) {
-            return NextResponse.json({error: 'Access denied'}, {status: 403})
-        }
-
-        return NextResponse.json(workflow)
-
-    } catch(error: any) {
-        console.error("Error fetching workflow: ", error)
-        return NextResponse.json(
-            {error: error.message || "Internal server error"},
-            {status: 500}
-        )
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    const service = new WorkflowService(supabase)
+    const workflow = await service.findById(id)
+
+    if (!workflow) {
+      return NextResponse.json({ error: 'Workflow not found' }, { status: 404 })
+    }
+
+    const { data: hasAccess } = await supabase.rpc('check_organization_membership', {
+      org_id: workflow.organization_id,
+      user_id: user.id
+    })
+
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    }
+
+    return NextResponse.json(workflow)
+
+  } catch (error: any) {
+    console.error("Error fetching workflow: ", error)
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 }
+    )
+  }
 }
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ Fixed for Next.js 15
 ) {
   try {
+    const { id } = await params // ✅ Await the params promise
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
@@ -56,7 +60,7 @@ export async function PATCH(
     const validatedData = updateWorkflowSchema.parse(body)
 
     const service = new WorkflowService(supabase)
-    const workflow = await service.findById(params.id)
+    const workflow = await service.findById(id)
 
     if (!workflow) {
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404 })
@@ -74,7 +78,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
-    const updatedWorkflow = await service.update(params.id, validatedData)
+    const updatedWorkflow = await service.update(id, validatedData)
 
     return NextResponse.json(updatedWorkflow)
   } catch (error: any) {
@@ -96,9 +100,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ Fixed for Next.js 15
 ) {
   try {
+    const { id } = await params // ✅ Await the params promise
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
@@ -107,7 +112,7 @@ export async function DELETE(
     }
 
     const service = new WorkflowService(supabase)
-    const workflow = await service.findById(params.id)
+    const workflow = await service.findById(id)
 
     if (!workflow) {
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404 })
@@ -133,7 +138,7 @@ export async function DELETE(
       )
     }
 
-    await service.delete(params.id)
+    await service.delete(id)
 
     return NextResponse.json({ success: true }, { status: 204 })
   } catch (error: any) {
