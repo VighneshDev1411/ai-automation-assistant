@@ -169,7 +169,8 @@ const testOrganizationService = async () => {
           method: 'POST'
         }
       }],
-      status: 'draft'
+      status: 'draft',
+      tags: []
     })
 
     if (!newWorkflow) {

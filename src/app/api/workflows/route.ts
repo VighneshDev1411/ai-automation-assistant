@@ -7,10 +7,13 @@ import { createWorkflowSchema } from '@/lib/validations/workflow.schema'
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
-    
+
     // Get the user session
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
     if (authError || !user) {
       console.error('Auth error:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -25,11 +28,17 @@ export async function GET(request: NextRequest) {
 
     if (membershipError) {
       console.error('Membership error:', membershipError)
-      return NextResponse.json({ error: 'Failed to fetch organizations' }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Failed to fetch organizations' },
+        { status: 500 }
+      )
     }
 
     if (!memberships || memberships.length === 0) {
-      return NextResponse.json({ error: 'No organization found' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'No organization found' },
+        { status: 404 }
+      )
     }
 
     // Use the first organization (or could use a query param to specify)
@@ -72,8 +81,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -89,35 +101,42 @@ export async function POST(request: NextRequest) {
       .not('joined_at', 'is', null)
 
     if (membershipError || !memberships || memberships.length === 0) {
-      return NextResponse.json({ error: 'No organization found' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'No organization found' },
+        { status: 404 }
+      )
     }
 
     const membership = memberships[0]
 
     // Check if user has permission to create workflows
     if (membership.role === 'viewer') {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      )
     }
 
     const service = new WorkflowService(supabase)
     const workflow = await service.create({
       ...validatedData,
+      description: validatedData.description ?? null, // Convert undefined to null
       organization_id: membership.organization_id,
       created_by: user.id,
       status: (validatedData as any).status || 'draft',
+      tags: validatedData.tags ?? null, // Ensure tags is null if undefined
     })
-
     return NextResponse.json(workflow, { status: 201 })
   } catch (error: any) {
     console.error('Error creating workflow:', error)
-    
+
     if (error.name === 'ZodError') {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.errors }, // ❌ Should be error.issues
         { status: 400 }
       )
     }
-    
+
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
