@@ -151,10 +151,10 @@ export default function ComponentsPage() {
                 <Badge variant="success">Success</Badge>
                 <Badge variant="warning">Warning</Badge>
                 <Badge variant="destructive">Error</Badge>
-                <Badge variant="info">Info</Badge>
+                <Badge variant="secondary">Info</Badge>
                 <Badge variant="outline">Outline</Badge>
-                <Badge size="sm">Small</Badge>
-                <Badge size="lg">Large</Badge>
+                <Badge>Small</Badge>
+                <Badge>Large</Badge>
               </div>
             </div>
 

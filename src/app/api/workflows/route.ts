@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       ...validatedData,
       organization_id: membership.organization_id,
       created_by: user.id,
-      status: validatedData.status || 'draft',
+      status: (validatedData as any).status || 'draft',
     })
 
     return NextResponse.json(workflow, { status: 201 })

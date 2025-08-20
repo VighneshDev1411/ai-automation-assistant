@@ -6,11 +6,17 @@ import { Card } from '@/components/ui/card'
 interface ResponsiveCardProps extends React.ComponentProps<typeof Card> {
   fullWidthOnMobile?: boolean
   hover?: boolean
+  interactive?: boolean
+  glassEffect?: boolean
+  title?: string
 }
 
 export function ResponsiveCard({
   fullWidthOnMobile = true,
   hover = true,
+  interactive = false,
+  glassEffect = false,
+  title,
   className,
   ...props
 }: ResponsiveCardProps) {
@@ -19,10 +25,17 @@ export function ResponsiveCard({
       className={cn(
         fullWidthOnMobile && 'w-full sm:w-auto',
         hover && 'transition-all hover:shadow-lg hover:-translate-y-1',
+        interactive && 'cursor-pointer',
+        glassEffect && 'glass-card',
         className
       )}
       {...props}
-    />
+    >
+      {title && (
+        <div className="font-semibold text-lg mb-2">{title}</div>
+      )}
+      {props.children}
+    </Card>
   )
 }
 

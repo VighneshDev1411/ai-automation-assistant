@@ -274,10 +274,7 @@ export default function LayoutTestPage() {
               Mobile-Optimized Components
             </h2>
 
-            <ResponsiveCardGrid
-              cols={{ mobile: 1, tablet: 2, desktop: 4 }}
-              gap={4}
-            >
+            <ResponsiveCardGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {Array.from({ length: 8 }, (_, i) => (
                 <ResponsiveCard
                   key={i}

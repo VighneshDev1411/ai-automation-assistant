@@ -7,6 +7,21 @@ import { Badge } from '@/components/ui/badge'
 import { Search } from 'lucide-react'
 import { useState } from 'react'
 
+import { ReactNode } from 'react'
+
+interface IntegrationCardProps {
+  provider: string
+  name: string
+  description: string
+  icon: ReactNode
+  status?: IntegrationStatus
+  lastSynced?: string | null
+  onConnect?: () => void
+  onDisconnect?: () => void
+  onSync?: () => void
+  onSettings?: () => void
+}
+
 // Integration definitions with icons
 const INTEGRATIONS = [
   {
@@ -122,6 +137,8 @@ const CATEGORIES = [
   { value: 'marketing', label: 'Marketing' },
 ]
 
+type IntegrationStatus = 'connected' | 'disconnected' | 'syncing' | 'error';
+
 interface IntegrationListProps {
   connectedIntegrations?: Array<{
     provider: string
@@ -204,7 +221,11 @@ export function IntegrationList({
               name={integration.name}
               description={integration.description}
               icon={integration.icon}
-              status={status.status}
+              status={
+                status.status === 'syncing'
+                  ? 'pending'
+                  : status.status
+              }
               lastSynced={status.lastSynced}
               onConnect={() => onConnect?.(integration.provider)}
               onDisconnect={() => onDisconnect?.(integration.provider)}

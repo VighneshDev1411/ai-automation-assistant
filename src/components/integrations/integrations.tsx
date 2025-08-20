@@ -29,7 +29,7 @@ interface IntegrationCardProps {
   provider: string
   name: string
   description: string
-  icon: string
+  icon: React.ReactNode
   status?: IntegrationStatus
   lastSynced?: string | null
   onConnect?: () => void

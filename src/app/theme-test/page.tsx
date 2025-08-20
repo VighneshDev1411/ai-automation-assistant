@@ -133,7 +133,7 @@ export default function ThemeTestPage() {
                     </span>
                   </div>
                   <div className="flex flex-col items-center gap-2">
-                    <ThemeToggle variant="button" />
+                    <ThemeToggle variant="default" />
                     <span className="text-sm text-muted-foreground">
                       Button Group
                     </span>

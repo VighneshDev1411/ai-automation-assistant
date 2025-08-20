@@ -22,7 +22,7 @@ export default function SimpleAuthCheckPage() {
 
   const checkAuth = async () => {
     try {
-      setStatus(prev => ({ ...prev, loading: true }))
+      setStatus((prev:any) => ({ ...prev, loading: true }))
       
       // Check if we can create a client
       const supabase = createClient()
