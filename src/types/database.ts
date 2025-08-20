@@ -64,6 +64,7 @@ export type Database = {
         Row: {
           id: string
           organization_id: string
+          user_id: string
           provider: string
           status: 'connected' | 'disconnected' | 'error' | 'pending'
           credentials: any
