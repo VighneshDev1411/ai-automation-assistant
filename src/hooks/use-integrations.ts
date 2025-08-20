@@ -14,7 +14,7 @@ export function useIntegrations() {
     queryKey: ['integrations', currentOrganization?.id],
     queryFn: async () => {
       if (!currentOrganization) return []
-      
+
       const { data, error } = await supabase
         .from('integrations')
         .select('*')
@@ -37,7 +37,10 @@ export function useIntegration(provider: string) {
     queryKey: ['integration', currentOrganization?.id, provider],
     queryFn: () => {
       if (!currentOrganization) return null
-      return service.findByOrganizationAndProvider(currentOrganization.id, provider)
+      return service.findByOrganizationAndProvider(
+        currentOrganization.id,
+        provider
+      )
     },
     enabled: !!currentOrganization && !!provider,
   })
@@ -78,9 +81,8 @@ export function useConnectIntegration() {
           organization_id: currentOrganization.id,
           user_id: user.id,
           provider: data.provider,
-          credentials: data.credentials,
-          settings: data.settings,
           status: 'connected',
+          credentials: data.credentials,
         })
       }
     },

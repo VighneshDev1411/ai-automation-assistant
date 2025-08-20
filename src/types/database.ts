@@ -68,15 +68,22 @@ export type Database = {
           provider: string
           status: 'connected' | 'disconnected' | 'error' | 'pending'
           credentials: any
+          settings: any
           error_message: string | null
           last_synced_at: string | null
           created_at: string
           updated_at: string
         }
-        Insert: Omit<
-          Database['public']['Tables']['integrations']['Row'],
-          'id' | 'created_at' | 'updated_at'
-        >
+        Insert: {
+          organization_id: string
+          user_id: string
+          provider: string
+          status: 'connected' | 'disconnected' | 'error' | 'pending'
+          credentials: any
+          settings?: any
+          error_message?: string | null
+          last_synced_at?: string | null
+        }
         Update: Partial<Database['public']['Tables']['integrations']['Insert']>
       }
       execution_logs: {
