@@ -155,15 +155,26 @@ export const FileManager = ({
   }
 
   const handleDelete = async (fileId: string) => {
-    const file = files.find(f => f.id === fileId)
-    if (!file) return
+  const file = files.find(f => f.id === fileId)
+  if (!file) return
 
-    const result = await deleteFile(bucket, file.path)
-    if (result.success) {
-      setFiles(prev => prev.filter(f => f.id !== fileId))
-      setSelectedFiles(prev => prev.filter(id => id !== fileId))
-    }
+  console.log('Deleting file:', file.path)
+  
+  // Use the correct path - just the filename, not the full URL
+  const filePath = file.path || file.name
+  
+  const result = await deleteFile(bucket, filePath)
+  
+  if (result.success) {
+    // Remove from local state
+    setFiles(prev => prev.filter(f => f.id !== fileId))
+    setSelectedFiles(prev => prev.filter(id => id !== fileId))
+    console.log('File deleted and removed from UI')
+  } else {
+    console.error('Failed to delete:', result.error)
+    alert(`Failed to delete: ${result.error}`)
   }
+}
 
   const handleDownload = async (fileId: string) => {
     const file = files.find(f => f.id === fileId)

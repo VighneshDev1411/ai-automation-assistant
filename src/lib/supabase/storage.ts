@@ -1,19 +1,10 @@
-// src/lib/supabase/storage.ts
-import { createClient } from '@supabase/supabase-js'
+// src/lib/supabase/storage.ts - UPDATED VERSION
+import { createClient } from '@/lib/supabase/client'
 
+// Use the authenticated client
+const getSupabase = () => createClient()
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-// Create client without auth persistence
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  }
-})
-
-// Use only public bucket
+// Storage buckets
 export const STORAGE_BUCKETS = {
   DOCUMENTS: 'public-uploads',
   IMAGES: 'public-uploads',
@@ -25,6 +16,7 @@ export const STORAGE_BUCKETS = {
 export const FILE_CONFIGS = {
   ALLOWED_IMAGE_TYPES: [
     'image/jpeg',
+    'image/jpg',
     'image/png',
     'image/gif',
     'image/webp',
@@ -70,30 +62,49 @@ interface UploadResponse {
   error?: string
 }
 
-// Simplified upload function
-// src/lib/supabase/storage.ts
+// Main upload function
 export async function uploadFile(
   file: File,
   options: UploadOptions
 ): Promise<UploadResponse> {
   console.log('📤 Starting upload:', {
     fileName: file.name,
-    fileSize: FILE_CONFIGS.MAX_FILE_SIZE,
-    fileType: FILE_CONFIGS.ALLOWED_DOCUMENT_TYPES,
+    fileSize: file.size,
+    fileType: file.type,
     bucket: STORAGE_BUCKETS[options.bucket]
   })
 
   try {
+    const supabase = getSupabase()
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      throw new Error('User not authenticated')
+    }
+
     // Use the public bucket
     const bucketName = 'public-uploads'
     console.log('🪣 Using bucket:', bucketName)
 
-    // Generate file path
-    const fileExt = file.name.split('.').pop()
-    const fileName = options.fileName || `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-    const filePath = options.folder ? `${options.folder}/${fileName}` : fileName
+    // Validate file
+    validateFile(file)
+
+    // Generate file path with user/org isolation
+    const fileExt = file.name.split('.').pop()?.toLowerCase()
+    const timestamp = Date.now()
+    const randomId = Math.random().toString(36).substring(2, 15)
+    const fileName = options.fileName || `${timestamp}_${randomId}.${fileExt}`
+    
+    // Create path with user isolation
+    const filePath = options.folder 
+      ? `${user.id}/${options.folder}/${fileName}` 
+      : `${user.id}/${fileName}`
     
     console.log('📁 File path:', filePath)
+
+    // Simulate progress
+    options.onProgress?.(10)
 
     // Upload to Supabase Storage
     console.log('⬆️ Uploading to Supabase...')
@@ -101,15 +112,22 @@ export async function uploadFile(
       .from(bucketName)
       .upload(filePath, file, {
         cacheControl: '3600',
-        upsert: true, // Changed to true to overwrite if exists
+        upsert: false, // Don't overwrite existing files
+        metadata: {
+          ...options.metadata,
+          uploadedBy: user.id,
+          originalName: file.name,
+          uploadedAt: new Date().toISOString()
+        }
       })
 
     if (error) {
       console.error('❌ Supabase upload error:', error)
-      throw error
+      throw new Error(`Upload failed: ${error.message}`)
     }
 
     console.log('✅ Upload successful:', data)
+    options.onProgress?.(90)
 
     // Get public URL
     const { data: { publicUrl } } = supabase.storage
@@ -117,6 +135,7 @@ export async function uploadFile(
       .getPublicUrl(filePath)
 
     console.log('🔗 Public URL:', publicUrl)
+    options.onProgress?.(100)
 
     return {
       success: true,
@@ -137,35 +156,133 @@ export async function uploadFile(
     }
   }
 }
-// Other functions remain the same but use 'public-uploads' bucket
-export async function deleteFile(bucket: any, path: string) {
-  const { error } = await supabase.storage
-    .from('public-uploads')
-    .remove([path])
-  
-  return { success: !error, error: error?.message }
-}
 
-export async function listFiles(bucket: any, folder?: string) {
-  const { data, error } = await supabase.storage
-    .from('public-uploads')
-    .list(folder)
-  
-  return {
-    success: !error,
-    data: data || [],
-    error: error?.message
+// Validate file before upload
+function validateFile(file: File): void {
+  // Check file size
+  if (file.size > FILE_CONFIGS.MAX_FILE_SIZE) {
+    throw new Error(`File size exceeds maximum allowed size of ${FILE_CONFIGS.MAX_FILE_SIZE / 1024 / 1024}MB`)
+  }
+
+  // Check file type
+  const isImageType = FILE_CONFIGS.ALLOWED_IMAGE_TYPES.includes(file.type)
+  const isDocumentType = FILE_CONFIGS.ALLOWED_DOCUMENT_TYPES.includes(file.type)
+
+  if (!isImageType && !isDocumentType) {
+    throw new Error(`File type ${file.type} is not allowed`)
+  }
+
+  // Additional check for images
+  if (isImageType && file.size > FILE_CONFIGS.MAX_IMAGE_SIZE) {
+    throw new Error(`Image size exceeds maximum allowed size of ${FILE_CONFIGS.MAX_IMAGE_SIZE / 1024 / 1024}MB`)
+  }
+
+  // Check file name
+  if (file.name.length > 255) {
+    throw new Error('File name is too long')
+  }
+
+  // Check for suspicious file extensions
+  const suspiciousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.pif', '.vbs', '.js']
+  const fileExt = '.' + file.name.split('.').pop()?.toLowerCase()
+  if (suspiciousExtensions.includes(fileExt)) {
+    throw new Error('File type not allowed for security reasons')
   }
 }
 
-export async function downloadFile(bucket: any, path: string) {
-  const { data, error } = await supabase.storage
-    .from('public-uploads')
-    .download(path)
-  
-  return {
-    success: !error,
-    data,
-    error: error?.message
+// Delete file function
+export async function deleteFile(bucket: keyof typeof STORAGE_BUCKETS, path: string) {
+  try {
+    const supabase = getSupabase()
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      throw new Error('User not authenticated')
+    }
+
+    const bucketName = 'public-uploads'
+    
+    const { error } = await supabase.storage
+      .from(bucketName)
+      .remove([path])
+    
+    if (error) {
+      throw new Error(`Delete failed: ${error.message}`)
+    }
+
+    return { success: true }
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Delete failed'
+    }
+  }
+}
+
+// List files function
+export async function listFiles(bucket: keyof typeof STORAGE_BUCKETS, folder?: string) {
+  try {
+    const supabase = getSupabase()
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      throw new Error('User not authenticated')
+    }
+
+    const bucketName = 'public-uploads'
+    const path = folder ? `${user.id}/${folder}` : user.id
+    
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .list(path, {
+        limit: 100,
+        offset: 0,
+        sortBy: { column: 'created_at', order: 'desc' }
+      })
+    
+    if (error) {
+      throw new Error(`List failed: ${error.message}`)
+    }
+
+    return {
+      success: true,
+      data: data || [],
+    }
+  } catch (error) {
+    return {
+      success: false,
+      data: [],
+      error: error instanceof Error ? error.message : 'List failed'
+    }
+  }
+}
+
+// Download file function
+export async function downloadFile(bucket: keyof typeof STORAGE_BUCKETS, path: string) {
+  try {
+    const supabase = getSupabase()
+    
+    const bucketName = 'public-uploads'
+    
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .download(path)
+    
+    if (error) {
+      throw new Error(`Download failed: ${error.message}`)
+    }
+
+    return {
+      success: true,
+      data,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      data: null,
+      error: error instanceof Error ? error.message : 'Download failed'
+    }
   }
 }

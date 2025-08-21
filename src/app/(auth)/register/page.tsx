@@ -1,4 +1,4 @@
-// src/app/(auth)/register/page.tsx
+// src/app/(auth)/register/page.tsx - Updated with confirmation handling
 'use client'
 
 import { useState } from 'react'
@@ -29,9 +29,8 @@ import {
 } from '@/components/ui/form'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
-import { Logo } from '@/components/common/logo'
 import { ThemeToggle } from '@/components/common/theme-toggle'
-import { Sparkles, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
+import { Sparkles, Loader2, AlertCircle, CheckCircle, Mail, ArrowLeft } from 'lucide-react'
 import { FaGoogle, FaGithub, FaMicrosoft } from 'react-icons/fa'
 
 const registerSchema = z.object({
@@ -56,7 +55,8 @@ export default function RegisterPage() {
   const { signUp, signInWithProvider } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  const [emailConfirmationSent, setEmailConfirmationSent] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState('')
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
@@ -74,12 +74,17 @@ export default function RegisterPage() {
       setIsLoading(true)
       setError(null)
       
-      await signUp(values.email, values.password, {
+      const result = await signUp(values.email, values.password, {
         full_name: values.fullName,
       })
       
-      setSuccess(true)
-      // Show success message - user needs to verify email
+      if (result.needsConfirmation) {
+        setEmailConfirmationSent(true)
+        setRegisteredEmail(values.email)
+      } else {
+        // User was signed in immediately (shouldn't happen with current config)
+        router.push('/onboarding')
+      }
     } catch (error: any) {
       setError(error.message || 'Failed to create account')
     } finally {
@@ -87,7 +92,7 @@ export default function RegisterPage() {
     }
   }
 
-  async function handleProviderSignIn(provider: 'google' | 'github' | 'azure') {
+  async function handleProviderSignUp(provider: 'google' | 'github' | 'azure') {
     try {
       setIsLoading(true)
       setError(null)
@@ -98,59 +103,109 @@ export default function RegisterPage() {
     }
   }
 
-  if (success) {
+  // Show email confirmation screen
+  if (emailConfirmationSent) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
-        <Card className="glass-card max-w-md w-full">
-          <CardHeader className="text-center">
-            <div className="mx-auto w-12 h-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center mb-4">
-              <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
-            </div>
-            <CardTitle>Check your email</CardTitle>
-            <CardDescription>
-              We've sent you a verification link to <strong>{form.getValues('email')}</strong>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-center text-muted-foreground">
-              Click the link in the email to verify your account and get started.
-              You can close this page.
-            </p>
-          </CardContent>
-          <CardFooter className="flex justify-center">
-            <Button variant="outline" onClick={() => router.push('/login')}>
-              Back to login
-            </Button>
-          </CardFooter>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted px-4">
+        <div className="w-full max-w-md">
+          <Card className="shadow-xl border-0 bg-card">
+            <CardHeader className="text-center space-y-4">
+              <div className="mx-auto w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                <Mail className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <CardTitle className="text-2xl text-card-foreground">
+                  Check your email
+                </CardTitle>
+                <CardDescription className="text-muted-foreground mt-2">
+                  We've sent a confirmation link to your email address
+                </CardDescription>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  A confirmation email has been sent to <strong>{registeredEmail}</strong>. 
+                  Please click the link in the email to activate your account.
+                </AlertDescription>
+              </Alert>
+
+              <div className="text-sm text-muted-foreground space-y-2">
+                <p>After confirming your email, you'll be able to:</p>
+                <ul className="list-disc list-inside space-y-1 ml-4">
+                  <li>Access your dashboard</li>
+                  <li>Create and manage workflows</li>
+                  <li>Set up integrations</li>
+                  <li>Collaborate with your team</li>
+                </ul>
+              </div>
+
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Didn't receive the email?</strong> Check your spam folder or 
+                  contact support if you need help.
+                </p>
+              </div>
+            </CardContent>
+
+            <CardFooter className="flex flex-col space-y-4">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setEmailConfirmationSent(false)
+                  setRegisteredEmail('')
+                  form.reset()
+                }}
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Registration
+              </Button>
+              
+              <div className="text-center">
+                <Link 
+                  href="/login" 
+                  className="text-sm text-primary hover:underline"
+                >
+                  Already have an account? Sign in
+                </Link>
+              </div>
+            </CardFooter>
+          </Card>
+        </div>
       </div>
     )
   }
 
+  // Regular registration form
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
-      <div className="absolute top-4 right-4">
-        <ThemeToggle />
-      </div>
-
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <div className="flex justify-center mb-4">
-            <Logo size="lg" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted px-4">
+      <div className="w-full max-w-md">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Create Account</h1>
+            <p className="text-muted-foreground">Join thousands of teams automating their workflows</p>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Create your account</h1>
-          <p className="text-muted-foreground mt-2">
-            Start automating your workflows with AI
-          </p>
+          <ThemeToggle variant="icon" />
         </div>
 
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>Sign up</CardTitle>
-            <CardDescription>
-              Choose your preferred sign up method
+        {/* Registration Card */}
+        <Card className="shadow-xl border-0 bg-card">
+          <CardHeader className="text-center space-y-2">
+            <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+              <Sparkles className="h-6 w-6 text-primary" />
+            </div>
+            <CardTitle className="text-2xl text-card-foreground">
+              Get Started Free
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Create your account in seconds
             </CardDescription>
           </CardHeader>
+
           <CardContent className="space-y-4">
             {error && (
               <Alert variant="destructive">
@@ -159,10 +214,11 @@ export default function RegisterPage() {
               </Alert>
             )}
 
+            {/* OAuth Providers */}
             <div className="grid grid-cols-3 gap-2">
               <Button
                 variant="outline"
-                onClick={() => handleProviderSignIn('google')}
+                onClick={() => handleProviderSignUp('google')}
                 disabled={isLoading}
                 className="hover-lift"
               >
@@ -171,7 +227,7 @@ export default function RegisterPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => handleProviderSignIn('github')}
+                onClick={() => handleProviderSignUp('github')}
                 disabled={isLoading}
                 className="hover-lift"
               >
@@ -180,7 +236,7 @@ export default function RegisterPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => handleProviderSignIn('azure')}
+                onClick={() => handleProviderSignUp('azure')}
                 disabled={isLoading}
                 className="hover-lift"
               >
@@ -200,6 +256,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* Registration Form */}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -210,7 +267,7 @@ export default function RegisterPage() {
                       <FormLabel>Full Name</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="John Doe"
+                          placeholder="Enter your full name"
                           autoComplete="name"
                           {...field}
                         />
@@ -285,19 +342,13 @@ export default function RegisterPage() {
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
-                        <FormLabel className="text-sm font-normal">
+                        <FormLabel className="text-sm">
                           I agree to the{' '}
-                          <Link
-                            href="/terms"
-                            className="text-primary hover:underline"
-                          >
+                          <Link href="/terms" className="text-primary hover:underline">
                             Terms of Service
                           </Link>{' '}
                           and{' '}
-                          <Link
-                            href="/privacy"
-                            className="text-primary hover:underline"
-                          >
+                          <Link href="/privacy" className="text-primary hover:underline">
                             Privacy Policy
                           </Link>
                         </FormLabel>
@@ -314,25 +365,23 @@ export default function RegisterPage() {
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating account...
+                      Creating Account...
                     </>
                   ) : (
-                    <>
-                      Create account
-                      <Sparkles className="ml-2 h-4 w-4" />
-                    </>
+                    'Create Account'
                   )}
                 </Button>
               </form>
             </Form>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <div className="text-sm text-center text-muted-foreground">
+
+          <CardFooter className="text-center">
+            <p className="text-sm text-muted-foreground">
               Already have an account?{' '}
-              <Link href="/login" className="text-primary hover:underline">
+              <Link href="/login" className="text-primary font-medium hover:underline">
                 Sign in
               </Link>
-            </div>
+            </p>
           </CardFooter>
         </Card>
       </div>

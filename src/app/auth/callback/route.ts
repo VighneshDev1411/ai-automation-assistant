@@ -1,36 +1,45 @@
 // src/app/auth/callback/route.ts
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const origin = requestUrl.origin
-  const next = requestUrl.searchParams.get('next') || '/dashboard'
 
   if (code) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
     
-    if (!error) {
-      // Check if user needs onboarding
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('onboarded')
-          .eq('id', user.id)
-          .single()
-        
-        if (profile && !profile.onboarded) {
-          return NextResponse.redirect(`${origin}/onboarding`)
-        }
-      }
+    // Exchange the code for a session
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    
+    if (error) {
+      console.error('Auth callback error:', error)
+      // Redirect to login with error
+      return NextResponse.redirect(`${origin}/login?error=auth_callback_error`)
+    }
+
+    if (data.user) {
+      console.log('✅ User authenticated via callback:', data.user.email)
       
-      return NextResponse.redirect(`${origin}${next}`)
+      // Check if user has a profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('onboarded')
+        .eq('id', data.user.id)
+        .single()
+
+      // Redirect based on onboarding status
+      if (profile?.onboarded) {
+        return NextResponse.redirect(`${origin}/dashboard`)
+      } else {
+        return NextResponse.redirect(`${origin}/onboarding`)
+      }
     }
   }
 
-  // Return the user to login page with error
-  return NextResponse.redirect(`${origin}/login?error=auth_callback_error`)
+  // Fallback redirect
+  return NextResponse.redirect(`${origin}/login`)
 }
+
+// src/app/auth/callback/page.tsx - Loading page
