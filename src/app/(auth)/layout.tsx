@@ -16,9 +16,9 @@ export default function AuthLayout({
             {/* Logo */}
             <div className="mb-8">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-2xl backdrop-blur mb-4">
-                <span className="text-2xl font-bold">AI</span>
+                <span className="text-2xl font-bold">CF</span>
               </div>
-              <h1 className="text-3xl font-bold">Automation Platform</h1>
+              <h1 className="text-3xl font-bold">CogniFlow</h1>
               <p className="text-blue-100">Enterprise Grade Workflows</p>
             </div>
 
