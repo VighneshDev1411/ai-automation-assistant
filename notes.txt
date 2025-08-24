@@ -152,7 +152,7 @@ export const FILE_CONFIGS = {
 
 // File upload options interface
 interface UploadOptions {
-  bucket: keyof typeof STORAGE_BUCKETS
+  bucket: keyoxf typeof STORAGE_BUCKETS
   folder?: string
   fileName?: string
   metadata?: Record<string, any>
@@ -172,3 +172,51 @@ interface UploadResponse {
   }
   error?: string
 }
+
+
+
+
+
+# WHAT IS UPSERT ? 
+
+
+
+An upsert is a database operation that combines "update" and "insert" into a single command. It will update a record if it already exists, and insert a new record if it does not exist.
+
+
+How It Works
+The term "upsert" is a portmanteau of update and insert. The operation's logic follows a simple conditional flow:
+
+Check for Existence: The database first checks if a record with a specific unique identifier (like a primary key or a unique index) already exists in the table.
+
+Execute Action:
+
+If the record exists: The database performs an UPDATE, modifying the existing record with the new data provided.
+
+If the record does not exist: The database performs an INSERT, creating a new record with the provided data.
+
+This process ensures that a record is present in the table with the latest information, without you having to manually check for its existence first.
+
+Why Use Upsert?
+Upserting is valuable for several reasons:
+
+Simplicity & Efficiency: It combines two potential operations (checking for existence, then inserting or updating) into a single atomic command. This reduces the amount of code you need to write and minimizes round-trip communication between your application and the database.
+
+Concurrency Safe: It helps prevent race conditions. Without upsert, two separate processes might simultaneously check for a record, both find it doesn't exist, and then both try to insert it, causing an error. An upsert operation handles this conflict gracefully.
+
+Data Synchronization: It's perfect for tasks like synchronizing data from one system to another, where you just want the target system to match the source, regardless of whether the records are new or just updated.
+
+Simple Example
+Imagine you have a Users table with columns for UserID, Name, and Email. UserID is the unique key.
+
+You want to add or update a user with UserID = 123.
+
+Scenario 1: User 123 does not exist.
+An UPSERT command for UserID = 123, Name = 'Alice', Email = 'alice@example.com' will insert a new row.
+
+UserID	Name	Email
+123	Alice	alice@example.com
+
+Export to Sheets
+Scenario 2: User 123 already exists.
+The user exists with Name = 'Alice' and Email = 'old@example.com'. An UPSERT command for UserID = 123, Name = 'Alice', Email = 'new@example.com' will update the existing row.
