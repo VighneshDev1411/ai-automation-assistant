@@ -13,41 +13,23 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+  Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from '@/components/ui/card'
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  FormDescription,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { ThemeToggle } from '@/components/common/theme-toggle'
 import {
-  User,
+  User as UserIcon,
   Building,
   Target,
   CheckCircle,
   ArrowRight,
   ArrowLeft,
-  Camera,
-  Sparkles,
   Loader2,
   AlertCircle,
 } from 'lucide-react'
@@ -57,7 +39,6 @@ const personalInfoSchema = z.object({
   jobTitle: z.string().min(2, 'Job title is required'),
   phone: z.string().optional(),
   timezone: z.string().min(1, 'Please select your timezone'),
-  avatar: z.string().optional(),
 })
 
 const organizationSchema = z.object({
@@ -78,7 +59,7 @@ type OrganizationInfo = z.infer<typeof organizationSchema>
 type Goals = z.infer<typeof goalsSchema>
 
 const steps = [
-  { id: 1, name: 'Personal Info', icon: User },
+  { id: 1, name: 'Personal Info', icon: UserIcon },
   { id: 2, name: 'Organization', icon: Building },
   { id: 3, name: 'Goals', icon: Target },
 ]
@@ -118,14 +99,38 @@ const useCases = [
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const { user, profile, refreshProfile } = useAuth()
+  const { user, profile, refreshProfile, loading } = useAuth()
   const [currentStep, setCurrentStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [avatarFile, setAvatarFile] = useState<File | null>(null)
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
-  
   const supabase = createClient()
+
+  // ✅ Redirect if already onboarded — only after auth is settled
+  useEffect(() => {
+    if (!loading && profile?.onboarded) {
+      router.replace('/dashboard')
+    }
+  }, [profile, loading, router])
+
+  // ✅ Redirect to login only when auth is settled and user is definitely missing
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/login')
+    }
+  }, [user, loading, router])
+
+  // If profile loads later, update form defaults once
+  useEffect(() => {
+    if (profile && user) {
+      personalForm.reset({
+        fullName: profile.full_name || user.user_metadata?.full_name || '',
+        jobTitle: profile.job_title || '',
+        phone: profile.phone || '',
+        timezone: profile.timezone || 'UTC',
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id])
 
   const personalForm = useForm<PersonalInfo>({
     resolver: zodResolver(personalInfoSchema),
@@ -134,7 +139,6 @@ export default function OnboardingPage() {
       jobTitle: profile?.job_title || '',
       phone: profile?.phone || '',
       timezone: profile?.timezone || 'UTC',
-      avatar: profile?.avatar_url || user?.user_metadata?.avatar_url || '',
     },
   })
 
@@ -155,13 +159,7 @@ export default function OnboardingPage() {
     },
   })
 
-  useEffect(() => {
-    if (!user) {
-      router.push('/login')
-    }
-  }, [user, router])
-
-  // Auto-generate slug from organization name
+  // Auto-generate slug from org name
   useEffect(() => {
     const subscription = organizationForm.watch((value, { name }) => {
       if (name === 'organizationName' && value.organizationName) {
@@ -177,56 +175,12 @@ export default function OnboardingPage() {
     return () => subscription.unsubscribe()
   }, [organizationForm])
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setAvatarFile(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const uploadAvatar = async (): Promise<string | null> => {
-    if (!avatarFile || !user) return null
-
-    const fileExt = avatarFile.name.split('.').pop()
-    const fileName = `${user.id}.${fileExt}`
-    const filePath = `${user.id}/${fileName}`
-
-    const { error: uploadError, data } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, avatarFile, { upsert: true })
-
-    if (uploadError) {
-      console.error('Error uploading avatar:', uploadError)
-      return null
-    }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(filePath)
-
-    return publicUrl
-  }
-
   const handlePersonalInfo = async (data: PersonalInfo) => {
     try {
       setIsLoading(true)
       setError(null)
+      if (!user) throw new Error('User not found')
 
-      // Upload avatar if changed
-      let avatarUrl = data.avatar
-      if (avatarFile) {
-        const uploadedUrl = await uploadAvatar()
-        if (uploadedUrl) {
-          avatarUrl = uploadedUrl
-        }
-      }
-
-      // Update profile
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
@@ -234,12 +188,12 @@ export default function OnboardingPage() {
           job_title: data.jobTitle,
           phone: data.phone,
           timezone: data.timezone,
-          avatar_url: avatarUrl,
         })
-        .eq('id', user!.id)
+        .eq('id', user.id)
 
-      if (updateError) throw updateError
+      if (updateError) throw new Error(`Failed to update profile: ${updateError.message}`)
 
+      await refreshProfile()
       setCurrentStep(2)
     } catch (err: any) {
       setError(err.message || 'Failed to update profile')
@@ -252,17 +206,18 @@ export default function OnboardingPage() {
     try {
       setIsLoading(true)
       setError(null)
+      if (!user) throw new Error('User not found')
 
-      // Create organization using the database function
-      const { data: orgData, error: orgError } = await supabase
+      const { data: orgId, error: orgError } = await supabase
         .rpc('create_organization', {
           org_name: data.organizationName,
           org_slug: data.organizationSlug,
-          org_description: data.organizationDescription,
+          org_description: data.organizationDescription || null,
         })
 
-      if (orgError) throw orgError
+      if (orgError) throw new Error(`Failed to create organization: ${orgError.message}`)
 
+      await refreshProfile()
       setCurrentStep(3)
     } catch (err: any) {
       setError(err.message || 'Failed to create organization')
@@ -275,8 +230,8 @@ export default function OnboardingPage() {
     try {
       setIsLoading(true)
       setError(null)
+      if (!user) throw new Error('User not found')
 
-      // Update profile preferences with goals
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
@@ -286,15 +241,12 @@ export default function OnboardingPage() {
           },
           onboarded: true,
         })
-        .eq('id', user!.id)
+        .eq('id', user.id)
 
-      if (updateError) throw updateError
+      if (updateError) throw new Error(`Failed to save goals: ${updateError.message}`)
 
-      // Refresh profile in context
       await refreshProfile()
-
-      // Redirect to dashboard
-      router.push('/dashboard')
+      router.replace('/dashboard')
     } catch (err: any) {
       setError(err.message || 'Failed to save goals')
     } finally {
@@ -302,184 +254,127 @@ export default function OnboardingPage() {
     }
   }
 
-  const progress = (currentStep / steps.length) * 100
+  // ⏳ Render spinner only while auth is initializing. Do NOT block on profile === null.
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
-      <div className="absolute top-4 right-4">
-        <ThemeToggle />
-      </div>
-
-      <div className="w-full max-w-2xl space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight">Welcome to AI Automation Platform</h1>
-          <p className="text-muted-foreground mt-2">
-            Let's get you set up in just a few minutes
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
+      <div className="container max-w-2xl py-8">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold">Welcome to CogniFlow</h1>
+            <p className="text-muted-foreground">Let's get your account set up</p>
+          </div>
+          <ThemeToggle variant="icon" />
         </div>
 
         {/* Progress */}
-        <div className="space-y-4">
-          <Progress value={progress} className="h-2" />
-          <div className="flex justify-between">
-            {steps.map((step) => {
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            {steps.map((step, index) => {
               const Icon = step.icon
+              const isCompleted = currentStep > step.id
+              const isCurrent = currentStep === step.id
               return (
-                <div
-                  key={step.id}
-                  className={`flex items-center gap-2 ${
-                    step.id <= currentStep
-                      ? 'text-primary'
-                      : 'text-muted-foreground'
-                  }`}
-                >
+                <div key={step.id} className="flex items-center">
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      step.id < currentStep
-                        ? 'bg-primary text-primary-foreground'
-                        : step.id === currentStep
-                        ? 'bg-primary/20 text-primary'
-                        : 'bg-muted'
-                    }`}
+                    className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all
+                      ${
+                        isCompleted
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : isCurrent
+                          ? 'border-primary text-primary'
+                          : 'border-muted-foreground/30 text-muted-foreground'
+                      }`}
                   >
-                    {step.id < currentStep ? (
-                      <CheckCircle className="h-4 w-4" />
-                    ) : (
-                      <Icon className="h-4 w-4" />
-                    )}
+                    {isCompleted ? <CheckCircle className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
                   </div>
-                  <span className="hidden sm:inline">{step.name}</span>
+                  {index < steps.length - 1 && (
+                    <div className={`w-16 h-0.5 mx-4 ${isCompleted ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
+                  )}
                 </div>
               )
             })}
           </div>
+
+          <Progress value={(currentStep / steps.length) * 100} className="h-2" />
+          <div className="flex justify-between mt-2 text-sm text-muted-foreground">
+            <span>Step {currentStep} of {steps.length}</span>
+            <span>{Math.round((currentStep / steps.length) * 100)}% complete</span>
+          </div>
         </div>
 
-        {/* Forms */}
-        <Card className="glass-card">
-          {error && (
-            <Alert variant="destructive" className="m-6 mb-0">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+        {/* Error Alert */}
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
+        {/* Steps */}
+        <Card className="glass-card">
+          {/* Step 1 */}
           {currentStep === 1 && (
             <>
               <CardHeader>
                 <CardTitle>Personal Information</CardTitle>
-                <CardDescription>
-                  Tell us a bit about yourself
-                </CardDescription>
+                <CardDescription>Tell us a bit about yourself to personalize your experience</CardDescription>
               </CardHeader>
               <CardContent>
                 <Form {...personalForm}>
                   <form onSubmit={personalForm.handleSubmit(handlePersonalInfo)} className="space-y-4">
-                    {/* Avatar Upload */}
-                    <div className="flex justify-center mb-6">
-                      <div className="relative">
-                        <Avatar className="h-24 w-24">
-                          <AvatarImage src={avatarPreview || personalForm.getValues('avatar')} />
-                          <AvatarFallback>
-                            {personalForm.getValues('fullName')?.charAt(0) || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <label
-                          htmlFor="avatar-upload"
-                          className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer hover:bg-primary/90"
-                        >
-                          <Camera className="h-4 w-4" />
-                          <input
-                            id="avatar-upload"
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={handleAvatarChange}
-                          />
-                        </label>
-                      </div>
-                    </div>
-
-                    <FormField
-                      control={personalForm.control}
-                      name="fullName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Full Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="John Doe" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={personalForm.control}
-                      name="jobTitle"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Job Title</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Product Manager" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={personalForm.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone Number (Optional)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="+1 (555) 123-4567" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={personalForm.control}
-                      name="timezone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Timezone</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select your timezone" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {timezones.map((tz) => (
-                                <SelectItem key={tz.value} value={tz.value}>
-                                  {tz.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
+                    <FormField name="fullName" control={personalForm.control} render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Full Name</FormLabel>
+                        <FormControl><Input placeholder="John Doe" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
+                    <FormField name="jobTitle" control={personalForm.control} render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Job Title</FormLabel>
+                        <FormControl><Input placeholder="Software Engineer" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
+                    <FormField name="phone" control={personalForm.control} render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number (Optional)</FormLabel>
+                        <FormControl><Input placeholder="+1 (555) 123-4567" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
+                    <FormField name="timezone" control={personalForm.control} render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Timezone</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select your timezone" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {timezones.map((tz) => (<SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
                     <div className="flex justify-end pt-4">
                       <Button type="submit" disabled={isLoading}>
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            Continue
-                            <ArrowRight className="ml-2 h-4 w-4" />
-                          </>
-                        )}
+                        {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</>) : (<>Continue<ArrowRight className="ml-2 h-4 w-4" /></>)}
                       </Button>
                     </div>
                   </form>
@@ -488,93 +383,44 @@ export default function OnboardingPage() {
             </>
           )}
 
+          {/* Step 2 */}
           {currentStep === 2 && (
             <>
               <CardHeader>
                 <CardTitle>Create Your Organization</CardTitle>
-                <CardDescription>
-                  Set up your workspace for team collaboration
-                </CardDescription>
+                <CardDescription>Set up your workspace for team collaboration</CardDescription>
               </CardHeader>
               <CardContent>
                 <Form {...organizationForm}>
                   <form onSubmit={organizationForm.handleSubmit(handleOrganization)} className="space-y-4">
-                    <FormField
-                      control={organizationForm.control}
-                      name="organizationName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Organization Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Acme Inc." {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={organizationForm.control}
-                      name="organizationSlug"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Organization URL</FormLabel>
-                          <FormControl>
-                            <div className="flex items-center">
-                              <span className="text-sm text-muted-foreground mr-2">
-                                app.aiautomation.com/
-                              </span>
-                              <Input placeholder="acme-inc" {...field} />
-                            </div>
-                          </FormControl>
-                          <FormDescription>
-                            This will be your unique organization URL
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={organizationForm.control}
-                      name="organizationDescription"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description (Optional)</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="What does your organization do?"
-                              className="resize-none"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
+                    <FormField name="organizationName" control={organizationForm.control} render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Organization Name</FormLabel>
+                        <FormControl><Input placeholder="Acme Inc." {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
+                    <FormField name="organizationSlug" control={organizationForm.control} render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Organization Slug</FormLabel>
+                        <FormControl><Input placeholder="acme-inc" {...field} /></FormControl>
+                        <FormMessage />
+                        <p className="text-xs text-muted-foreground">This will be your organization's unique identifier</p>
+                      </FormItem>
+                    )}/>
+                    <FormField name="organizationDescription" control={organizationForm.control} render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description (Optional)</FormLabel>
+                        <FormControl><Textarea placeholder="Tell us about your organization..." {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
                     <div className="flex justify-between pt-4">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setCurrentStep(1)}
-                        disabled={isLoading}
-                      >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back
+                      <Button type="button" variant="outline" onClick={() => setCurrentStep(1)} disabled={isLoading}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />Back
                       </Button>
                       <Button type="submit" disabled={isLoading}>
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Creating...
-                          </>
-                        ) : (
-                          <>
-                            Continue
-                            <ArrowRight className="ml-2 h-4 w-4" />
-                          </>
-                        )}
+                        {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</>) : (<>Continue<ArrowRight className="ml-2 h-4 w-4" /></>)}
                       </Button>
                     </div>
                   </form>
@@ -583,103 +429,59 @@ export default function OnboardingPage() {
             </>
           )}
 
+          {/* Step 3 */}
           {currentStep === 3 && (
             <>
               <CardHeader>
-                <CardTitle>What are your goals?</CardTitle>
-                <CardDescription>
-                  Help us customize your experience
-                </CardDescription>
+                <CardTitle>What's Your Primary Goal?</CardTitle>
+                <CardDescription>Help us customize your experience</CardDescription>
               </CardHeader>
               <CardContent>
                 <Form {...goalsForm}>
-                  <form onSubmit={goalsForm.handleSubmit(handleGoals)} className="space-y-4">
-                    <FormField
-                      control={goalsForm.control}
-                      name="primaryGoal"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Primary Goal</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="What brings you here?" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {goals.map((goal) => (
-                                <SelectItem key={goal.value} value={goal.value}>
-                                  {goal.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={goalsForm.control}
-                      name="useCases"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Use Cases</FormLabel>
-                          <FormDescription>
-                            Select all that apply to your needs
-                          </FormDescription>
-                          <div className="grid grid-cols-2 gap-3 mt-3">
-                            {useCases.map((useCase) => (
-                              <label
-                                key={useCase.value}
-                                className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${
-                                  field.value.includes(useCase.value)
-                                    ? 'bg-primary/10 border-primary'
-                                    : 'hover:bg-muted'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="sr-only"
-                                  checked={field.value.includes(useCase.value)}
-                                  onChange={(e) => {
-                                    const newValue = e.target.checked
-                                      ? [...field.value, useCase.value]
-                                      : field.value.filter((v) => v !== useCase.value)
-                                    field.onChange(newValue)
-                                  }}
-                                />
-                                <span className="text-sm">{useCase.label}</span>
-                              </label>
-                            ))}
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
+                  <form onSubmit={goalsForm.handleSubmit(handleGoals)} className="space-y-6">
+                    <FormField name="primaryGoal" control={goalsForm.control} render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Primary Goal</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select your main goal" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {goals.map((g) => (<SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
+                    <FormField name="useCases" control={goalsForm.control} render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Use Cases (Select all that apply)</FormLabel>
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                          {useCases.map((u) => (
+                            <Button
+                              key={u.value}
+                              type="button"
+                              variant={field.value.includes(u.value) ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => {
+                                const next = field.value.includes(u.value)
+                                  ? field.value.filter(v => v !== u.value)
+                                  : [...field.value, u.value]
+                                field.onChange(next)
+                              }}
+                              className="justify-start"
+                            >
+                              {u.label}
+                            </Button>
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
                     <div className="flex justify-between pt-4">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setCurrentStep(2)}
-                        disabled={isLoading}
-                      >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back
+                      <Button type="button" variant="outline" onClick={() => setCurrentStep(2)} disabled={isLoading}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />Back
                       </Button>
                       <Button type="submit" disabled={isLoading}>
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Completing setup...
-                          </>
-                        ) : (
-                          <>
-                            Complete Setup
-                            <Sparkles className="ml-2 h-4 w-4" />
-                          </>
-                        )}
+                        {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Finishing...</>) : (<>Complete Setup<CheckCircle className="ml-2 h-4 w-4" /></>)}
                       </Button>
                     </div>
                   </form>
