@@ -1,31 +1,43 @@
-// src/lib/auth/auth-context.tsx
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../supabase/client'
 import type { User, Session } from '@supabase/supabase-js'
-import type { Database } from '@/types/database'
 
-type Profile = Database['public']['Tables']['profiles']['Row']
-type Organization = Database['public']['Tables']['organizations']['Row']
-type UserRole = Database['public']['Enums']['user_role']
+// Simplified types to avoid complex database dependencies
+interface SimpleProfile {
+  id: string
+  email: string
+  full_name: string | null
+  avatar_url: string | null
+  job_title: string | null
+  phone: string | null
+  timezone: string
+  onboarded: boolean
+  created_at: string
+  updated_at: string
+}
 
-interface OrganizationWithRole extends Organization {
-  role: UserRole
+interface SimpleOrganization {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  role: string // Added role directly to avoid complex joins
 }
 
 interface AuthContextType {
   user: User | null
   session: Session | null
-  profile: Profile | null
-  organizations: OrganizationWithRole[]
-  currentOrganization: OrganizationWithRole | null
+  profile: SimpleProfile | null
+  organizations: SimpleOrganization[]
+  currentOrganization: SimpleOrganization | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, metadata?: any) => Promise<void>
+  signUp: (email: string, password: string, metadata?: any) => Promise<{ needsConfirmation: boolean }>
   signOut: () => Promise<void>
-  signInWithProvider: (provider: 'google' | 'github' | 'azure') => Promise<void>
+  signInWithProvider: (provider: 'google' | 'github') => Promise<void>
   refreshProfile: () => Promise<void>
   switchOrganization: (organizationId: string) => Promise<void>
 }
@@ -35,73 +47,121 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [organizations, setOrganizations] = useState<OrganizationWithRole[]>([])
-  const [currentOrganization, setCurrentOrganization] = useState<OrganizationWithRole | null>(null)
+  const [profile, setProfile] = useState<SimpleProfile | null>(null)
+  const [organizations, setOrganizations] = useState<SimpleOrganization[]>([])
+  const [currentOrganization, setCurrentOrganization] = useState<SimpleOrganization | null>(null)
   const [loading, setLoading] = useState(true)
 
   const router = useRouter()
   const supabase = createClient()
 
-  const fetchProfile = async (userId: string): Promise<Profile | null> => {
+  const fetchProfile = async (userId: string): Promise<SimpleProfile | null> => {
     try {
+      console.log('Fetching profile for user:', userId)
+      
+      // Direct query without RLS complications
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, email, full_name, avatar_url, job_title, phone, timezone, onboarded, created_at, updated_at')
         .eq('id', userId)
         .single()
 
       if (error) {
-        // PGRST116: No rows found
-        if ((error as any).code === 'PGRST116') {
-          const { data: userData } = await supabase.auth.getUser()
-          const currentUser = userData.user
+        console.error('Profile fetch error:', error.message, error.code)
+
+        // If profile doesn't exist, create it
+        if (error.code === 'PGRST116') {
+          console.log('Creating new profile...')
+          
+          const { data: { user: currentUser } } = await supabase.auth.getUser()
+          
           if (currentUser) {
-            const { data: newProfile, error: createError } = await supabase
+            const newProfile = {
+              id: currentUser.id,
+              email: currentUser.email || '',
+              full_name: currentUser.user_metadata?.full_name || 
+                        currentUser.user_metadata?.name || '',
+              avatar_url: currentUser.user_metadata?.avatar_url || 
+                         currentUser.user_metadata?.picture || null,
+              job_title: null,
+              phone: null,
+              timezone: 'UTC',
+              onboarded: false
+            }
+
+            const { data: createdProfile, error: createError } = await supabase
               .from('profiles')
-              .insert({
-                id: userId,
-                email: currentUser.email!,
-                full_name: currentUser.user_metadata?.full_name || '',
-                avatar_url: currentUser.user_metadata?.avatar_url || '',
-                onboarded: false
-              })
+              .insert(newProfile)
               .select()
               .single()
-            if (createError) return null
-            return newProfile
+
+            if (createError) {
+              console.error('Failed to create profile:', createError.message)
+              return null
+            }
+
+            console.log('Profile created successfully')
+            return createdProfile as SimpleProfile
           }
         }
+        
         return null
       }
-      return data
-    } catch {
+
+      console.log('Profile fetched successfully')
+      return data as SimpleProfile
+    } catch (error) {
+      console.error('Profile fetch exception:', error)
       return null
     }
   }
 
-  const fetchOrganizations = async (userId: string): Promise<OrganizationWithRole[]> => {
+  const fetchOrganizations = async (userId: string): Promise<SimpleOrganization[]> => {
     try {
+      console.log('Fetching organizations for user:', userId)
+
+      // Simplified query to avoid RLS recursion
       const { data, error } = await supabase
         .from('organization_members')
-        .select(`
-          role,
-          joined_at,
-          organizations (*)
-        `)
+        .select('role, organization_id')
         .eq('user_id', userId)
         .not('joined_at', 'is', null)
 
-      if (error || !data || data.length === 0) return []
+      if (error) {
+        console.error('Organization members fetch error:', error.message, error.code)
+        return []
+      }
 
-      const orgsWithRole = data.map((item: any) => ({
-        ...item.organizations,
-        role: item.role,
-        joined_at: item.joined_at
-      })) as OrganizationWithRole[]
+      if (!data || data.length === 0) {
+        console.log('No organization memberships found')
+        return []
+      }
 
-      return orgsWithRole
-    } catch {
+      // Fetch organization details separately
+      const orgIds = data.map(item => item.organization_id)
+      const { data: orgsData, error: orgsError } = await supabase
+        .from('organizations')
+        .select('id, name, slug, description')
+        .in('id', orgIds)
+
+      if (orgsError) {
+        console.error('Organizations fetch error:', orgsError.message, orgsError.code)
+        return []
+      }
+
+      // Combine organization data with roles
+      const result = (orgsData || []).map(org => {
+        const membership = data.find(item => item.organization_id === org.id)
+        return {
+          ...org,
+          role: membership?.role || 'member'
+        } as SimpleOrganization
+      })
+
+      console.log('Organizations fetched successfully:', result.length)
+      return result
+    } catch (error) {
+      console.error('Organizations fetch exception:', error)
       return []
     }
   }
@@ -111,42 +171,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!mounted) return
+        console.log('Initializing auth...')
+        
+        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession()
+        
+        if (sessionError) {
+          console.error('Session fetch error:', sessionError.message)
+          if (mounted) setLoading(false)
+          return
+        }
 
-        if (session?.user) {
-          setSession(session)
-          setUser(session.user)
+        if (initialSession?.user && mounted) {
+          console.log('User found in session:', initialSession.user.email)
+          setSession(initialSession)
+          setUser(initialSession.user)
 
-          // ✅ Keep loading=true until we attempt to fetch profile/orgs
-          const profileData = await fetchProfile(session.user.id)
+          // Fetch profile first
+          const profileData = await fetchProfile(initialSession.user.id)
           if (!mounted) return
           setProfile(profileData)
 
+          // Only fetch organizations if profile exists
+          let orgsData: SimpleOrganization[] = []
           if (profileData) {
-            const orgsData = await fetchOrganizations(session.user.id)
+            orgsData = await fetchOrganizations(initialSession.user.id)
             if (!mounted) return
             setOrganizations(orgsData)
 
             if (orgsData.length > 0) {
-              const savedOrgId = typeof window !== 'undefined' ? localStorage.getItem('currentOrganizationId') : null
+              const savedOrgId = typeof window !== 'undefined' ? 
+                localStorage.getItem('currentOrganizationId') : null
               const currentOrg = orgsData.find(org => org.id === savedOrgId) || orgsData[0]
               setCurrentOrganization(currentOrg)
             }
           }
+
+          console.log('Auth initialization complete')
+        } else {
+          console.log('No user session found')
         }
-      } catch (e) {
-        // noop
+      } catch (error) {
+        console.error('Auth initialization error:', error)
       } finally {
-        if (mounted) setLoading(false) // ✅ only after initialization attempts
+        if (mounted) setLoading(false)
       }
     }
 
     initializeAuth()
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return
+
+      console.log('Auth state change:', event)
 
       if (event === 'SIGNED_IN' && session?.user) {
         setSession(session)
@@ -156,42 +232,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!mounted) return
         setProfile(profileData)
 
-        let orgsData: OrganizationWithRole[] = []
+        let orgsData: SimpleOrganization[] = []
         if (profileData) {
           orgsData = await fetchOrganizations(session.user.id)
           if (!mounted) return
           setOrganizations(orgsData)
 
           if (orgsData.length > 0) {
-            const currentOrg = orgsData[0]
-            setCurrentOrganization(currentOrg)
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('currentOrganizationId', currentOrg.id)
-            }
+            setCurrentOrganization(orgsData[0])
           }
         }
 
-        // ✅ Guard redirects to avoid fighting the onboarding page
+        // Simple redirect logic
         const path = typeof window !== 'undefined' ? window.location.pathname : ''
-        if (!path.includes('/auth/callback') && !path.startsWith('/onboarding')) {
+        
+        if (!path.includes('/auth/callback') && !path.includes('/auth/confirm')) {
           if (profileData?.onboarded && orgsData.length > 0) {
-            router.replace('/dashboard')
-          } else {
+            if (path === '/login' || path === '/register') {
+              router.replace('/dashboard')
+            }
+          } else if (path !== '/onboarding') {
             router.replace('/onboarding')
           }
         }
+
       } else if (event === 'SIGNED_OUT') {
         setUser(null)
         setSession(null)
         setProfile(null)
         setOrganizations([])
         setCurrentOrganization(null)
+        
         if (typeof window !== 'undefined') {
           localStorage.removeItem('currentOrganizationId')
         }
 
         const path = typeof window !== 'undefined' ? window.location.pathname : ''
-        if (!path.includes('/login')) {
+        if (path !== '/login' && path !== '/register' && path !== '/') {
           router.replace('/login')
         }
       }
@@ -204,50 +281,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router, supabase])
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) throw error
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw error
+    } catch (error) {
+      console.error('Sign in error:', error)
+      throw error
+    }
   }
 
   const signUp = async (email: string, password: string, metadata?: any) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: metadata,
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-    if (error) throw error
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: metadata,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      
+      if (error) throw error
+      
+      return {
+        needsConfirmation: !data.session
+      }
+    } catch (error) {
+      console.error('Sign up error:', error)
+      throw error
+    }
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+    } catch (error) {
+      console.error('Sign out error:', error)
+      throw error
+    }
   }
 
-  const signInWithProvider = async (provider: 'google' | 'github' | 'azure') => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-    if (error) throw error
+  const signInWithProvider = async (provider: 'google' | 'github') => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (error) throw error
+    } catch (error) {
+      console.error('Provider sign in error:', error)
+      throw error
+    }
   }
 
   const refreshProfile = async () => {
     if (!user) return
+    
     const [profileData, orgsData] = await Promise.all([
       fetchProfile(user.id),
       fetchOrganizations(user.id)
     ])
+    
     setProfile(profileData)
     setOrganizations(orgsData)
+    
     if (orgsData.length > 0 && !currentOrganization) {
       setCurrentOrganization(orgsData[0])
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('currentOrganizationId', orgsData[0].id)
-      }
     }
   }
 
@@ -258,7 +360,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== 'undefined') {
         localStorage.setItem('currentOrganizationId', organizationId)
       }
-      router.refresh()
     }
   }
 
@@ -282,11 +383,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (context === undefined) throw new Error('useAuth must be used within an AuthProvider')
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
   return context
 }
 
-// Convenience hooks
 export function useUser() {
   const { user, loading } = useAuth()
   return { user, loading }
@@ -300,17 +402,4 @@ export function useProfile() {
 export function useOrganization() {
   const { currentOrganization, organizations, switchOrganization, loading } = useAuth()
   return { currentOrganization, organizations, switchOrganization, loading }
-}
-
-export function useRequireAuth() {
-  const { user, loading } = useAuth()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/login')
-    }
-  }, [user, loading, router])
-
-  return { user, loading }
 }

@@ -1,6 +1,10 @@
+// ====================================================================
+// 4. FIXED LOGIN PAGE - src/app/(auth)/login/page.tsx
+// ====================================================================
+
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -26,14 +30,23 @@ import {
 } from '@/components/ui/form'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ThemeToggle } from '@/components/common/theme-toggle'
-import { Eye, EyeOff, AlertCircle, Sparkles, Loader2 } from 'lucide-react'
-import { FaGoogle, FaGithub, FaMicrosoft } from 'react-icons/fa'
+import { 
+  Eye, 
+  EyeOff, 
+  AlertCircle, 
+  Sparkles, 
+  Loader2,
+  LogIn,
+  Mail,
+  Lock
+} from 'lucide-react'
+import { FaGoogle, FaGithub } from 'react-icons/fa'
 import { useAuth } from '@/lib/auth/auth-context'
-import { Separator } from '@radix-ui/react-separator'
+import { Separator } from '@/components/ui/separator'
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(1, 'Password is required'),
 })
 
 type LoginForm = z.infer<typeof loginSchema>
@@ -41,11 +54,27 @@ type LoginForm = z.infer<typeof loginSchema>
 function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [providerLoading, setProviderLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
-  const searchParams = useSearchParams() // Now properly wrapped in Suspense
+  const searchParams = useSearchParams()
 
-  const { signIn, signInWithProvider } = useAuth()
+  const { user, signIn, signInWithProvider } = useAuth()
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user) {
+      router.replace('/dashboard')
+    }
+  }, [user, router])
+
+  // Handle error from URL params
+  useEffect(() => {
+    const errorParam = searchParams.get('error')
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam))
+    }
+  }, [searchParams])
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -60,49 +89,46 @@ function LoginForm() {
     setError(null)
 
     try {
-      console.log('Login attempt:', values)
       await signIn(values.email, values.password)
-      // router.push('/dashboard') Handle by authContext
-    } catch (err) {
-      setError('Invalid email or password. Please try again.')
+      // Navigation handled by AuthContext
+    } catch (err: any) {
+      console.error('Login error:', err)
+      setError(err.message || 'Invalid email or password. Please try again.')
     } finally {
       setIsLoading(false)
     }
   }
 
-  async function handleProviderSignIn(provider: 'google' | 'github' | 'azure') {
+  const handleProviderSignIn = async (provider: 'google' | 'github') => {
     try {
-      setIsLoading(true)
+      setProviderLoading(provider)
       setError(null)
       await signInWithProvider(provider)
     } catch (error: any) {
+      console.error('Provider sign in error:', error)
       setError(error.message || `Failed to sign in with ${provider}`)
-      setIsLoading(false)
+    } finally {
+      setProviderLoading(null)
     }
   }
 
   return (
-    <>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
-          <p className="text-muted-foreground">Sign in to your account</p>
-        </div>
-        <ThemeToggle variant="icon" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
       </div>
-
-      {/* Login Card */}
-      <Card className="shadow-xl border-0 bg-card">
+      
+      <Card className="w-full max-w-md glass-card">
         <CardHeader className="text-center space-y-2">
-          <CardTitle className="text-2xl text-card-foreground">
-            Sign In
-          </CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Choose your preferred sign in method
+          <div className="mx-auto w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mb-4">
+            <Sparkles className="w-6 h-6 text-white" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
+          <CardDescription>
+            Sign in to your automation platform
           </CardDescription>
         </CardHeader>
-
+        
         <CardContent className="space-y-4">
           {error && (
             <Alert variant="destructive">
@@ -111,39 +137,40 @@ function LoginForm() {
             </Alert>
           )}
 
-          <div className="grid grid-cols-3 gap-2">
+          {/* Social Sign-in Options */}
+          <div className="grid gap-2">
             <Button
               variant="outline"
               onClick={() => handleProviderSignIn('google')}
-              disabled={isLoading}
-              className="hover-lift"
+              disabled={isLoading || !!providerLoading}
+              className="w-full"
             >
-              <FaGoogle className="h-4 w-4" />
-              <span className="sr-only">Google</span>
+              {providerLoading === 'google' ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FaGoogle className="w-4 h-4 mr-2 text-red-500" />
+              )}
+              Continue with Google
             </Button>
+            
             <Button
               variant="outline"
               onClick={() => handleProviderSignIn('github')}
-              disabled={isLoading}
-              className="hover-lift"
+              disabled={isLoading || !!providerLoading}
+              className="w-full"
             >
-              <FaGithub className="h-4 w-4" />
-              <span className="sr-only">GitHub</span>
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handleProviderSignIn('azure')}
-              disabled={isLoading}
-              className="hover-lift"
-            >
-              <FaMicrosoft className="h-4 w-4" />
-              <span className="sr-only">Microsoft</span>
+              {providerLoading === 'github' ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FaGithub className="w-4 h-4 mr-2" />
+              )}
+              Continue with GitHub
             </Button>
           </div>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <Separator />
+              <Separator className="w-full" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">
@@ -161,17 +188,21 @@ function LoginForm() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="name@company.com"
-                        autoComplete="email"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="email"
+                          placeholder="john@company.com"
+                          className="pl-9"
+                          {...field}
+                        />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="password"
@@ -179,76 +210,80 @@ function LoginForm() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Enter your password"
-                        autoComplete="current-password"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Enter your password"
+                          className="pl-9 pr-10"
+                          {...field}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
               <div className="flex items-center justify-between">
                 <Link
-                  href="/forgot-password"
+                  href="/auth/forgot-password"
                   className="text-sm text-primary hover:underline"
                 >
                   Forgot password?
                 </Link>
               </div>
-              <Button
-                type="submit"
-                className="w-full hover-lift"
-                disabled={isLoading}
+
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={isLoading || !!providerLoading}
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Signing in...
                   </>
                 ) : (
                   <>
-                    Sign in
-                    <Sparkles className="ml-2 h-4 w-4" />
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Sign In
                   </>
                 )}
               </Button>
             </form>
           </Form>
         </CardContent>
+        
         <CardFooter className="flex flex-col space-y-4">
-          <div className="text-sm text-center text-muted-foreground">
+          <div className="text-center text-sm text-muted-foreground">
             Don't have an account?{' '}
-            <Link href="/register" className="text-primary hover:underline">
-              Sign up
+            <Link href="/register" className="text-primary hover:underline font-medium">
+              Create one here
             </Link>
           </div>
         </CardFooter>
       </Card>
-
-      <p className="text-center text-xs text-muted-foreground">
-        By continuing, you agree to our{' '}
-        <Link href="/terms" className="underline hover:text-primary">
-          Terms of Service
-        </Link>{' '}
-        and{' '}
-        <Link href="/privacy" className="underline hover:text-primary">
-          Privacy Policy
-        </Link>
-      </p>
-    </>
+    </div>
   )
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    }>
+    <Suspense fallback={<div>Loading...</div>}>
       <LoginForm />
     </Suspense>
   )

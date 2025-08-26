@@ -1,7 +1,6 @@
-// src/app/(auth)/onboarding/page.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,46 +10,61 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
-  Card, CardContent, CardDescription, CardHeader, CardTitle,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from '@/components/ui/card'
 import {
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from '@/components/ui/form'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
-import { Progress } from '@/components/ui/progress'
-import { ThemeToggle } from '@/components/common/theme-toggle'
-import {
-  User as UserIcon,
-  Building,
-  Target,
-  CheckCircle,
-  ArrowRight,
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { 
+  User as UserIcon, 
+  Building, 
+  Target, 
+  ArrowRight, 
   ArrowLeft,
   Loader2,
+  CheckCircle,
   AlertCircle,
+  Sparkles
 } from 'lucide-react'
 
+// Form schemas
 const personalInfoSchema = z.object({
-  fullName: z.string().min(2, 'Full name is required'),
-  jobTitle: z.string().min(2, 'Job title is required'),
+  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+  jobTitle: z.string().optional(),
   phone: z.string().optional(),
-  timezone: z.string().min(1, 'Please select your timezone'),
+  timezone: z.string(),
 })
 
 const organizationSchema = z.object({
-  organizationName: z.string().min(2, 'Organization name is required'),
+  organizationName: z.string().min(2, 'Organization name must be at least 2 characters'),
   organizationSlug: z.string()
-    .min(3, 'Slug must be at least 3 characters')
+    .min(2, 'Slug must be at least 2 characters')
     .regex(/^[a-z0-9-]+$/, 'Slug can only contain lowercase letters, numbers, and hyphens'),
   organizationDescription: z.string().optional(),
 })
 
 const goalsSchema = z.object({
-  primaryGoal: z.string().min(1, 'Please select your primary goal'),
+  primaryGoal: z.string().min(1, 'Please select a primary goal'),
   useCases: z.array(z.string()).min(1, 'Please select at least one use case'),
 })
 
@@ -105,40 +119,27 @@ export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
 
-  // ✅ Redirect if already onboarded — only after auth is settled
+  // Redirect if already onboarded
   useEffect(() => {
     if (!loading && profile?.onboarded) {
       router.replace('/dashboard')
     }
   }, [profile, loading, router])
 
-  // ✅ Redirect to login only when auth is settled and user is definitely missing
+  // Redirect to login if not authenticated
   useEffect(() => {
     if (!loading && !user) {
       router.replace('/login')
     }
   }, [user, loading, router])
 
-  // If profile loads later, update form defaults once
-  useEffect(() => {
-    if (profile && user) {
-      personalForm.reset({
-        fullName: profile.full_name || user.user_metadata?.full_name || '',
-        jobTitle: profile.job_title || '',
-        phone: profile.phone || '',
-        timezone: profile.timezone || 'UTC',
-      })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.id])
-
   const personalForm = useForm<PersonalInfo>({
     resolver: zodResolver(personalInfoSchema),
     defaultValues: {
-      fullName: profile?.full_name || user?.user_metadata?.full_name || '',
-      jobTitle: profile?.job_title || '',
-      phone: profile?.phone || '',
-      timezone: profile?.timezone || 'UTC',
+      fullName: '',
+      jobTitle: '',
+      phone: '',
+      timezone: 'UTC',
     },
   })
 
@@ -158,6 +159,18 @@ export default function OnboardingPage() {
       useCases: [],
     },
   })
+
+  // Update form defaults when profile loads
+  useEffect(() => {
+    if (profile && user) {
+      personalForm.reset({
+        fullName: profile.full_name || user.user_metadata?.full_name || '',
+        jobTitle: profile.job_title || '',
+        phone: profile.phone || '',
+        timezone: profile.timezone || 'UTC',
+      })
+    }
+  }, [profile?.id, user?.id, personalForm])
 
   // Auto-generate slug from org name
   useEffect(() => {
@@ -179,24 +192,25 @@ export default function OnboardingPage() {
     try {
       setIsLoading(true)
       setError(null)
-      if (!user) throw new Error('User not found')
+      
+      if (!user) throw new Error('User not authenticated')
 
-      const { error: updateError } = await supabase
+      const { error } = await supabase
         .from('profiles')
         .update({
           full_name: data.fullName,
-          job_title: data.jobTitle,
-          phone: data.phone,
+          job_title: data.jobTitle || null,
+          phone: data.phone || null,
           timezone: data.timezone,
         })
         .eq('id', user.id)
 
-      if (updateError) throw new Error(`Failed to update profile: ${updateError.message}`)
+      if (error) throw error
 
-      await refreshProfile()
       setCurrentStep(2)
-    } catch (err: any) {
-      setError(err.message || 'Failed to update profile')
+    } catch (error: any) {
+      console.error('Personal info update error:', error)
+      setError(error.message || 'Failed to update personal information')
     } finally {
       setIsLoading(false)
     }
@@ -206,21 +220,42 @@ export default function OnboardingPage() {
     try {
       setIsLoading(true)
       setError(null)
-      if (!user) throw new Error('User not found')
+      
+      if (!user) throw new Error('User not authenticated')
 
-      const { data: orgId, error: orgError } = await supabase
-        .rpc('create_organization', {
-          org_name: data.organizationName,
-          org_slug: data.organizationSlug,
-          org_description: data.organizationDescription || null,
+      // Create organization
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .insert({
+          name: data.organizationName,
+          slug: data.organizationSlug,
+          description: data.organizationDescription || null,
+        })
+        .select()
+        .single()
+
+      if (orgError) throw orgError
+
+      // Add user as owner of the organization
+      const { error: memberError } = await supabase
+        .from('organization_members')
+        .insert({
+          organization_id: org.id,
+          user_id: user.id,
+          role: 'owner',
+          joined_at: new Date().toISOString(),
         })
 
-      if (orgError) throw new Error(`Failed to create organization: ${orgError.message}`)
+      if (memberError) throw memberError
 
-      await refreshProfile()
       setCurrentStep(3)
-    } catch (err: any) {
-      setError(err.message || 'Failed to create organization')
+    } catch (error: any) {
+      console.error('Organization creation error:', error)
+      if (error.code === '23505') {
+        setError('Organization slug already exists. Please choose a different one.')
+      } else {
+        setError(error.message || 'Failed to create organization')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -230,265 +265,369 @@ export default function OnboardingPage() {
     try {
       setIsLoading(true)
       setError(null)
-      if (!user) throw new Error('User not found')
+      
+      if (!user) throw new Error('User not authenticated')
 
-      const { error: updateError } = await supabase
+      // Update profile with onboarding complete and goals
+      const { error } = await supabase
         .from('profiles')
         .update({
-          preferences: {
-            primaryGoal: data.primaryGoal,
-            useCases: data.useCases,
-          },
           onboarded: true,
+          preferences: {
+            primary_goal: data.primaryGoal,
+            use_cases: data.useCases,
+            onboarded_at: new Date().toISOString(),
+          },
         })
         .eq('id', user.id)
 
-      if (updateError) throw new Error(`Failed to save goals: ${updateError.message}`)
+      if (error) throw error
 
+      // Refresh profile and redirect to dashboard
       await refreshProfile()
-      router.replace('/dashboard')
-    } catch (err: any) {
-      setError(err.message || 'Failed to save goals')
+      router.push('/dashboard')
+    } catch (error: any) {
+      console.error('Goals update error:', error)
+      setError(error.message || 'Failed to complete onboarding')
     } finally {
       setIsLoading(false)
     }
   }
 
-  // ⏳ Render spinner only while auth is initializing. Do NOT block on profile === null.
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    )
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
-      <div className="container max-w-2xl py-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">Welcome to CogniFlow</h1>
-            <p className="text-muted-foreground">Let's get your account set up</p>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted p-4">
+      <div className="max-w-2xl mx-auto py-8">
+        <div className="text-center mb-8">
+          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4">
+            <Sparkles className="w-8 h-8 text-white" />
           </div>
-          <ThemeToggle variant="icon" />
+          <h1 className="text-3xl font-bold mb-2">Welcome to AI Automation Platform</h1>
+          <p className="text-muted-foreground">Let's get you set up in just a few steps</p>
         </div>
 
-        {/* Progress */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            {steps.map((step, index) => {
-              const Icon = step.icon
-              const isCompleted = currentStep > step.id
-              const isCurrent = currentStep === step.id
-              return (
-                <div key={step.id} className="flex items-center">
-                  <div
-                    className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all
-                      ${
-                        isCompleted
-                          ? 'bg-primary border-primary text-primary-foreground'
-                          : isCurrent
-                          ? 'border-primary text-primary'
-                          : 'border-muted-foreground/30 text-muted-foreground'
-                      }`}
-                  >
-                    {isCompleted ? <CheckCircle className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
-                  </div>
-                  {index < steps.length - 1 && (
-                    <div className={`w-16 h-0.5 mx-4 ${isCompleted ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          <Progress value={(currentStep / steps.length) * 100} className="h-2" />
-          <div className="flex justify-between mt-2 text-sm text-muted-foreground">
-            <span>Step {currentStep} of {steps.length}</span>
-            <span>{Math.round((currentStep / steps.length) * 100)}% complete</span>
-          </div>
+        {/* Progress Steps */}
+        <div className="flex items-center justify-center mb-8">
+          {steps.map((step, index) => (
+            <div key={step.id} className="flex items-center">
+              <div
+                className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+                  currentStep === step.id
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : currentStep > step.id
+                    ? 'bg-green-500 text-white border-green-500'
+                    : 'bg-background text-muted-foreground border-border'
+                }`}
+              >
+                {currentStep > step.id ? (
+                  <CheckCircle className="w-5 h-5" />
+                ) : (
+                  <step.icon className="w-5 h-5" />
+                )}
+              </div>
+              {index < steps.length - 1 && (
+                <div
+                  className={`w-16 h-1 mx-2 ${
+                    currentStep > step.id ? 'bg-green-500' : 'bg-border'
+                  }`}
+                />
+              )}
+            </div>
+          ))}
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Steps */}
         <Card className="glass-card">
-          {/* Step 1 */}
-          {currentStep === 1 && (
-            <>
-              <CardHeader>
-                <CardTitle>Personal Information</CardTitle>
-                <CardDescription>Tell us a bit about yourself to personalize your experience</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...personalForm}>
-                  <form onSubmit={personalForm.handleSubmit(handlePersonalInfo)} className="space-y-4">
-                    <FormField name="fullName" control={personalForm.control} render={({ field }) => (
+          <CardHeader>
+            <CardTitle>{steps[currentStep - 1].name}</CardTitle>
+            <CardDescription>
+              {currentStep === 1 && 'Tell us a bit about yourself'}
+              {currentStep === 2 && 'Set up your organization'}
+              {currentStep === 3 && 'What would you like to achieve?'}
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Step 1: Personal Information */}
+            {currentStep === 1 && (
+              <Form {...personalForm}>
+                <form onSubmit={personalForm.handleSubmit(handlePersonalInfo)} className="space-y-4">
+                  <FormField
+                    control={personalForm.control}
+                    name="fullName"
+                    render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Full Name</FormLabel>
-                        <FormControl><Input placeholder="John Doe" {...field} /></FormControl>
+                        <FormLabel>Full Name *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="John Doe" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
-                    )}/>
-                    <FormField name="jobTitle" control={personalForm.control} render={({ field }) => (
+                    )}
+                  />
+
+                  <FormField
+                    control={personalForm.control}
+                    name="jobTitle"
+                    render={({ field }) => (
                       <FormItem>
                         <FormLabel>Job Title</FormLabel>
-                        <FormControl><Input placeholder="Software Engineer" {...field} /></FormControl>
+                        <FormControl>
+                          <Input placeholder="Product Manager" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
-                    )}/>
-                    <FormField name="phone" control={personalForm.control} render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone Number (Optional)</FormLabel>
-                        <FormControl><Input placeholder="+1 (555) 123-4567" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}/>
-                    <FormField name="timezone" control={personalForm.control} render={({ field }) => (
+                    )}
+                  />
+
+                  <FormField
+                    control={personalForm.control}
+                    name="timezone"
+                    render={({ field }) => (
                       <FormItem>
                         <FormLabel>Timezone</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Select your timezone" /></SelectTrigger></FormControl>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select your timezone" />
+                            </SelectTrigger>
+                          </FormControl>
                           <SelectContent>
-                            {timezones.map((tz) => (<SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>))}
+                            {timezones.map((tz) => (
+                              <SelectItem key={tz.value} value={tz.value}>
+                                {tz.label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
-                    )}/>
-                    <div className="flex justify-end pt-4">
-                      <Button type="submit" disabled={isLoading}>
-                        {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</>) : (<>Continue<ArrowRight className="ml-2 h-4 w-4" /></>)}
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </CardContent>
-            </>
-          )}
+                    )}
+                  />
 
-          {/* Step 2 */}
-          {currentStep === 2 && (
-            <>
-              <CardHeader>
-                <CardTitle>Create Your Organization</CardTitle>
-                <CardDescription>Set up your workspace for team collaboration</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...organizationForm}>
-                  <form onSubmit={organizationForm.handleSubmit(handleOrganization)} className="space-y-4">
-                    <FormField name="organizationName" control={organizationForm.control} render={({ field }) => (
+                  <div className="flex justify-end pt-4">
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          Next Step
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            )}
+
+            {/* Step 2: Organization */}
+            {currentStep === 2 && (
+              <Form {...organizationForm}>
+                <form onSubmit={organizationForm.handleSubmit(handleOrganization)} className="space-y-4">
+                  <FormField
+                    control={organizationForm.control}
+                    name="organizationName"
+                    render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Organization Name</FormLabel>
-                        <FormControl><Input placeholder="Acme Inc." {...field} /></FormControl>
+                        <FormLabel>Organization Name *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Acme Corporation" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
-                    )}/>
-                    <FormField name="organizationSlug" control={organizationForm.control} render={({ field }) => (
+                    )}
+                  />
+
+                  <FormField
+                    control={organizationForm.control}
+                    name="organizationSlug"
+                    render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Organization Slug</FormLabel>
-                        <FormControl><Input placeholder="acme-inc" {...field} /></FormControl>
+                        <FormLabel>Organization Slug *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="acme-corp" 
+                            {...field}
+                            onChange={(e) => {
+                              const value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+                              field.onChange(value)
+                            }}
+                          />
+                        </FormControl>
+                        <p className="text-sm text-muted-foreground">
+                          This will be used in your URLs: platform.com/{field.value}
+                        </p>
                         <FormMessage />
-                        <p className="text-xs text-muted-foreground">This will be your organization's unique identifier</p>
                       </FormItem>
-                    )}/>
-                    <FormField name="organizationDescription" control={organizationForm.control} render={({ field }) => (
+                    )}
+                  />
+
+                  <FormField
+                    control={organizationForm.control}
+                    name="organizationDescription"
+                    render={({ field }) => (
                       <FormItem>
                         <FormLabel>Description (Optional)</FormLabel>
-                        <FormControl><Textarea placeholder="Tell us about your organization..." {...field} /></FormControl>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Brief description of your organization..." 
+                            {...field} 
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
-                    )}/>
-                    <div className="flex justify-between pt-4">
-                      <Button type="button" variant="outline" onClick={() => setCurrentStep(1)} disabled={isLoading}>
-                        <ArrowLeft className="mr-2 h-4 w-4" />Back
-                      </Button>
-                      <Button type="submit" disabled={isLoading}>
-                        {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</>) : (<>Continue<ArrowRight className="ml-2 h-4 w-4" /></>)}
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </CardContent>
-            </>
-          )}
+                    )}
+                  />
 
-          {/* Step 3 */}
-          {currentStep === 3 && (
-            <>
-              <CardHeader>
-                <CardTitle>What's Your Primary Goal?</CardTitle>
-                <CardDescription>Help us customize your experience</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...goalsForm}>
-                  <form onSubmit={goalsForm.handleSubmit(handleGoals)} className="space-y-6">
-                    <FormField name="primaryGoal" control={goalsForm.control} render={({ field }) => (
+                  <div className="flex justify-between pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setCurrentStep(1)}
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      Back
+                    </Button>
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          Next Step
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            )}
+
+            {/* Step 3: Goals */}
+            {currentStep === 3 && (
+              <Form {...goalsForm}>
+                <form onSubmit={goalsForm.handleSubmit(handleGoals)} className="space-y-6">
+                  <FormField
+                    control={goalsForm.control}
+                    name="primaryGoal"
+                    render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Primary Goal</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Select your main goal" /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            {goals.map((g) => (<SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>))}
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>What's your primary goal? *</FormLabel>
+                        <FormControl>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select your primary goal" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {goals.map((goal) => (
+                                <SelectItem key={goal.value} value={goal.value}>
+                                  {goal.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
-                    )}/>
-                    <FormField name="useCases" control={goalsForm.control} render={({ field }) => (
+                    )}
+                  />
+
+                  <FormField
+                    control={goalsForm.control}
+                    name="useCases"
+                    render={() => (
                       <FormItem>
-                        <FormLabel>Use Cases (Select all that apply)</FormLabel>
-                        <div className="grid grid-cols-2 gap-2 mt-2">
-                          {useCases.map((u) => (
-                            <Button
-                              key={u.value}
-                              type="button"
-                              variant={field.value.includes(u.value) ? 'default' : 'outline'}
-                              size="sm"
-                              onClick={() => {
-                                const next = field.value.includes(u.value)
-                                  ? field.value.filter(v => v !== u.value)
-                                  : [...field.value, u.value]
-                                field.onChange(next)
+                        <FormLabel>Which use cases interest you? *</FormLabel>
+                        <div className="grid grid-cols-2 gap-3">
+                          {useCases.map((useCase) => (
+                            <FormField
+                              key={useCase.value}
+                              control={goalsForm.control}
+                              name="useCases"
+                              render={({ field }) => {
+                                return (
+                                  <FormItem
+                                    key={useCase.value}
+                                    className="flex flex-row items-start space-x-3 space-y-0"
+                                  >
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value?.includes(useCase.value)}
+                                        onCheckedChange={(checked) => {
+                                          return checked
+                                            ? field.onChange([...field.value, useCase.value])
+                                            : field.onChange(
+                                                field.value?.filter(
+                                                  (value) => value !== useCase.value
+                                                )
+                                              )
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="text-sm font-normal">
+                                      {useCase.label}
+                                    </FormLabel>
+                                  </FormItem>
+                                )
                               }}
-                              className="justify-start"
-                            >
-                              {u.label}
-                            </Button>
+                            />
                           ))}
                         </div>
                         <FormMessage />
                       </FormItem>
-                    )}/>
-                    <div className="flex justify-between pt-4">
-                      <Button type="button" variant="outline" onClick={() => setCurrentStep(2)} disabled={isLoading}>
-                        <ArrowLeft className="mr-2 h-4 w-4" />Back
-                      </Button>
-                      <Button type="submit" disabled={isLoading}>
-                        {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Finishing...</>) : (<>Complete Setup<CheckCircle className="ml-2 h-4 w-4" /></>)}
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </CardContent>
-            </>
-          )}
+                    )}
+                  />
+
+                  <div className="flex justify-between pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setCurrentStep(2)}
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      Back
+                    </Button>
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Completing...
+                        </>
+                      ) : (
+                        <>
+                          Complete Setup
+                          <CheckCircle className="w-4 h-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            )}
+          </CardContent>
         </Card>
       </div>
     </div>
