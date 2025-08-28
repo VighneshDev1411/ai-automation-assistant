@@ -1,5 +1,6 @@
 // src/lib/services/document-processor.ts
-import { supabase } from '@/lib/supabase/storage'
+// import { supabase } from '@/lib/supabase/storage'
+import { supabase } from "../supabase/supabase-test"
 
 export interface DocumentMetadata {
   id: string
