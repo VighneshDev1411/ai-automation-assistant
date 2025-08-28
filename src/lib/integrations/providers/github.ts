@@ -1,6 +1,7 @@
 // src/lib/integrations/providers/github.ts
 import { BaseIntegration, IntegrationConfig, IntegrationCredentials, IntegrationAction, IntegrationTrigger } from '../base-integration'
 
+// 
 export class GitHubIntegration extends BaseIntegration {
   constructor() {
     const config: IntegrationConfig = {

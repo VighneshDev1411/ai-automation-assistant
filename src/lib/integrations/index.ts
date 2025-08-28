@@ -1,5 +1,7 @@
 // src/lib/integrations/index.ts
-import { IntegrationRegistry } from './base-integration'
+
+import { IntegrationRegistry } from './registry'
+import { IntegrationManager } from './manager'
 import { GitHubIntegration } from './providers/github'
 import { GoogleIntegration } from './providers/google'
 import { MicrosoftIntegration } from './providers/microsoft'
@@ -26,8 +28,7 @@ export function initializeIntegrations() {
 // Export registry instance
 export const integrationRegistry = initializeIntegrations()
 
-// Export integration manager
-export { IntegrationManager } from './base-integration'
+
 
 // Export types
 export type {
