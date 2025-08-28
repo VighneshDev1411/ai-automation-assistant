@@ -1,54 +1,67 @@
-import { createClient } from '../supabase/client'
-import type { Database } from '@/types/database'
+import { createClient } from '@/lib/supabase/client'
 
 export interface IntegrationConfig {
-  provider: string
+  id: string
   name: string
   description: string
-  authType: 'oauth2' | 'api_key' | 'basic'
+  icon: string
+  category: string
+  authType: 'oauth2' | 'apikey' | 'basic'
   scopes?: string[]
   endpoints: {
     auth?: string
     token?: string
     refresh?: string
-    revoke?: string
+    api: string
   }
   rateLimit: {
     requests: number
-    per: 'minute' | 'hour' | 'day'
+    per: 'second' | 'minute' | 'hour' | 'day'
   }
-}
-
-export interface IntegrationCredentials {
-  access_token?: string
-  refresh_token?: string
-  expires_at?: number
-  api_key?: string
-  client_id?: string
-  client_secret?: string
-  scope?: string
-  team_name?: string
-  team_id?:string
-  bot_user_id?:string
+  actions: IntegrationAction[]
+  triggers: IntegrationTrigger[]
 }
 
 export interface IntegrationAction {
   id: string
   name: string
   description: string
-  inputs: Record<string, any>
-  outputs: Record<string, any>
+  inputs: ActionInput[]
+  outputs: ActionOutput[]
+  requiresAuth: boolean
 }
 
 export interface IntegrationTrigger {
   id: string
   name: string
   description: string
-  webhook?: boolean
-  polling?: {
-    interval: number
-    endpoint: string
-  }
+  type: 'webhook' | 'polling' | 'realtime'
+  outputs: ActionOutput[]
+}
+
+export interface ActionInput {
+  id: string
+  name: string
+  type: 'string' | 'number' | 'boolean' | 'object' | 'array'
+  required: boolean
+  description: string
+  default?: any
+}
+
+export interface ActionOutput {
+  id: string
+  name: string
+  type: 'string' | 'number' | 'boolean' | 'object' | 'array'
+  description: string
+}
+
+export interface IntegrationCredentials {
+  access_token?: string
+  refresh_token?: string
+  api_key?: string
+  expires_at?: number
+  scope?: string
+  [key: string]: any
 }
 
 export abstract class BaseIntegration {
@@ -60,84 +73,51 @@ export abstract class BaseIntegration {
     this.config = config
   }
 
-  // Abstract methods that must be implemented by each integration
-  abstract authenticate(
-    params: Record<string, any>
-  ): Promise<IntegrationCredentials>
+  // Abstract methods that each integration must implement
+  abstract authenticate(params: any): Promise<IntegrationCredentials>
   abstract refreshToken(): Promise<IntegrationCredentials>
+  abstract executeAction(actionId: string, inputs: any): Promise<any>
   abstract validateCredentials(): Promise<boolean>
-  abstract getActions(): IntegrationAction[]
-  abstract getTriggers(): IntegrationTrigger[]
-  abstract executeAction(
-    actionId: string,
-    inputs: Record<string, any>
-  ): Promise<any>
 
-  // Common methods for all integrations
+  // Common methods
+  getConfig(): IntegrationConfig {
+    return this.config
+  }
 
-  async setCredentials(credentials: IntegrationCredentials): Promise<void> {
+  setCredentials(credentials: IntegrationCredentials): void {
     this.credentials = credentials
+  }
 
-    // Storing encrypted credentials in Supabase
+  getCredentials(): IntegrationCredentials | null {
+    return this.credentials
+  }
 
-    const { error } = await this.supabase.from('integrations').upsert({
-      provider: this.config.provider,
-      credentials: credentials,
-      status: 'connected',
-      last_synced_at: new Date().toISOString(),
+  async makeRequest(url: string, options: RequestInit = {}): Promise<any> {
+    // ✅ FIX: Properly type the headers object
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string> || {}),
+    }
+
+    // Add authentication header based on auth type
+    if (this.credentials) {
+      if (this.config.authType === 'oauth2' && this.credentials.access_token) {
+        headers['Authorization'] = `Bearer ${this.credentials.access_token}`
+      } else if (this.config.authType === 'apikey' && this.credentials.api_key) {
+        headers['Authorization'] = `Bearer ${this.credentials.api_key}`
+      }
+    }
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
     })
-    if (error) throw error
-  }
 
-  async revokeAccess(): Promise<void> {
-    if (this.credentials?.access_token && this.config.endpoints.revoke) {
-      await fetch(this.config.endpoints.revoke, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.credentials.access_token}`,
-        },
-      })
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
-    // Updating the database
-
-    await this.supabase
-      .from('integrations')
-      .update({
-        status: 'disconnected',
-        credentials: null,
-      })
-      .eq('provider', this.config.provider)
-  }
-
-  // Rate limiting helper
-  // private rateLimitKey = `rate_limit_${this.config.provider}`
-  async checkRateLimit(): Promise<boolean> {
-    // Implementation would check against Redis or Supabase
-    // For now, return type
-    return true
-  }
-
-  // Basic common error handling
-  protected handleApiError(error: any): Error {
-    if (error.response?.status === 401) {
-      return new Error('Authentication failed - credentials may be expired')
-    }
-    if (error.response?.status === 429) {
-      return new Error('Rate limit exceeded')
-    }
-    return new Error(error.message || 'Integration error occurred')
-  }
-
-  // Webhook signature verification
-  protected verifyWebhookSignature(
-    payload: string,
-    signature: string,
-    secret: string
-  ): boolean {
-    // Implementation depends on provider's signature method
-    // Common methods: HMAC-SHA256, HMAC-SHA1
-    return true // Placeholder
+    return response.json()
   }
 
   async healthCheck(): Promise<{
@@ -159,148 +139,5 @@ export abstract class BaseIntegration {
         error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
-  }
-}
-
-// Integration Registry
-
-export class IntegrationRegistry {
-  private static instance: IntegrationRegistry
-  private integrations = new Map<string, BaseIntegration>()
-
-  static getInstance(): IntegrationRegistry {
-    if (!this.instance) {
-      this.instance = new IntegrationRegistry()
-    }
-    return this.instance
-  }
-
-  register(integration: BaseIntegration): void {
-    this.integrations.set(integration.config.provider, integration)
-  }
-
-  get(provider: string): BaseIntegration | undefined {
-    return this.integrations.get(provider)
-  }
-
-  getAll(): BaseIntegration[] {
-    return Array.from(this.integrations.values())
-  }
-
-  getAvailable(): IntegrationConfig[] {
-    return Array.from(this.integrations.values()).map(i => i.config)
-  }
-}
-
-export class IntegrationManager {
-  private registry = IntegrationRegistry.getInstance()
-  private supabase = createClient()
-
-  async connectIntegration(
-    provider: string,
-    organizationId: string,
-    userId: string,
-    authParams: Record<string, any>
-  ): Promise<void> {
-    const integration = this.registry.get(provider)
-    if (!integration) {
-      throw new Error(`Integration ${provider} not found. `)
-    }
-
-    try {
-      // Authenticate with the provider
-
-      const credentials = await integration.authenticate(authParams)
-
-      // Storing the connection
-
-      const { error } = await this.supabase.from('integrations').upsert({
-        organization_id: organizationId,
-        user_id: userId,
-        provider,
-        credentials,
-        status: 'connected',
-        settings: {},
-        last_synced_at: new Date().toISOString(),
-      })
-      if (error) throw error
-      await integration.setCredentials(credentials)
-    } catch (error) {
-      // Log error and update status
-      await this.supabase.from('integrations').upsert({
-        organization_id: organizationId,
-        user_id: userId,
-        provider,
-        status: 'error',
-        error_message: error instanceof Error ? error.message : 'Unknown error',
-      })
-
-      throw error
-    }
-  }
-
-  async disconnectIntegration(
-    provider: string,
-    organizationId: string
-  ): Promise<void> {
-    const integration = this.registry.get(provider)
-    if (integration) {
-      await integration.revokeAccess()
-    }
-
-    await this.supabase
-      .from('integrations')
-      .update({ status: 'disconnected' })
-      .eq('provider', provider)
-      .eq('organization_id', organizationId)
-  }
-
-  async getIntegrationStatus(provider: string, organizationId: string) {
-    const { data, error } = await this.supabase
-      .from('integrations')
-      .select('*')
-      .eq('provider', provider)
-      .eq('organization_id', organizationId)
-      .single()
-
-    if (error && error.code !== 'PGRST116') throw error
-    return data
-  }
-
-  async executeAction(
-    provider: string,
-    actionId: string,
-    inputs: Record<string, any>
-  ): Promise<any> {
-    const integration = this.registry.get(provider)
-    if (!integration) {
-      throw new Error(`Integration ${provider} not found`)
-    }
-
-    // Checking the rate limit
-
-    const canProceed = await integration.checkRateLimit()
-    if (!canProceed) {
-      throw new Error('Rate limit exceeded')
-    }
-    return integration.executeAction(actionId, inputs)
-  }
-
-  async runHealthChecks(): Promise<Record<string, any>> {
-    const results: Record<string, any> = {}
-
-    for (const integration of this.registry.getAll()) {
-      try {
-        results[integration.config.provider] = await integration.healthCheck()
-      } catch (error) {
-        results[integration.config.provider] = {
-          status: 'unhealthy',
-          lastCheck: new Date(),
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }
-      }
-    }
-
-    return results
   }
 }

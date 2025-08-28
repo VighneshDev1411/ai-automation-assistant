@@ -59,88 +59,80 @@
 }
 
 @layer components {
-  /* Enhanced dropdown and dialog styles */
+  /* Dropdowns & dialogs */
   [role="menu"],
   [role="dialog"],
   [data-radix-popper-content-wrapper] {
     @apply isolate;
   }
 
-  /* Ensure dropdowns appear above table content */
   [data-state="open"][data-side] {
     @apply z-[100] shadow-xl backdrop-blur-sm;
   }
 
-  /* Better contrast for dropdown items */
   [role="menuitem"] {
     @apply relative;
   }
 
-  /* Enhanced dialog overlay */
   [data-radix-dialog-overlay] {
     @apply fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm;
   }
 
-  /* Enhanced dialog content */
   [data-radix-dialog-content] {
     @apply z-[95] shadow-2xl;
   }
 
-  /* Dropdown menu enhancements */
   [data-radix-dropdown-menu-content] {
     @apply bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl;
   }
 
-  /* Select dropdown enhancements */
   [data-radix-select-content] {
     @apply bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl z-[100];
   }
 
-  /* Popover enhancements */
   [data-radix-popover-content] {
     @apply bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl z-[100];
   }
 
-  /* Table row hover state improvement */
   tbody tr {
     @apply relative;
   }
-
   tbody tr:hover {
     @apply bg-muted/50 z-0;
   }
-
-  /* Ensure action buttons in tables have proper stacking */
   td button {
     @apply relative z-10;
   }
 
-  /* Custom scrollbar */
+  /* Scrollbar */
   .custom-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: theme('colors.muted.DEFAULT') transparent;
   }
-  
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
-  
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
-  
   .custom-scrollbar::-webkit-scrollbar-thumb {
     @apply bg-muted rounded-full;
   }
-  
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     @apply bg-muted-foreground/30;
   }
 
-  /* Glass effect with better contrast */
+  /* Glass card */
   .glass-card {
-    @apply bg-background/95 backdrop-blur-xl border shadow-sm;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    @apply shadow-sm;
+  }
+  .dark .glass-card {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   /* Gradient text */
@@ -148,91 +140,65 @@
     @apply bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent;
   }
 
-  /* Button shine effect */
+  /* Button shine */
   .btn-shine {
     @apply relative overflow-hidden;
   }
-  
   .btn-shine::before {
     content: '';
     @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full;
     animation: shine 2s infinite;
   }
-  
   @keyframes shine {
     100% {
       transform: translateX(200%);
     }
   }
 
-  /* Elevated card effect for dropdowns */
+  /* Elevated dropdowns */
   .elevated-dropdown {
     @apply bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700;
     @apply shadow-lg ring-1 ring-black/5 dark:ring-white/10;
   }
+
+  /* Hover shadow */
+  .hover\:shadow-xl:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+                0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+  .dark .hover\:shadow-xl:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4),
+                0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  }
 }
 
 @layer utilities {
-  /* High z-index utilities for overlays */
-  .z-dropdown {
-    z-index: 100;
-  }
-  
-  .z-modal-backdrop {
-    z-index: 90;
-  }
-  
-  .z-modal {
-    z-index: 95;
-  }
-  
-  .z-tooltip {
-    z-index: 110;
-  }
-  
-  .z-notification {
-    z-index: 120;
-  }
+  /* Z-index */
+  .z-dropdown { z-index: 100; }
+  .z-modal-backdrop { z-index: 90; }
+  .z-modal { z-index: 95; }
+  .z-tooltip { z-index: 110; }
+  .z-notification { z-index: 120; }
 
-  /* Animation utilities */
+  /* Animations */
   .animate-slide-in-up {
     animation: slideInUp 0.3s ease-out;
   }
-  
   @keyframes slideInUp {
-    from {
-      transform: translateY(10px);
-      opacity: 0;
-    }
-    to {
-      transform: translateY(0);
-      opacity: 1;
-    }
+    from { transform: translateY(10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
   }
-  
+
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out;
   }
-  
   @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
-  /* Backdrop blur utilities */
-  .backdrop-blur-xs {
-    backdrop-filter: blur(2px);
-  }
-  
-  .backdrop-blur-sm {
-    backdrop-filter: blur(4px);
-  }
-  
-  .backdrop-blur {
-    backdrop-filter: blur(8px);
-  }
+  /* Backdrop blur */
+  .backdrop-blur-xs { backdrop-filter: blur(2px); }
+  .backdrop-blur-sm { backdrop-filter: blur(4px); }
+  .backdrop-blur { backdrop-filter: blur(8px); }
 }

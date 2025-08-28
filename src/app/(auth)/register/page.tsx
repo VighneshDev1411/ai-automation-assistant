@@ -118,7 +118,7 @@ export default function RegisterPage() {
     }
   }
 
-  const handleProviderSignIn = async (provider: 'google' | 'github' | 'azure') => {
+  const handleProviderSignIn = async (provider: 'google' | 'github') => {
     try {
       setProviderLoading(provider)
       setError(null)
