@@ -5,6 +5,7 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "regions": ["iad1"],
+  
   "env": {
     "NEXT_PUBLIC_SUPABASE_URL": "https://hpelxxyntnhbtslphsar.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhwZWx4eHludG5oYnRzbHBoc2FyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1NjA5NzMsImV4cCI6MjA2OTEzNjk3M30.FiVab-L6lxGD22OyxK-9fgnDQX6mpKlTZ1wrVIb90Pw",
@@ -62,3 +63,4 @@
     }
   }
 }
+

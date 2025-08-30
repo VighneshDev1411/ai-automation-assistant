@@ -1,0 +1,733 @@
+// src/lib/workflow-engine/core/ValidationEngine.ts
+
+export interface ValidationResult {
+  isValid: boolean
+  errors: string[]
+  warnings: string[]
+}
+
+export interface WorkflowExecutionContext {
+  executionId: string
+  workflowId: string
+  orgId: string
+  userId: string
+  triggerData: any
+  variables: Record<string, any>
+  currentStepIndex: number
+  executionStartTime: Date
+  parentExecutionId?: string
+}
+
+export class ValidationEngine {
+  async validateWorkflow(workflow: any): Promise<ValidationResult> {
+    const errors: string[] = []
+    const warnings: string[] = []
+
+    try {
+      // Validate basic structure
+      this.validateBasicStructure(workflow, errors)
+      
+      // Validate trigger configuration
+      if (workflow.trigger_config) {
+        this.validateTrigger(workflow.trigger_config, errors)
+      }
+
+      // Validate actions
+      if (workflow.actions) {
+        this.validateActions(workflow.actions, errors, warnings)
+      }
+
+      // Validate conditions
+      if (workflow.conditions) {
+        this.validateConditions(workflow.conditions, errors)
+      }
+
+      // Check for circular dependencies
+      this.checkCircularDependencies(workflow, errors)
+
+      // Performance warnings
+      this.checkPerformanceIssues(workflow, warnings)
+
+      // Security validations
+      this.validateSecurity(workflow, errors, warnings)
+
+    } catch (error) {
+      errors.push(`Validation error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    }
+  }
+
+  private validateBasicStructure(workflow: any, errors: string[]): void {
+    if (!workflow.name || typeof workflow.name !== 'string') {
+      errors.push('Workflow name is required and must be a string')
+    } else if (workflow.name.length < 2) {
+      errors.push('Workflow name must be at least 2 characters long')
+    } else if (workflow.name.length > 100) {
+      errors.push('Workflow name must be less than 100 characters')
+    }
+
+    if (!workflow.trigger_config) {
+      errors.push('Trigger configuration is required')
+    }
+
+    if (!workflow.actions || !Array.isArray(workflow.actions) || workflow.actions.length === 0) {
+      errors.push('At least one action is required')
+    }
+
+    if (workflow.description && workflow.description.length > 500) {
+      errors.push('Workflow description must be less than 500 characters')
+    }
+
+    if (workflow.tags && (!Array.isArray(workflow.tags) || workflow.tags.length > 10)) {
+      errors.push('Tags must be an array with maximum 10 items')
+    }
+  }
+
+  private validateTrigger(triggerConfig: any, errors: string[]): void {
+    if (!triggerConfig.type) {
+      errors.push('Trigger type is required')
+      return
+    }
+
+    const validTriggerTypes = ['webhook', 'schedule', 'manual', 'email', 'form']
+    if (!validTriggerTypes.includes(triggerConfig.type)) {
+      errors.push(`Invalid trigger type: ${triggerConfig.type}. Valid types: ${validTriggerTypes.join(', ')}`)
+    }
+
+    switch (triggerConfig.type) {
+      case 'webhook':
+        this.validateWebhookTrigger(triggerConfig.config, errors)
+        break
+      case 'schedule':
+        this.validateScheduleTrigger(triggerConfig.config, errors)
+        break
+      case 'email':
+        this.validateEmailTrigger(triggerConfig.config, errors)
+        break
+      case 'form':
+        this.validateFormTrigger(triggerConfig.config, errors)
+        break
+      case 'manual':
+        // Manual triggers don't require additional validation
+        break
+    }
+  }
+
+  private validateWebhookTrigger(config: any, errors: string[]): void {
+    if (!config) {
+      errors.push('Webhook trigger requires configuration')
+      return
+    }
+
+    if (config.events && !Array.isArray(config.events)) {
+      errors.push('Webhook events must be an array')
+    }
+
+    if (config.secret && typeof config.secret !== 'string') {
+      errors.push('Webhook secret must be a string')
+    }
+  }
+
+  private validateScheduleTrigger(config: any, errors: string[]): void {
+    if (!config) {
+      errors.push('Schedule trigger requires configuration')
+      return
+    }
+
+    if (!config.cron) {
+      errors.push('Schedule trigger requires cron expression')
+    } else {
+      this.validateCronExpression(config.cron, errors)
+    }
+
+    if (config.timezone && !this.isValidTimezone(config.timezone)) {
+      errors.push(`Invalid timezone: ${config.timezone}`)
+    }
+
+    if (config.startDate && !this.isValidDate(config.startDate)) {
+      errors.push('Invalid start date format')
+    }
+
+    if (config.endDate && !this.isValidDate(config.endDate)) {
+      errors.push('Invalid end date format')
+    }
+  }
+
+  private validateEmailTrigger(config: any, errors: string[]): void {
+    if (!config) {
+      errors.push('Email trigger requires configuration')
+      return
+    }
+
+    if (!config.fromEmail) {
+      errors.push('Email trigger requires fromEmail')
+    } else if (!this.isValidEmail(config.fromEmail)) {
+      errors.push('Invalid fromEmail format')
+    }
+
+    if (config.subject && typeof config.subject !== 'string') {
+      errors.push('Email subject must be a string')
+    }
+  }
+
+  private validateFormTrigger(config: any, errors: string[]): void {
+    if (!config) {
+      errors.push('Form trigger requires configuration')
+      return
+    }
+
+    if (!config.formId) {
+      errors.push('Form trigger requires formId')
+    }
+
+    if (config.fields && !Array.isArray(config.fields)) {
+      errors.push('Form fields must be an array')
+    }
+  }
+
+  private validateActions(actions: any[], errors: string[], warnings: string[]): void {
+    const actionIds = new Set<string>()
+    const validActionTypes = ['http', 'email', 'database', 'ai', 'transform', 'condition', 'integration']
+
+    actions.forEach((action, index) => {
+      // Check required fields
+      if (!action.id) {
+        errors.push(`Action at index ${index} is missing ID`)
+      } else if (actionIds.has(action.id)) {
+        errors.push(`Duplicate action ID: ${action.id}`)
+      } else {
+        actionIds.add(action.id)
+      }
+
+      if (!action.type) {
+        errors.push(`Action ${action.id || index} is missing type`)
+      } else if (!validActionTypes.includes(action.type)) {
+        errors.push(`Invalid action type: ${action.type}. Valid types: ${validActionTypes.join(', ')}`)
+      }
+
+      if (!action.name || typeof action.name !== 'string') {
+        errors.push(`Action ${action.id || index} requires a name`)
+      }
+
+      if (!action.config) {
+        errors.push(`Action ${action.id || index} is missing configuration`)
+      }
+
+      // Validate specific action types
+      if (action.type && action.config) {
+        this.validateActionType(action.type, action.config, action.id, errors, warnings)
+      }
+
+      // Validate next actions exist
+      if (action.nextActions && Array.isArray(action.nextActions)) {
+        action.nextActions.forEach((nextActionId: string) => {
+          if (!actions.find(a => a.id === nextActionId)) {
+            errors.push(`Action ${action.id} references non-existent next action: ${nextActionId}`)
+          }
+        })
+      }
+    })
+  }
+
+  private validateActionType(
+    type: string, 
+    config: any, 
+    actionId: string, 
+    errors: string[], 
+    warnings: string[]
+  ): void {
+    switch (type) {
+      case 'http':
+        this.validateHttpAction(config, actionId, errors, warnings)
+        break
+      case 'email':
+        this.validateEmailAction(config, actionId, errors)
+        break
+      case 'database':
+        this.validateDatabaseAction(config, actionId, errors)
+        break
+      case 'ai':
+        this.validateAiAction(config, actionId, errors, warnings)
+        break
+      case 'transform':
+        this.validateTransformAction(config, actionId, errors)
+        break
+      case 'integration':
+        this.validateIntegrationAction(config, actionId, errors)
+        break
+    }
+  }
+
+  private validateHttpAction(config: any, actionId: string, errors: string[], warnings: string[]): void {
+    if (!config.url) {
+      errors.push(`HTTP action ${actionId} requires URL`)
+    } else {
+      try {
+        new URL(config.url)
+      } catch {
+        // Check if it's a template URL
+        if (!config.url.includes('{{')) {
+          errors.push(`HTTP action ${actionId} has invalid URL format`)
+        }
+      }
+    }
+
+    const validMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']
+    if (config.method && !validMethods.includes(config.method.toUpperCase())) {
+      errors.push(`HTTP action ${actionId} has invalid method: ${config.method}`)
+    }
+
+    if (config.timeout && (typeof config.timeout !== 'number' || config.timeout < 0)) {
+      errors.push(`HTTP action ${actionId} timeout must be a positive number`)
+    }
+
+    if (config.timeout && config.timeout > 300000) { // 5 minutes
+      warnings.push(`HTTP action ${actionId} has very long timeout (${config.timeout}ms)`)
+    }
+  }
+
+  private validateEmailAction(config: any, actionId: string, errors: string[]): void {
+    if (!config.to) {
+      errors.push(`Email action ${actionId} requires 'to' field`)
+    } else if (typeof config.to === 'string' && !config.to.includes('{{') && !this.isValidEmail(config.to)) {
+      errors.push(`Email action ${actionId} has invalid 'to' email format`)
+    }
+
+    if (!config.subject) {
+      errors.push(`Email action ${actionId} requires 'subject' field`)
+    }
+
+    if (!config.body && !config.template) {
+      errors.push(`Email action ${actionId} requires either 'body' or 'template' field`)
+    }
+
+    if (config.cc && typeof config.cc === 'string' && !config.cc.includes('{{') && !this.isValidEmail(config.cc)) {
+      errors.push(`Email action ${actionId} has invalid 'cc' email format`)
+    }
+
+    if (config.bcc && typeof config.bcc === 'string' && !config.bcc.includes('{{') && !this.isValidEmail(config.bcc)) {
+      errors.push(`Email action ${actionId} has invalid 'bcc' email format`)
+    }
+  }
+
+  private validateDatabaseAction(config: any, actionId: string, errors: string[]): void {
+    if (!config.operation) {
+      errors.push(`Database action ${actionId} requires 'operation' field`)
+    } else {
+      const validOperations = ['insert', 'update', 'select', 'delete']
+      if (!validOperations.includes(config.operation)) {
+        errors.push(`Database action ${actionId} has invalid operation: ${config.operation}`)
+      }
+    }
+
+    if (!config.table) {
+      errors.push(`Database action ${actionId} requires 'table' field`)
+    }
+
+    if (config.operation === 'insert' && !config.data) {
+      errors.push(`Database insert action ${actionId} requires 'data' field`)
+    }
+
+    if ((config.operation === 'update' || config.operation === 'delete') && !config.filter) {
+      errors.push(`Database ${config.operation} action ${actionId} requires 'filter' field`)
+    }
+  }
+
+  private validateAiAction(config: any, actionId: string, errors: string[], warnings: string[]): void {
+    if (!config.prompt) {
+      errors.push(`AI action ${actionId} requires 'prompt' field`)
+    }
+
+    if (config.model && typeof config.model !== 'string') {
+      errors.push(`AI action ${actionId} model must be a string`)
+    }
+
+    if (config.maxTokens && (typeof config.maxTokens !== 'number' || config.maxTokens <= 0)) {
+      errors.push(`AI action ${actionId} maxTokens must be a positive number`)
+    }
+
+    if (config.temperature && (typeof config.temperature !== 'number' || config.temperature < 0 || config.temperature > 2)) {
+      errors.push(`AI action ${actionId} temperature must be between 0 and 2`)
+    }
+
+    if (config.maxTokens && config.maxTokens > 8000) {
+      warnings.push(`AI action ${actionId} has high token limit (${config.maxTokens}) which may be expensive`)
+    }
+  }
+
+  private validateTransformAction(config: any, actionId: string, errors: string[]): void {
+    if (!config.transformation) {
+      errors.push(`Transform action ${actionId} requires 'transformation' field`)
+      return
+    }
+
+    const transformation = config.transformation
+    const validTransformTypes = ['map', 'filter', 'aggregate', 'sort', 'group']
+    
+    if (!transformation.type) {
+      errors.push(`Transform action ${actionId} requires transformation type`)
+    } else if (!validTransformTypes.includes(transformation.type)) {
+      errors.push(`Transform action ${actionId} has invalid transformation type: ${transformation.type}`)
+    }
+
+    switch (transformation.type) {
+      case 'map':
+        if (!transformation.mapping) {
+          errors.push(`Map transformation in action ${actionId} requires 'mapping' field`)
+        }
+        break
+      case 'filter':
+        if (!transformation.condition) {
+          errors.push(`Filter transformation in action ${actionId} requires 'condition' field`)
+        }
+        break
+      case 'aggregate':
+        if (!transformation.operation) {
+          errors.push(`Aggregate transformation in action ${actionId} requires 'operation' field`)
+        }
+        break
+      case 'sort':
+        if (!transformation.field) {
+          errors.push(`Sort transformation in action ${actionId} requires 'field' field`)
+        }
+        break
+      case 'group':
+        if (!transformation.groupBy) {
+          errors.push(`Group transformation in action ${actionId} requires 'groupBy' field`)
+        }
+        break
+    }
+  }
+
+  private validateIntegrationAction(config: any, actionId: string, errors: string[]): void {
+    if (!config.provider) {
+      errors.push(`Integration action ${actionId} requires 'provider' field`)
+    }
+
+    if (!config.action) {
+      errors.push(`Integration action ${actionId} requires 'action' field`)
+    }
+
+    if (!config.parameters) {
+      errors.push(`Integration action ${actionId} requires 'parameters' field`)
+    }
+
+    // Validate known providers
+    const validProviders = ['gmail', 'slack', 'github', 'notion', 'salesforce', 'microsoft365']
+    if (config.provider && !validProviders.includes(config.provider)) {
+      errors.push(`Integration action ${actionId} uses unsupported provider: ${config.provider}`)
+    }
+  }
+
+  private validateConditions(conditions: any[], errors: string[]): void {
+    const conditionIds = new Set<string>()
+
+    conditions.forEach((condition, index) => {
+      if (!condition.id) {
+        errors.push(`Condition at index ${index} is missing ID`)
+      } else if (conditionIds.has(condition.id)) {
+        errors.push(`Duplicate condition ID: ${condition.id}`)
+      } else {
+        conditionIds.add(condition.id)
+      }
+
+      if (!condition.field && !condition.conditions) {
+        errors.push(`Condition ${condition.id || index} requires either 'field' or 'conditions'`)
+      }
+
+      if (!condition.operator) {
+        errors.push(`Condition ${condition.id || index} requires operator`)
+      } else {
+        const validOperators = [
+          'equals', 'not_equals', 'contains', 'greater_than', 'less_than', 
+          'exists', 'in', 'and', 'or'
+        ]
+        if (!validOperators.includes(condition.operator)) {
+          errors.push(`Condition ${condition.id || index} has invalid operator: ${condition.operator}`)
+        }
+      }
+
+      if (condition.operator === 'and' || condition.operator === 'or') {
+        if (!condition.conditions || !Array.isArray(condition.conditions)) {
+          errors.push(`Logical condition ${condition.id || index} requires 'conditions' array`)
+        } else if (condition.conditions.length === 0) {
+          errors.push(`Logical condition ${condition.id || index} requires at least one sub-condition`)
+        }
+      } else {
+        if (condition.value === undefined && condition.operator !== 'exists') {
+          errors.push(`Condition ${condition.id || index} requires 'value' field`)
+        }
+      }
+    })
+  }
+
+  private checkCircularDependencies(workflow: any, errors: string[]): void {
+    const actions = workflow.actions || []
+    const visited = new Set<string>()
+    const recursionStack = new Set<string>()
+
+    for (const action of actions) {
+      if (this.hasCycle(action, actions, visited, recursionStack)) {
+        errors.push(`Circular dependency detected involving action: ${action.id}`)
+      }
+    }
+  }
+
+  private hasCycle(
+    action: any,
+    allActions: any[],
+    visited: Set<string>,
+    recursionStack: Set<string>
+  ): boolean {
+    if (recursionStack.has(action.id)) {
+      return true // Cycle detected
+    }
+
+    if (visited.has(action.id)) {
+      return false // Already processed
+    }
+
+    visited.add(action.id)
+    recursionStack.add(action.id)
+
+    // Check next actions
+    const nextActions = action.nextActions || []
+    for (const nextActionId of nextActions) {
+      const nextAction = allActions.find(a => a.id === nextActionId)
+      if (nextAction && this.hasCycle(nextAction, allActions, visited, recursionStack)) {
+        return true
+      }
+    }
+
+    recursionStack.delete(action.id)
+    return false
+  }
+
+  private checkPerformanceIssues(workflow: any, warnings: string[]): void {
+    const actions = workflow.actions || []
+    
+    if (actions.length > 20) {
+      warnings.push('Workflow has more than 20 actions, consider breaking it into smaller workflows')
+    }
+
+    if (actions.length > 50) {
+      warnings.push('Workflow has more than 50 actions, this may cause performance issues')
+    }
+
+    // Check for deeply nested conditions
+    const conditions = workflow.conditions || []
+    conditions.forEach((condition:any) => {
+      const depth = this.getConditionDepth(condition)
+      if (depth > 5) {
+        warnings.push(`Condition ${condition.id} has deep nesting (depth: ${depth}), consider simplifying`)
+      }
+    })
+
+    // Check for potential infinite loops
+    const hasLoops = actions.some((action: any) => action.type === 'loop')
+    if (hasLoops) {
+      warnings.push('Workflow contains loops, ensure they have proper exit conditions')
+    }
+  }
+
+  private validateSecurity(workflow: any, errors: string[], warnings: string[]): void {
+    const actions = workflow.actions || []
+
+    actions.forEach((action:any) => {
+      // Check for hardcoded secrets
+      const configStr = JSON.stringify(action.config || {})
+      
+      if (this.containsHardcodedSecrets(configStr)) {
+        errors.push(`Action ${action.id} appears to contain hardcoded secrets, use variables instead`)
+      }
+
+      // Check for dangerous operations
+      if (action.type === 'http') {
+        if (action.config?.url && action.config.url.includes('localhost')) {
+          warnings.push(`Action ${action.id} makes requests to localhost, ensure this is intended`)
+        }
+      }
+
+      if (action.type === 'database' && action.config?.operation === 'delete') {
+        if (!action.config.filter || Object.keys(action.config.filter).length === 0) {
+          errors.push(`Database delete action ${action.id} must have proper filter conditions`)
+        }
+      }
+    })
+
+    // Check trigger security
+    if (workflow.trigger_config?.type === 'webhook') {
+      if (!workflow.trigger_config.config?.secret) {
+        warnings.push('Webhook trigger should use a secret for security')
+      }
+    }
+  }
+
+  private validateCronExpression(cron: string, errors: string[]): void {
+    // Basic cron validation
+    const parts = cron.trim().split(/\s+/)
+    if (parts.length < 5 || parts.length > 6) {
+      errors.push('Cron expression must have 5 or 6 parts')
+      return
+    }
+
+    // Validate each part
+    const validRanges = [
+      { min: 0, max: 59 }, // minute
+      { min: 0, max: 23 }, // hour  
+      { min: 1, max: 31 }, // day of month
+      { min: 1, max: 12 }, // month
+      { min: 0, max: 6 },  // day of week
+      { min: 1970, max: 3000 } // year (optional)
+    ]
+
+    parts.forEach((part, index) => {
+      if (part !== '*' && !part.includes('/') && !part.includes('-') && !part.includes(',')) {
+        const num = parseInt(part)
+        const range = validRanges[index]
+        if (isNaN(num) || num < range.min || num > range.max) {
+          errors.push(`Invalid cron expression: part ${index + 1} (${part}) is out of range`)
+        }
+      }
+    })
+  }
+
+  private isValidTimezone(timezone: string): boolean {
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: timezone })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  private isValidDate(date: string): boolean {
+    return !isNaN(Date.parse(date))
+  }
+
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
+  private containsHardcodedSecrets(configStr: string): boolean {
+    const secretPatterns = [
+      /api[_-]?key/i,
+      /secret/i,
+      /password/i,
+      /token/i,
+      /auth[_-]?key/i
+    ]
+
+    return secretPatterns.some(pattern => pattern.test(configStr)) && 
+           !configStr.includes('{{') // Not a template variable
+  }
+
+  private getConditionDepth(condition: any, depth: number = 0): number {
+    if (!condition.conditions || !Array.isArray(condition.conditions)) {
+      return depth
+    }
+
+    let maxDepth = depth
+    for (const subCondition of condition.conditions) {
+      const subDepth = this.getConditionDepth(subCondition, depth + 1)
+      maxDepth = Math.max(maxDepth, subDepth)
+    }
+
+    return maxDepth
+  }
+
+  // Dry run workflow execution for testing
+  async dryRunWorkflow(workflowId: string, testData: any): Promise<any> {
+    const results: {
+      workflowId: string
+      testData: any
+      simulatedSteps: any[]
+      estimatedDuration: number
+      potentialErrors: string[]
+      recommendations: string[]
+    } = {
+      workflowId,
+      testData,
+      simulatedSteps: [],
+      estimatedDuration: 0,
+      potentialErrors: [],
+      recommendations: []
+    }
+
+    try {
+      // This would simulate workflow execution without actually performing actions
+      // Implementation would analyze each step and predict outcomes
+      
+      results.simulatedSteps.push({
+        stepIndex: 0,
+        actionType: 'simulation',
+        status: 'simulated',
+        predictedDuration: 1000,
+        predictedOutput: { simulated: true }
+      })
+
+      results.estimatedDuration = 5000 // Estimated total duration
+      results.recommendations.push('Workflow structure looks good for execution')
+
+    } catch (error) {
+      results.potentialErrors.push(error instanceof Error ? error.message : 'Unknown error')
+    }
+
+    return results
+  }
+
+  // Validate workflow before execution
+  async preExecutionValidation(workflowId: string, triggerData: any): Promise<ValidationResult> {
+    const errors: string[] = []
+    const warnings: string[] = []
+
+    try {
+      // Additional runtime validations
+      if (triggerData && typeof triggerData !== 'object') {
+        errors.push('Trigger data must be an object')
+      }
+
+      // Validate variable references in trigger data
+      if (triggerData) {
+        this.validateVariableReferences(triggerData, errors)
+      }
+
+    } catch (error) {
+      errors.push(`Pre-execution validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    }
+  }
+
+  private validateVariableReferences(data: any, errors: string[], path: string = ''): void {
+    if (typeof data === 'string') {
+      // Check for malformed variable references
+      const variablePattern = /\{\{([^}]+)\}\}/g
+      let match
+      
+      while ((match = variablePattern.exec(data)) !== null) {
+        const variableName = match[1].trim()
+        if (!variableName) {
+          errors.push(`Empty variable reference in ${path || 'trigger data'}`)
+        }
+        if (variableName.includes('{{') || variableName.includes('}}')) {
+          errors.push(`Malformed variable reference: {{${variableName}}} in ${path || 'trigger data'}`)
+        }
+      }
+    } else if (typeof data === 'object' && data !== null) {
+      for (const [key, value] of Object.entries(data)) {
+        this.validateVariableReferences(value, errors, path ? `${path}.${key}` : key)
+      }
+    }
+  }
+}
