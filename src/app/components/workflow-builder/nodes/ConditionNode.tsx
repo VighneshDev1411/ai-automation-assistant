@@ -45,7 +45,7 @@ export function ConditionNode({ data, selected }: NodeProps<ConditionNodeData>) 
 
         {/* Configuration preview */}
         {data.config?.field && (
-          <div className="mt-2 text-xs text-muted-foreground font-mono">
+          <div className="mt-2 text-xs opacity-70 font-mono">
             {data.config.field} {getOperatorSymbol()} {data.config.value || '?'}
           </div>
         )}

@@ -1,4 +1,3 @@
-// src/components/workflow-builder/nodes/TriggerNode.tsx
 import React from 'react'
 import { Handle, Position, NodeProps } from 'reactflow'
 import { Card, CardContent } from '@/components/ui/card'
@@ -26,22 +25,22 @@ export function TriggerNode({ data, selected }: NodeProps<TriggerNodeData>) {
     }
   }
 
-const getTriggerColor = () => {
+  const getTriggerColor = () => {
   switch (data.config?.type || data.triggerType) {
     case 'webhook':
-      return 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-700'
+      return 'bg-purple-50 border-purple-200 dark:bg-purple-950/30 dark:border-purple-800 dark:text-purple-100'
     case 'schedule':
-      return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-700'
+      return 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-100'
     case 'email':
-      return 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700'
+      return 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800 dark:text-green-100'
     case 'manual':
     default:
-      return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-700'
+      return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/30 dark:border-yellow-800 dark:text-yellow-100'
   }
 }
 
   return (
-    <Card className={`min-w-48 ${getTriggerColor()} ${selected ? 'ring-2 ring-primary' : ''}`}>
+    <Card className={`min-w-48 ${getTriggerColor()} ${selected ? 'ring-2 ring-primary' : ''} transition-all duration-200`}>
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-2">
           {getTriggerIcon()}
@@ -49,23 +48,23 @@ const getTriggerColor = () => {
           <span className="font-medium text-sm">TRIGGER</span>
         </div>
         
-        <div className="text-sm font-medium mb-2">
+        <div className="text-sm font-medium mb-2 text-foreground">
           {data.label}
         </div>
         
-        <Badge variant="outline" className="text-xs">
+        <Badge variant="outline" className="text-xs border-current">
           {(data.config?.type || data.triggerType).replace('_', ' ').toUpperCase()}
         </Badge>
 
         {/* Configuration preview */}
         {data.config?.type === 'schedule' && data.config.cron && (
-          <div className="mt-2 text-xs text-muted-foreground">
+          <div className="mt-2 text-xs opacity-70">
             {data.config.cron}
           </div>
         )}
         
         {data.config?.type === 'webhook' && data.config.events && (
-          <div className="mt-2 text-xs text-muted-foreground">
+          <div className="mt-2 text-xs opacity-70">
             Events: {data.config.events.slice(0, 2).join(', ')}
             {data.config.events.length > 2 && '...'}
           </div>
@@ -76,9 +75,8 @@ const getTriggerColor = () => {
       <Handle
         type="source"
         position={Position.Right}
-        className="w-3 h-3 bg-primary border-2 border-white"
+        className="w-3 h-3 bg-primary border-2 border-white dark:border-gray-800"
       />
     </Card>
   )
 }
-

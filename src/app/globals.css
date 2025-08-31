@@ -59,6 +59,121 @@
 }
 
 @layer components {
+  /* === IMPROVED STYLING SYSTEM (Added without breaking existing) === */
+
+  /* Better glass card system */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    @apply shadow-sm transition-all duration-300;
+  }
+
+  .glass-card:hover {
+    background: rgba(255, 255, 255, 0.75);
+    @apply shadow-md;
+  }
+
+  .dark .glass-card {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    @apply shadow-lg;
+  }
+
+  .dark .glass-card:hover {
+    background: rgba(15, 23, 42, 0.75);
+    @apply shadow-xl;
+  }
+
+  /* Clean card variant */
+  .clean-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    @apply shadow-sm transition-all duration-200;
+  }
+
+  .clean-card:hover {
+    @apply shadow-md bg-accent/50;
+  }
+
+  /* Status icon backgrounds */
+  .status-icon-bg {
+    @apply rounded-xl flex items-center justify-center transition-all duration-200;
+  }
+
+  .status-icon-bg.success {
+    @apply bg-green-100/80 dark:bg-green-900/40;
+  }
+
+  .status-icon-bg.warning {
+    @apply bg-yellow-100/80 dark:bg-yellow-900/40;
+  }
+
+  .status-icon-bg.error {
+    @apply bg-red-100/80 dark:bg-red-900/40;
+  }
+
+  .status-icon-bg.info {
+    @apply bg-blue-100/80 dark:bg-blue-900/40;
+  }
+
+  .status-icon-bg.purple {
+    @apply bg-purple-100/80 dark:bg-purple-900/40;
+  }
+
+  /* Improved badges */
+  .badge-success {
+    @apply bg-green-50 text-green-700 border-green-200 hover:bg-green-100;
+    @apply dark:bg-green-950/50 dark:text-green-300 dark:border-green-800 dark:hover:bg-green-950/70;
+  }
+
+  .badge-warning {
+    @apply bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100;
+    @apply dark:bg-yellow-950/50 dark:text-yellow-300 dark:border-yellow-800 dark:hover:bg-yellow-950/70;
+  }
+
+  .badge-error {
+    @apply bg-red-50 text-red-700 border-red-200 hover:bg-red-100;
+    @apply dark:bg-red-950/50 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-950/70;
+  }
+
+  .badge-info {
+    @apply bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100;
+    @apply dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800 dark:hover:bg-blue-950/70;
+  }
+
+  .badge-neutral {
+    @apply bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100;
+    @apply dark:bg-gray-950/50 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-950/70;
+  }
+
+  /* Loading states */
+  .loading-gradient {
+    @apply bg-gradient-to-r from-purple-500/20 to-pink-600/20;
+    @apply dark:from-purple-400/20 dark:to-pink-500/20;
+  }
+
+  /* Button improvements */
+  .btn-shine {
+    @apply bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700;
+    @apply text-white shadow-lg hover:shadow-xl transition-all duration-200;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent;
+    @apply dark:from-blue-400 dark:to-purple-400;
+  }
+
+  /* Utility classes for consistent spacing */
+  .container-padding {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-spacing {
+    @apply py-8 md:py-12 lg:py-16;
+  }
+
   /* Dropdowns & dialogs */
   [role="menu"],
   [role="dialog"],
@@ -123,97 +238,27 @@
     @apply bg-muted-foreground/30;
   }
 
-  /* Glass card */
-/* Better glass card system */
-.glass-card {
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  @apply shadow-sm;
-}
-
-.dark .glass-card {
-  background: rgba(15, 23, 42, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  @apply shadow-lg;
-}
-
-/* Clean card variant */
-.clean-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  @apply shadow-sm;
-}
-
-.clean-card:hover {
-  @apply shadow-md;
-  background: var(--accent);
-}
-
-  /* Gradient text */
-  .gradient-text {
-    @apply bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent;
+  /* Animation utilities */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
-  /* Button shine */
-  .btn-shine {
-    @apply relative overflow-hidden;
-  }
-  .btn-shine::before {
-    content: '';
-    @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full;
-    animation: shine 2s infinite;
-  }
-  @keyframes shine {
-    100% {
-      transform: translateX(200%);
-    }
-  }
-
-  /* Elevated dropdowns */
-  .elevated-dropdown {
-    @apply bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700;
-    @apply shadow-lg ring-1 ring-black/5 dark:ring-white/10;
-  }
-
-  /* Hover shadow */
-  .hover\:shadow-xl:hover {
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
-                0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  }
-  .dark .hover\:shadow-xl:hover {
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4),
-                0 10px 10px -5px rgba(0, 0, 0, 0.2);
-  }
-}
-
-@layer utilities {
-  /* Z-index */
-  .z-dropdown { z-index: 100; }
-  .z-modal-backdrop { z-index: 90; }
-  .z-modal { z-index: 95; }
-  .z-tooltip { z-index: 110; }
-  .z-notification { z-index: 120; }
-
-  /* Animations */
-  .animate-slide-in-up {
-    animation: slideInUp 0.3s ease-out;
-  }
-  @keyframes slideInUp {
-    from { transform: translateY(10px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out;
   }
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
   }
 
-  /* Backdrop blur */
-  .backdrop-blur-xs { backdrop-filter: blur(2px); }
-  .backdrop-blur-sm { backdrop-filter: blur(4px); }
-  .backdrop-blur { backdrop-filter: blur(8px); }
+  /* Focus improvements */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
 }

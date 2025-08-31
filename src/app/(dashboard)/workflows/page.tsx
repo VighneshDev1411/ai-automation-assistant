@@ -1,4 +1,3 @@
-// src/app/(dashboard)/workflows/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -58,8 +57,8 @@ import {
   Settings,
 } from 'lucide-react'
 
-// Mock workflow data (will be replaced with Supabase)
-interface Workflow {
+// Mock workflow data
+interface WorkflowType {
   id: string
   name: string
   description: string
@@ -73,13 +72,11 @@ interface Workflow {
 }
 
 function useWorkflows() {
-  const [workflows, setWorkflows] = useState<Workflow[]>([])
+  const [workflows, setWorkflows] = useState<WorkflowType[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<'name' | 'lastRun' | 'executions'>(
-    'lastRun'
-  )
+  const [sortBy, setSortBy] = useState<'name' | 'lastRun' | 'executions'>('lastRun')
 
   useEffect(() => {
     // Simulate loading workflows
@@ -87,107 +84,93 @@ function useWorkflows() {
       setWorkflows([
         {
           id: '1',
-          name: 'Daily Sales Report',
-          description: 'Generates daily sales report and sends to team',
+          name: 'Email Notification System',
+          description: 'Automated email notifications for new user registrations',
           status: 'active',
-          lastRun: '2 hours ago',
-          nextRun: 'in 22 hours',
-          executions: 365,
-          successRate: 99.2,
-          createdAt: '2024-01-15',
-          tags: ['sales', 'reporting', 'daily'],
+          lastRun: '2024-01-15T10:30:00Z',
+          nextRun: '2024-01-15T11:00:00Z',
+          executions: 1247,
+          successRate: 98.5,
+          createdAt: '2023-12-01T09:00:00Z',
+          tags: ['email', 'users', 'notifications'],
         },
         {
           id: '2',
-          name: 'Customer Onboarding',
-          description:
-            'Automated customer onboarding workflow with AI assistance',
+          name: 'Data Sync Pipeline',
+          description: 'Synchronize customer data between CRM and database',
           status: 'active',
-          lastRun: '30 min ago',
-          nextRun: 'on trigger',
-          executions: 1247,
-          successRate: 97.8,
-          createdAt: '2024-02-20',
-          tags: ['customer', 'onboarding', 'ai'],
+          lastRun: '2024-01-15T09:45:00Z',
+          nextRun: '2024-01-15T10:45:00Z',
+          executions: 2156,
+          successRate: 99.2,
+          createdAt: '2023-11-15T14:20:00Z',
+          tags: ['data', 'sync', 'crm'],
         },
         {
           id: '3',
-          name: 'Data Sync Pipeline',
-          description: 'Syncs data between CRM and database',
-          status: 'error',
-          lastRun: '1 day ago',
-          nextRun: 'paused',
-          executions: 892,
-          successRate: 94.5,
-          createdAt: '2024-01-10',
-          tags: ['data', 'sync', 'integration'],
+          name: 'Report Generator',
+          description: 'Generate weekly performance reports automatically',
+          status: 'inactive',
+          lastRun: '2024-01-08T06:00:00Z',
+          nextRun: '-',
+          executions: 52,
+          successRate: 96.2,
+          createdAt: '2023-11-30T16:45:00Z',
+          tags: ['reports', 'analytics'],
         },
         {
           id: '4',
-          name: 'Social Media Scheduler',
-          description: 'AI-powered social media content scheduling',
-          status: 'inactive',
-          lastRun: '3 days ago',
-          nextRun: 'disabled',
-          executions: 156,
-          successRate: 100,
-          createdAt: '2024-03-01',
-          tags: ['social', 'marketing', 'ai'],
+          name: 'Slack Integration',
+          description: 'Post updates to Slack channels on specific events',
+          status: 'error',
+          lastRun: '2024-01-14T15:20:00Z',
+          nextRun: '-',
+          executions: 89,
+          successRate: 87.6,
+          createdAt: '2024-01-10T11:30:00Z',
+          tags: ['slack', 'notifications', 'alerts'],
         },
         {
           id: '5',
-          name: 'Invoice Processing',
-          description: 'Automated invoice processing and approval',
-          status: 'active',
-          lastRun: '5 hours ago',
-          nextRun: 'in 1 hour',
-          executions: 2341,
-          successRate: 98.9,
-          createdAt: '2024-01-05',
-          tags: ['finance', 'automation', 'approval'],
-        },
-        {
-          id: '6',
-          name: 'Lead Scoring Model',
-          description: 'ML-based lead scoring and routing',
+          name: 'Backup Automation',
+          description: 'Daily database backup to cloud storage',
           status: 'draft',
-          lastRun: 'never',
-          nextRun: 'draft',
+          lastRun: '-',
+          nextRun: '-',
           executions: 0,
           successRate: 0,
-          createdAt: '2024-03-15',
-          tags: ['ml', 'leads', 'sales'],
+          createdAt: '2024-01-12T13:15:00Z',
+          tags: ['backup', 'database', 'cloud'],
         },
       ])
       setIsLoading(false)
-    }, 1000)
+    }, 1500)
   }, [])
 
-  // Filter workflows
-  const filteredWorkflows = workflows.filter(workflow => {
-    const matchesSearch =
-      workflow.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      workflow.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus =
-      statusFilter === 'all' || workflow.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
-
-  // Sort workflows
-  const sortedWorkflows = [...filteredWorkflows].sort((a, b) => {
-    switch (sortBy) {
-      case 'name':
-        return a.name.localeCompare(b.name)
-      case 'executions':
-        return b.executions - a.executions
-      case 'lastRun':
-      default:
-        return 0 // In real app, would sort by actual timestamp
-    }
-  })
+  // Filter and sort workflows
+  const filteredWorkflows = workflows
+    .filter(workflow => {
+      const matchesSearch = workflow.name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
+      const matchesStatus =
+        statusFilter === 'all' || workflow.status === statusFilter
+      return matchesSearch && matchesStatus
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name)
+        case 'executions':
+          return b.executions - a.executions
+        case 'lastRun':
+        default:
+          return new Date(b.lastRun || 0).getTime() - new Date(a.lastRun || 0).getTime()
+      }
+    })
 
   return {
-    workflows: sortedWorkflows,
+    workflows: filteredWorkflows,
     isLoading,
     searchTerm,
     setSearchTerm,
@@ -211,12 +194,6 @@ export default function WorkflowsPage() {
   } = useWorkflows()
 
   const [selectedWorkflows, setSelectedWorkflows] = useState<string[]>([])
-  const [isRefreshing, setIsRefreshing] = useState(false)
-
-  const handleRefresh = () => {
-    setIsRefreshing(true)
-    setTimeout(() => setIsRefreshing(false), 1000)
-  }
 
   const toggleWorkflowSelection = (id: string) => {
     setSelectedWorkflows(prev =>
@@ -238,28 +215,40 @@ export default function WorkflowsPage() {
   }
 
   const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'active':
-      return 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800'
-    case 'error':
-      return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800'
-    case 'inactive':
-      return 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/50 dark:text-yellow-300 dark:border-yellow-800'
-    case 'draft':
-      return 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950/50 dark:text-gray-300 dark:border-gray-800'
-    default:
-      return 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950/50 dark:text-gray-300 dark:border-gray-800'
+    switch (status) {
+      case 'active':
+        return 'badge-success'
+      case 'error':
+        return 'badge-error'
+      case 'inactive':
+        return 'badge-warning'
+      case 'draft':
+        return 'badge-neutral'
+      default:
+        return 'badge-neutral'
+    }
   }
-}
+
+  const formatDate = (dateString: string) => {
+    if (!dateString || dateString === '-') return '-'
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
 
   return (
     <ErrorBoundary>
-      <div className="p-6 space-y-6">
+      <div className="container-padding section-spacing space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Workflows</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-4xl font-bold tracking-tight gradient-text">
+              Workflows
+            </h1>
+            <p className="text-lg text-muted-foreground">
               Manage and monitor your automation workflows
             </p>
           </div>
@@ -270,8 +259,8 @@ export default function WorkflowsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <Card className="clean-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium">
                 Total Workflows
@@ -282,40 +271,37 @@ export default function WorkflowsPage() {
               <p className="text-xs text-muted-foreground">+2 this week</p>
             </CardContent>
           </Card>
-          <Card>
+
+          <Card className="clean-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium">Active</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                 {workflows.filter(w => w.status === 'active').length}
               </div>
-              <p className="text-xs text-muted-foreground">Currently running</p>
+              <p className="text-xs text-muted-foreground">Running smoothly</p>
             </CardContent>
           </Card>
-          <Card>
+
+          <Card className="clean-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Executions
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">Total Executions</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {workflows
-                  .reduce((sum, w) => sum + w.executions, 0)
-                  .toLocaleString()}
+                {workflows.reduce((sum, w) => sum + w.executions, 0).toLocaleString()}
               </div>
-              <p className="text-xs text-muted-foreground">All time</p>
+              <p className="text-xs text-muted-foreground">This month</p>
             </CardContent>
           </Card>
-          <Card>
+
+          <Card className="clean-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
-                Avg Success Rate
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">Avg Success Rate</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-purple-600">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                 {workflows.length > 0
                   ? (
                       workflows.reduce((sum, w) => sum + w.successRate, 0) /
@@ -324,29 +310,30 @@ export default function WorkflowsPage() {
                   : 0}
                 %
               </div>
-              <p className="text-xs text-muted-foreground">Last 30 days</p>
+              <p className="text-xs text-muted-foreground">Overall performance</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Filters and Search */}
-        <Card>
+        <Card className="glass-card">
           <CardHeader>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Search workflows..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div className="flex items-center gap-4 flex-1">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search workflows..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[150px]">
+                  <SelectTrigger className="w-40">
                     <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Filter by status" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
@@ -356,13 +343,11 @@ export default function WorkflowsPage() {
                     <SelectItem value="draft">Draft</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select
-                  value={sortBy}
-                  onValueChange={(value: any) => setSortBy(value)}
-                >
-                  <SelectTrigger className="w-[150px]">
+
+                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                  <SelectTrigger className="w-40">
                     <ArrowUpDown className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Sort by" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="lastRun">Last Run</SelectItem>
@@ -370,179 +355,298 @@ export default function WorkflowsPage() {
                     <SelectItem value="executions">Executions</SelectItem>
                   </SelectContent>
                 </Select>
-                <RefreshIndicator
-                  isRefreshing={isRefreshing}
-                  onRefresh={handleRefresh}
-                />
               </div>
+
+              {selectedWorkflows.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {selectedWorkflows.length} selected
+                  </span>
+                  <Button variant="outline" size="sm">
+                    <Play className="h-4 w-4 mr-1" />
+                    Run
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <Pause className="h-4 w-4 mr-1" />
+                    Pause
+                  </Button>
+                </div>
+              )}
             </div>
           </CardHeader>
-          <CardContent>
+
+          <CardContent className="p-0">
             {isLoading ? (
-              <SkeletonTable rows={6} columns={7} />
+              <div className="p-6">
+                <SkeletonTable rows={5} />
+              </div>
             ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[50px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <input
+                        type="checkbox"
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setSelectedWorkflows(workflows.map(w => w.id))
+                          } else {
+                            setSelectedWorkflows([])
+                          }
+                        }}
+                        checked={selectedWorkflows.length === workflows.length}
+                        className="rounded border-input"
+                      />
+                    </TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Last Run</TableHead>
+                    <TableHead>Next Run</TableHead>
+                    <TableHead>Executions</TableHead>
+                    <TableHead>Success Rate</TableHead>
+                    <TableHead className="w-12"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {workflows.map(workflow => (
+                    <TableRow key={workflow.id} className="group">
+                      <TableCell>
                         <input
                           type="checkbox"
-                          checked={
-                            selectedWorkflows.length === workflows.length
-                          }
-                          onChange={e => {
-                            if (e.target.checked) {
-                              setSelectedWorkflows(workflows.map(w => w.id))
-                            } else {
-                              setSelectedWorkflows([])
-                            }
-                          }}
-                          className="rounded border-gray-300"
+                          checked={selectedWorkflows.includes(workflow.id)}
+                          onChange={() => toggleWorkflowSelection(workflow.id)}
+                          className="rounded border-input"
                         />
-                      </TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Last Run</TableHead>
-                      <TableHead>Next Run</TableHead>
-                      <TableHead className="text-center">Executions</TableHead>
-                      <TableHead className="text-center">
-                        Success Rate
-                      </TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {workflows.map(workflow => (
-                      <TableRow
-                        key={workflow.id}
-                        className="cursor-pointer hover:bg-muted/50"
-                      >
-                        <TableCell>
-                          <input
-                            type="checkbox"
-                            checked={selectedWorkflows.includes(workflow.id)}
-                            onChange={() =>
-                              toggleWorkflowSelection(workflow.id)
-                            }
-                            className="rounded border-gray-300"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{workflow.name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {workflow.description}
-                            </div>
-                            <div className="flex gap-1 mt-1">
-                              {workflow.tags.map(tag => (
-                                <Badge
-                                  key={tag}
-                                  variant="outline"
-                                  className="text-xs"
-                                >
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="font-medium">{workflow.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {workflow.description}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            className={`${getStatusColor(workflow.status)} flex items-center gap-1 w-fit`}
+                          <div className="flex gap-1 mt-1">
+                            {workflow.tags.slice(0, 2).map(tag => (
+                              <Badge
+                                key={tag}
+                                variant="outline"
+                                className="text-xs px-1 py-0 h-5"
+                              >
+                                {tag}
+                              </Badge>
+                            ))}
+                            {workflow.tags.length > 2 && (
+                              <Badge
+                                variant="outline"
+                                className="text-xs px-1 py-0 h-5"
+                              >
+                                +{workflow.tags.length - 2}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={`${getStatusColor(workflow.status)} border`}>
+                          {getStatusIcon(workflow.status)}
+                          <span className="ml-1 capitalize">{workflow.status}</span>
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {formatDate(workflow.lastRun)}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {formatDate(workflow.nextRun)}
+                      </TableCell>
+                      <TableCell className="text-sm font-mono">
+                        {workflow.executions.toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`text-sm font-medium ${
+                              workflow.successRate >= 95
+                                ? 'text-green-600 dark:text-green-400'
+                                : workflow.successRate >= 90
+                                ? 'text-yellow-600 dark:text-yellow-400'
+                                : 'text-red-600 dark:text-red-400'
+                            }`}
                           >
-                            {getStatusIcon(workflow.status)}
-                            {workflow.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{workflow.lastRun}</TableCell>
-                        <TableCell>{workflow.nextRun}</TableCell>
-                        <TableCell className="text-center">
-                          {workflow.executions}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span
-                            className={
-                              workflow.successRate > 95
-                                ? 'text-green-600'
-                                : 'text-yellow-600'
-                            }
-                          >
-                            {workflow.successRate}%
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem>
-                                <Play className="h-4 w-4 mr-2" />
-                                Run Now
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Copy className="h-4 w-4 mr-2" />
-                                Duplicate
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Settings className="h-4 w-4 mr-2" />
-                                Settings
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-destructive">
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                            {workflow.successRate.toFixed(1)}%
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Copy className="h-4 w-4 mr-2" />
+                              Duplicate
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <FileText className="h-4 w-4 mr-2" />
+                              View Logs
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem>
+                              <Settings className="h-4 w-4 mr-2" />
+                              Settings
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-red-600 dark:text-red-400">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>
 
-        {/* Bulk Actions */}
-        {selectedWorkflows.length > 0 && (
-          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
-            <Card className="shadow-lg">
-              <CardContent className="flex items-center gap-4 p-4">
-                <span className="text-sm font-medium">
-                  {selectedWorkflows.length} workflow(s) selected
-                </span>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline">
-                    <Play className="h-4 w-4 mr-1" />
-                    Run
-                  </Button>
-                  <Button size="sm" variant="outline">
-                    <Pause className="h-4 w-4 mr-1" />
-                    Pause
-                  </Button>
+        {/* Empty State */}
+        {!isLoading && workflows.length === 0 && (
+          <Card className="glass-card">
+            <CardContent className="p-12 text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-purple-600/20 dark:from-blue-400/20 dark:to-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-blue-200 dark:border-blue-800">
+                <Workflow className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+              </div>
+              <h3 className="text-2xl font-bold mb-3">No workflows found</h3>
+              <p className="text-muted-foreground text-lg mb-6 max-w-md mx-auto">
+                {searchTerm || statusFilter !== 'all'
+                  ? 'Try adjusting your search or filters to find workflows.'
+                  : 'Get started by creating your first automated workflow.'}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button className="btn-shine">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Your First Workflow
+                </Button>
+                {(searchTerm || statusFilter !== 'all') && (
                   <Button
-                    size="sm"
                     variant="outline"
-                    className="text-destructive"
+                    onClick={() => {
+                      setSearchTerm('')
+                      setStatusFilter('all')
+                    }}
                   >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Delete
+                    Clear Filters
                   </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Quick Actions */}
+        {!isLoading && workflows.length > 0 && (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <Card className="clean-card cursor-pointer hover:shadow-md transition-all duration-200">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Template Library</CardTitle>
+                  <div className="status-icon-bg info w-10 h-10">
+                    <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
                 </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Browse pre-built workflow templates to get started quickly.
+                </p>
+                <Button variant="outline" size="sm" className="w-full">
+                  Browse Templates
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="clean-card cursor-pointer hover:shadow-md transition-all duration-200">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Import/Export</CardTitle>
+                  <div className="status-icon-bg purple w-10 h-10">
+                    <ArrowUpDown className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Import workflows from files or export your workflows to share.
+                </p>
+                <Button variant="outline" size="sm" className="w-full">
+                  Manage Workflows
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="clean-card cursor-pointer hover:shadow-md transition-all duration-200">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Workflow Analytics</CardTitle>
+                  <div className="status-icon-bg success w-10 h-10">
+                    <Zap className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  View detailed analytics and performance metrics for all workflows.
+                </p>
+                <Button variant="outline" size="sm" className="w-full">
+                  View Analytics
+                </Button>
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {/* Debug Information - Development Only */}
+        {process.env.NODE_ENV === 'development' && (
+          <Card className="border-dashed border-muted-foreground/30">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                🔧 Debug Information (Development Only)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <details className="text-xs">
+                <summary className="cursor-pointer hover:text-foreground text-muted-foreground mb-2">
+                  Click to view debug data
+                </summary>
+                <pre className="bg-muted p-4 rounded-lg overflow-auto max-h-64 text-xs">
+                  {JSON.stringify(
+                    {
+                      totalWorkflows: workflows.length,
+                      activeWorkflows: workflows.filter(w => w.status === 'active').length,
+                      searchTerm,
+                      statusFilter,
+                      sortBy,
+                      selectedWorkflows: selectedWorkflows.length,
+                      isLoading,
+                    },
+                    null,
+                    2
+                  )}
+                </pre>
+              </details>
+            </CardContent>
+          </Card>
         )}
       </div>
     </ErrorBoundary>
