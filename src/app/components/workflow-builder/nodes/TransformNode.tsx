@@ -32,21 +32,21 @@ export function TransformNode({ data, selected }: NodeProps<TransformNodeData>) 
     }
   }
 
-  const getTransformColor = () => {
-    switch (data.config?.type) {
-      case 'filter':
-        return 'bg-cyan-50 border-cyan-200'
-      case 'aggregate':
-        return 'bg-indigo-50 border-indigo-200'
-      case 'sort':
-        return 'bg-teal-50 border-teal-200'
-      case 'group':
-        return 'bg-emerald-50 border-emerald-200'
-      case 'map':
-      default:
-        return 'bg-violet-50 border-violet-200'
-    }
+ const getTransformColor = () => {
+  switch (data.config?.type) {
+    case 'filter':
+      return 'bg-cyan-50 border-cyan-200 dark:bg-cyan-900/20 dark:border-cyan-700'
+    case 'aggregate':
+      return 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-700'
+    case 'sort':
+      return 'bg-teal-50 border-teal-200 dark:bg-teal-900/20 dark:border-teal-700'
+    case 'group':
+      return 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700'
+    case 'map':
+    default:
+      return 'bg-violet-50 border-violet-200 dark:bg-violet-900/20 dark:border-violet-700'
   }
+}
 
   return (
     <Card className={`min-w-48 ${getTransformColor()} ${selected ? 'ring-2 ring-primary' : ''}`}>

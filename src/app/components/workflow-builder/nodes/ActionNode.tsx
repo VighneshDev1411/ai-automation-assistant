@@ -36,21 +36,19 @@ export function ActionNode({ data, selected }: NodeProps<ActionNodeData>) {
   }
 
   const getActionColor = () => {
-    switch (data.config?.type) {
-      case 'http':
-        return 'bg-blue-50 border-blue-200'
-      case 'email':
-        return 'bg-green-50 border-green-200'
-      case 'database':
-        return 'bg-orange-50 border-orange-200'
-      case 'integration':
-        return 'bg-purple-50 border-purple-200'
-      case 'ai':
-        return 'bg-pink-50 border-pink-200'
-      default:
-        return 'bg-gray-50 border-gray-200'
-    }
+  switch (data.config?.type) {
+    case 'http':
+      return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-700'
+    case 'email':
+      return 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700'
+    case 'database':
+      return 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-700'
+    case 'webhook':
+      return 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-700'
+    default:
+      return 'bg-gray-50 border-gray-200 dark:bg-gray-900/20 dark:border-gray-700'
   }
+}
 
   return (
     <Card className={`min-w-48 ${getActionColor()} ${selected ? 'ring-2 ring-primary' : ''}`}>

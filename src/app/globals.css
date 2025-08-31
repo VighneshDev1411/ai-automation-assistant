@@ -124,16 +124,31 @@
   }
 
   /* Glass card */
-  .glass-card {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    @apply shadow-sm;
-  }
-  .dark .glass-card {
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
+/* Better glass card system */
+.glass-card {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  @apply shadow-sm;
+}
+
+.dark .glass-card {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  @apply shadow-lg;
+}
+
+/* Clean card variant */
+.clean-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  @apply shadow-sm;
+}
+
+.clean-card:hover {
+  @apply shadow-md;
+  background: var(--accent);
+}
 
   /* Gradient text */
   .gradient-text {
