@@ -3,29 +3,41 @@
 
 import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-// import { WorkflowBuilderWrapper } from '@/components/workflow-builder/WorkflowBuilder'
 import { WorkflowBuilderWrapper } from '@/app/components/workflow-builder/WorkflowBuilder'
 import { useAuth } from '@/lib/auth/auth-context'
 import { createClient } from '@/lib/supabase/client'
-// import { useToast } from '@/hooks/use-toast'
 import { useToast } from '@/components/ui/use-toast'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Save, Play } from 'lucide-react'
+import { ArrowLeft, Save, Play, Loader2 } from 'lucide-react'
 
-export default function WorkflowBuilderPage() {
+// Loading component for Suspense fallback
+function WorkflowBuilderLoading() {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <div className="text-center">Loading workflow builder...</div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// Main workflow builder component that uses useSearchParams
+function WorkflowBuilderContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { currentOrganization } = useAuth()
   const { toast } = useToast()
   const supabase = createClient()
-
+  
   const workflowId = searchParams.get('id')
   const [initialWorkflow, setInitialWorkflow] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(!!workflowId)
-
-  // const params = useSearchParams()
-  // const id = params.get
 
   // Load existing workflow if editing
   useEffect(() => {
@@ -50,7 +62,7 @@ export default function WorkflowBuilderPage() {
       toast({
         title: 'Error',
         description: 'Failed to load workflow',
-        variant: 'destructive',
+        variant: 'destructive'
       })
     } finally {
       setIsLoading(false)
@@ -62,7 +74,7 @@ export default function WorkflowBuilderPage() {
       toast({
         title: 'Error',
         description: 'No organization selected',
-        variant: 'destructive',
+        variant: 'destructive'
       })
       return
     }
@@ -80,8 +92,8 @@ export default function WorkflowBuilderPage() {
         layout_data: {
           nodes: workflow.nodes,
           edges: workflow.edges,
-          viewport: workflow.layout?.viewport,
-        },
+          viewport: workflow.layout?.viewport
+        }
       }
 
       if (workflowId) {
@@ -95,7 +107,7 @@ export default function WorkflowBuilderPage() {
 
         toast({
           title: 'Success',
-          description: 'Workflow updated successfully',
+          description: 'Workflow updated successfully'
         })
       } else {
         // Create new workflow
@@ -109,7 +121,7 @@ export default function WorkflowBuilderPage() {
 
         toast({
           title: 'Success',
-          description: 'Workflow created successfully',
+          description: 'Workflow created successfully'
         })
 
         // Navigate to edit mode
@@ -120,7 +132,7 @@ export default function WorkflowBuilderPage() {
       toast({
         title: 'Error',
         description: 'Failed to save workflow',
-        variant: 'destructive',
+        variant: 'destructive'
       })
     }
   }
@@ -130,7 +142,7 @@ export default function WorkflowBuilderPage() {
       toast({
         title: 'Error',
         description: 'Please save the workflow before executing',
-        variant: 'destructive',
+        variant: 'destructive'
       })
       return
     }
@@ -140,22 +152,16 @@ export default function WorkflowBuilderPage() {
       await handleSave(workflow)
 
       // Then execute it
-      const { data: executionId, error } = await supabase.rpc(
-        'execute_workflow_v2',
-        {
-          workflow_id: workflowId,
-          trigger_data: {
-            manual_trigger: true,
-            timestamp: new Date().toISOString(),
-          },
-        }
-      )
+      const { data: executionId, error } = await supabase.rpc('execute_workflow_v2', {
+        workflow_id: workflowId,
+        trigger_data: { manual_trigger: true, timestamp: new Date().toISOString() }
+      })
 
       if (error) throw error
 
       toast({
         title: 'Workflow Executed',
-        description: `Execution started with ID: ${executionId}`,
+        description: `Execution started with ID: ${executionId}`
       })
 
       // Navigate to execution view
@@ -163,23 +169,15 @@ export default function WorkflowBuilderPage() {
     } catch (error) {
       console.error('Failed to execute workflow:', error)
       toast({
-        title: 'Error',
+        title: 'Error', 
         description: 'Failed to execute workflow',
-        variant: 'destructive',
+        variant: 'destructive'
       })
     }
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">Loading workflow...</div>
-          </CardContent>
-        </Card>
-      </div>
-    )
+    return <WorkflowBuilderLoading />
   }
 
   return (
@@ -188,42 +186,62 @@ export default function WorkflowBuilderPage() {
       <div className="border-b bg-background p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => router.back()}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.back()}
+            >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
-
+            
             <h1 className="text-xl font-semibold">
               {workflowId ? 'Edit Workflow' : 'Create Workflow'}
             </h1>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => router.push('/workflows')}
+              onClick={() => handleSave(initialWorkflow)}
             >
-              Cancel
+              <Save className="h-4 w-4 mr-2" />
+              Save
             </Button>
+            
+            {workflowId && (
+              <Button
+                size="sm"
+                onClick={() => handleExecute(initialWorkflow)}
+                className="btn-shine"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Test Run
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Workflow Builder */}
-      <div className="flex-1">
-        <Suspense fallback={<div>Loading workflow builder...</div>}>
-          <WorkflowBuilderWrapper
-            workflowId={workflowId || undefined}
-            initialWorkflow={initialWorkflow}
-            onSave={handleSave}
-            onExecute={handleExecute}
-          />
-        </Suspense>
+      <div className="flex-1 overflow-hidden">
+        <WorkflowBuilderWrapper
+          workflowId={workflowId || undefined}
+          initialWorkflow={initialWorkflow}
+          onSave={handleSave}
+          onExecute={handleExecute}
+        />
       </div>
     </div>
   )
 }
 
-// Workflow Builder with Real-time Validation
-// src/components/workflow-builder/WorkflowBuilderEnhanced.tsx
+// Main page component with Suspense boundary
+export default function WorkflowBuilderPage() {
+  return (
+    <Suspense fallback={<WorkflowBuilderLoading />}>
+      <WorkflowBuilderContent />
+    </Suspense>
+  )
+}
