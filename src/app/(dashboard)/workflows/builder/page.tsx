@@ -1,7 +1,7 @@
 // src/app/(dashboard)/workflows/builder/page.tsx
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 // import { WorkflowBuilderWrapper } from '@/components/workflow-builder/WorkflowBuilder'
 import { WorkflowBuilderWrapper } from '@/app/components/workflow-builder/WorkflowBuilder'
@@ -19,10 +19,13 @@ export default function WorkflowBuilderPage() {
   const { currentOrganization } = useAuth()
   const { toast } = useToast()
   const supabase = createClient()
-  
+
   const workflowId = searchParams.get('id')
   const [initialWorkflow, setInitialWorkflow] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(!!workflowId)
+
+  // const params = useSearchParams()
+  // const id = params.get
 
   // Load existing workflow if editing
   useEffect(() => {
@@ -47,7 +50,7 @@ export default function WorkflowBuilderPage() {
       toast({
         title: 'Error',
         description: 'Failed to load workflow',
-        variant: 'destructive'
+        variant: 'destructive',
       })
     } finally {
       setIsLoading(false)
@@ -59,7 +62,7 @@ export default function WorkflowBuilderPage() {
       toast({
         title: 'Error',
         description: 'No organization selected',
-        variant: 'destructive'
+        variant: 'destructive',
       })
       return
     }
@@ -77,8 +80,8 @@ export default function WorkflowBuilderPage() {
         layout_data: {
           nodes: workflow.nodes,
           edges: workflow.edges,
-          viewport: workflow.layout?.viewport
-        }
+          viewport: workflow.layout?.viewport,
+        },
       }
 
       if (workflowId) {
@@ -92,7 +95,7 @@ export default function WorkflowBuilderPage() {
 
         toast({
           title: 'Success',
-          description: 'Workflow updated successfully'
+          description: 'Workflow updated successfully',
         })
       } else {
         // Create new workflow
@@ -106,7 +109,7 @@ export default function WorkflowBuilderPage() {
 
         toast({
           title: 'Success',
-          description: 'Workflow created successfully'
+          description: 'Workflow created successfully',
         })
 
         // Navigate to edit mode
@@ -117,7 +120,7 @@ export default function WorkflowBuilderPage() {
       toast({
         title: 'Error',
         description: 'Failed to save workflow',
-        variant: 'destructive'
+        variant: 'destructive',
       })
     }
   }
@@ -127,7 +130,7 @@ export default function WorkflowBuilderPage() {
       toast({
         title: 'Error',
         description: 'Please save the workflow before executing',
-        variant: 'destructive'
+        variant: 'destructive',
       })
       return
     }
@@ -137,16 +140,22 @@ export default function WorkflowBuilderPage() {
       await handleSave(workflow)
 
       // Then execute it
-      const { data: executionId, error } = await supabase.rpc('execute_workflow_v2', {
-        workflow_id: workflowId,
-        trigger_data: { manual_trigger: true, timestamp: new Date().toISOString() }
-      })
+      const { data: executionId, error } = await supabase.rpc(
+        'execute_workflow_v2',
+        {
+          workflow_id: workflowId,
+          trigger_data: {
+            manual_trigger: true,
+            timestamp: new Date().toISOString(),
+          },
+        }
+      )
 
       if (error) throw error
 
       toast({
         title: 'Workflow Executed',
-        description: `Execution started with ID: ${executionId}`
+        description: `Execution started with ID: ${executionId}`,
       })
 
       // Navigate to execution view
@@ -154,9 +163,9 @@ export default function WorkflowBuilderPage() {
     } catch (error) {
       console.error('Failed to execute workflow:', error)
       toast({
-        title: 'Error', 
+        title: 'Error',
         description: 'Failed to execute workflow',
-        variant: 'destructive'
+        variant: 'destructive',
       })
     }
   }
@@ -166,9 +175,7 @@ export default function WorkflowBuilderPage() {
       <div className="flex items-center justify-center h-screen">
         <Card>
           <CardContent className="p-6">
-            <div className="text-center">
-              Loading workflow...
-            </div>
+            <div className="text-center">Loading workflow...</div>
           </CardContent>
         </Card>
       </div>
@@ -181,15 +188,11 @@ export default function WorkflowBuilderPage() {
       <div className="border-b bg-background p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.back()}
-            >
+            <Button variant="ghost" size="sm" onClick={() => router.back()}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
-            
+
             <h1 className="text-xl font-semibold">
               {workflowId ? 'Edit Workflow' : 'Create Workflow'}
             </h1>
@@ -209,12 +212,14 @@ export default function WorkflowBuilderPage() {
 
       {/* Workflow Builder */}
       <div className="flex-1">
-        <WorkflowBuilderWrapper
-          workflowId={workflowId || undefined}
-          initialWorkflow={initialWorkflow}
-          onSave={handleSave}
-          onExecute={handleExecute}
-        />
+        <Suspense fallback={<div>Loading workflow builder...</div>}>
+          <WorkflowBuilderWrapper
+            workflowId={workflowId || undefined}
+            initialWorkflow={initialWorkflow}
+            onSave={handleSave}
+            onExecute={handleExecute}
+          />
+        </Suspense>
       </div>
     </div>
   )

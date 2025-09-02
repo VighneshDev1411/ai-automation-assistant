@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, Suspense } from 'react'
 import ReactFlow, {
   addEdge,
   applyEdgeChanges,
@@ -840,7 +840,9 @@ function TriggerNodeConfig({ config, onUpdate }: { config: any; onUpdate: (confi
 export function WorkflowBuilderWrapper(props: WorkflowBuilderProps) {
   return (
     <ReactFlowProvider>
+  
       <WorkflowBuilder {...props} />
+ 
     </ReactFlowProvider>
   )
 }
