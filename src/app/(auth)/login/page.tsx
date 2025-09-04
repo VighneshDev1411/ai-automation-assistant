@@ -52,7 +52,9 @@ type LoginForm = z.infer<typeof loginSchema>
 function LoginPageLoading() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800">
-      <Card className="w-full max-w-md glass-card">
+      {/* <Card className="w-full max-w-md glass-card"> */}
+      <Card className="w-full max-w-md clean-card">
+
         <CardContent className="flex items-center justify-center p-8">
           <div className="flex items-center gap-3">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -133,7 +135,7 @@ function LoginFormContent() {
         <ThemeToggle />
       </div>
 
-      <Card className="w-full max-w-md glass-card">
+      <Card className="w-full max-w-md clean-card">
         <CardHeader className="text-center pb-4">
           <div className="flex items-center justify-center mb-4">
             <div className="status-icon-bg info w-12 h-12">
