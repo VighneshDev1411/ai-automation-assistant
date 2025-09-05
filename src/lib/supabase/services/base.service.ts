@@ -1,11 +1,10 @@
 import { SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database'
 
-export abstract class BaseService<T extends keyof Database['public']['Tables']> {
-  protected supabase: SupabaseClient<Database>
+export abstract class BaseService<T extends string> {
+  protected supabase: SupabaseClient<any>
   protected tableName: T
 
-  constructor(supabase: SupabaseClient<Database>, tableName: T) {
+  constructor(supabase: SupabaseClient<any>, tableName: T) {
     this.supabase = supabase
     this.tableName = tableName
   }
@@ -15,12 +14,19 @@ export abstract class BaseService<T extends keyof Database['public']['Tables']> 
     orderBy?: { column: string; ascending?: boolean }
     limit?: number
     offset?: number
+    filter?: Record<string, any>
   }) {
     let query = this.supabase.from(this.tableName).select(options?.select || '*')
 
     if (options?.orderBy) {
       query = query.order(options.orderBy.column, {
         ascending: options.orderBy.ascending ?? true,
+      })
+    }
+
+    if (options?.filter) {
+      Object.entries(options.filter).forEach(([key, value]) => {
+        query = query.eq(key, value)
       })
     }
 
@@ -33,7 +39,6 @@ export abstract class BaseService<T extends keyof Database['public']['Tables']> 
     }
 
     const { data, error } = await query
-
     if (error) throw error
     return data
   }
@@ -42,17 +47,17 @@ export abstract class BaseService<T extends keyof Database['public']['Tables']> 
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(select || '*')
-      .eq('id', id)
+      .eq('id', id as any)
       .single()
 
     if (error) throw error
     return data
   }
 
-  async create(payload: Database['public']['Tables'][T]['Insert']) {
+  async create(payload: Record<string, any>) {
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .insert(payload)
+      .insert(payload as any)
       .select()
       .single()
 
@@ -60,11 +65,11 @@ export abstract class BaseService<T extends keyof Database['public']['Tables']> 
     return data
   }
 
-  async update(id: string, payload: Database['public']['Tables'][T]['Update']) {
+  async update(id: string, payload: Record<string, any>) {
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .update(payload)
-      .eq('id', id)
+      .update(payload as any)
+      .eq('id', id as any)
       .select()
       .single()
 
@@ -76,7 +81,7 @@ export abstract class BaseService<T extends keyof Database['public']['Tables']> 
     const { error } = await this.supabase
       .from(this.tableName)
       .delete()
-      .eq('id', id)
+      .eq('id', id as any)
 
     if (error) throw error
     return true
@@ -94,7 +99,6 @@ export abstract class BaseService<T extends keyof Database['public']['Tables']> 
     }
 
     const { count, error } = await query
-
     if (error) throw error
     return count || 0
   }

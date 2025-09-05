@@ -15,8 +15,8 @@ const filterSchema = z.object({
     workflowId: z.string(),
     orgId: z.string(),
     userId: z.string(),
-    triggerData: z.record(z.any()),
-    variables: z.record(z.any()),
+    triggerData: z.record(z.string(), z.any()),
+    variables: z.record(z.string(),z.any()),
     currentStepIndex: z.number(),
     executionStartTime: z.string()
   }),

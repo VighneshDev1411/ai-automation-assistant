@@ -1,24 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { TriggerSystem } from '@/lib/workflow-engine/core/TriggerSystem'
-import { handleApiError } from '@/app/api/utils'
+
+// ✅ FIXED: Correct type for Next.js 15
+interface RouteContext {
+  params: Promise<{ scheduleId: string }>
+}
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { scheduleId: string } }
+  context: RouteContext
 ) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const supabase = createClient()
+    const { data: { user } } = await (await supabase).auth.getUser()
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // ✅ FIXED: Await params in Next.js 15
+    const params = await context.params
     const { scheduleId } = params
 
     // Get schedule details
-    const { data: schedule, error } = await supabase
+    const { data: schedule, error } = await (await supabase)
       .from('workflow_schedules')
       .select(`
         *,
@@ -36,7 +42,7 @@ export async function GET(
     }
 
     // Check user has access to this organization
-    const { data: membership } = await supabase
+    const { data: membership } = await (await supabase)
       .from('organization_members')
       .select('id')
       .eq('user_id', user.id)
@@ -56,26 +62,32 @@ export async function GET(
     })
 
   } catch (error) {
-    return handleApiError(error)
+    console.error('Error getting schedule:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { scheduleId: string } }
+  context: RouteContext
 ) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const supabase = createClient()
+    const { data: { user } } = await (await supabase).auth.getUser()
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // ✅ FIXED: Await params in Next.js 15
+    const params = await context.params
     const { scheduleId } = params
 
     // Verify access before deletion
-    const { data: schedule, error } = await supabase
+    const { data: schedule, error } = await (await supabase)
       .from('workflow_schedules')
       .select(`
         id,
@@ -89,7 +101,7 @@ export async function DELETE(
     }
 
     // Check user has access
-    const { data: membership } = await supabase
+    const { data: membership } = await (await supabase)
       .from('organization_members')
       .select('id')
       .eq('user_id', user.id)
@@ -108,6 +120,10 @@ export async function DELETE(
     })
 
   } catch (error) {
-    return handleApiError(error)
+    console.error('Error deleting schedule:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }

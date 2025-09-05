@@ -387,8 +387,7 @@ export class TriggerSystem {
   }
 
   async toggleSchedule(
-    scheduleId: string
-  ): Promise<{ status: string; message: string }> {
+scheduleId: string, enabled: boolean  ): Promise<{ status: string; message: string }> {
     // Get current schedule status
     const { data: schedule, error: fetchError } = await this.supabase
       .from('workflow_schedules')

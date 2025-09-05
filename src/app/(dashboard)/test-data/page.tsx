@@ -153,6 +153,13 @@ const testOrganizationService = async () => {
     }
 
     // Use the mutation hook which properly handles auth
+    type WorkflowType = {
+      id: string
+      name: string
+      description?: string
+      [key: string]: any
+    }
+
     const newWorkflow = await createWorkflow.mutateAsync({
       name: `Test Workflow ${Date.now()}`,
       description: 'Created by data layer test',
@@ -171,7 +178,7 @@ const testOrganizationService = async () => {
       }],
       status: 'draft',
       tags: []
-    })
+    }) as WorkflowType
 
     if (!newWorkflow) {
       throw new Error('Failed to create workflow')

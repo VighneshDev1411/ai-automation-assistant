@@ -6,7 +6,7 @@ export class ConditionalIntegration {
     totalRequests: 0
   }
 
-  // ✅ FIXED: Static method executeConditionalAction
+  // ✅ Static method executeConditionalAction
   static async executeConditionalAction(
     config: any, 
     context: any
@@ -15,12 +15,12 @@ export class ConditionalIntegration {
     return await instance.processConditionalLogic(config, context)
   }
 
-  // ✅ FIXED: Static method getCacheStats
+  // ✅ Static method getCacheStats
   static getCacheStats(): any {
     return ConditionalIntegration.cacheStats
   }
 
-  // ✅ FIXED: Static method clearCache
+  // ✅ Static method clearCache
   static clearCache(): void {
     ConditionalIntegration.cache.clear()
     ConditionalIntegration.cacheStats = {
@@ -70,7 +70,7 @@ export class ConditionalIntegration {
           result = await this.executeSimpleCondition(condition, context)
       }
 
-      // Cache the result (with expiration)
+      // Cache the result
       ConditionalIntegration.cache.set(cacheKey, result)
       
       // Clean cache if it gets too large
@@ -89,7 +89,6 @@ export class ConditionalIntegration {
         timestamp: new Date().toISOString()
       }
       
-      // Don't cache errors
       return errorResult
     }
   }
