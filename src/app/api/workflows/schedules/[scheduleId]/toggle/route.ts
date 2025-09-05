@@ -1,3 +1,5 @@
+import { supabase } from "@/lib/supabase/supabase-test"
+import { TriggerSystem } from "@/lib/workflow-engine/core/TriggerSystem"
 import { NextRequest, NextResponse } from "next/server"
 
 // POST /api/workflows/schedules/[scheduleId]/toggle
@@ -5,6 +7,9 @@ interface RouteParams {
   params: { scheduleId: string }
 }
 export async function POST(request: NextRequest, { params }: RouteParams) {
+  
+  const scheduler = new TriggerSystem(supabase)
+
   try {
     const { scheduleId } = params
     const body = await request.json()

@@ -1,145 +1,109 @@
-// src/app/api/workflows/schedules/route.ts
-
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { TriggerSystem } from '@/lib/workflow-engine/core/TriggerSystem'
+import { handleApiError } from '@/app/api/utils'
 import { z } from 'zod'
-import { WorkflowScheduler, ScheduleBuilder } from '@/lib/workflow-engine/scheduling/WorkflowScheduler'
 
-const scheduleSchema = z.object({
-  workflowId: z.string().min(1),
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  scheduleType: z.enum(['cron', 'interval', 'delay', 'once', 'event']),
-  schedule: z.object({
-    type: z.enum(['cron', 'interval', 'delay', 'once', 'event']),
-    expression: z.string().optional(),
-    intervalMs: z.number().optional(),
-    delayMs: z.number().optional(),
-    executeAt: z.string().optional(),
-    eventName: z.string().optional(),
-    debounceMs: z.number().optional()
-  }),
-  timezone: z.string().default('UTC'),
-  enabled: z.boolean().default(true),
-  maxExecutions: z.number().optional(),
-  conditions: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    type: z.enum(['time', 'data', 'system', 'custom']),
-    condition: z.any(),
-    blockExecution: z.boolean()
-  })).optional(),
-  retryPolicy: z.object({
-    maxRetries: z.number().min(0).max(10),
-    retryDelayMs: z.number().min(1000),
-    backoffMultiplier: z.number().min(1).optional(),
-    retryConditions: z.array(z.string()).optional()
-  }).optional()
+const scheduleQuerySchema = z.object({
+  organizationId: z.string().uuid().optional(),
+  status: z.enum(['active', 'inactive']).optional(),
+  limit: z.coerce.number().min(1).max(100).default(20)
 })
 
-const updateScheduleSchema = scheduleSchema.partial()
+const createScheduleSchema = z.object({
+  workflowId: z.string().uuid(),
+  cron: z.string().min(1),
+  timezone: z.string().default('UTC'),
+  startDate: z.string().optional(),
+  endDate: z.string().optional()
+})
 
-// Initialize scheduler (in real app, this would be a singleton)
-const scheduler = new WorkflowScheduler()
-
-// GET /api/workflows/schedules
 export async function GET(request: NextRequest) {
   try {
-    const url = new URL(request.url)
-    const workflowId = url.searchParams.get('workflowId')
-    const enabled = url.searchParams.get('enabled')
-
-    let schedules = scheduler.getAllSchedules()
-
-    // Filter by workflow ID if provided
-    if (workflowId) {
-      schedules = scheduler.getSchedulesByWorkflow(workflowId)
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Filter by enabled status if provided
-    if (enabled !== null) {
-      const isEnabled = enabled === 'true'
-      schedules = schedules.filter(s => s.enabled === isEnabled)
+    // Get user's organization
+    const { data: membership } = await supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .single()
+
+    if (!membership) {
+      return NextResponse.json({ error: 'No organization found' }, { status: 404 })
     }
 
-    // Get statistics
-    const stats = scheduler.getStats()
-
-    return NextResponse.json({
-      success: true,
-      schedules,
-      stats,
-      count: schedules.length
+    const searchParams = request.nextUrl.searchParams
+    const query = scheduleQuerySchema.parse({
+      organizationId: membership.organization_id,
+      status: searchParams.get('status'),
+      limit: searchParams.get('limit')
     })
 
+    const triggerSystem = new TriggerSystem(supabase)
+    const schedules = await triggerSystem.getScheduledWorkflows(membership.organization_id)
+
+    return NextResponse.json({ schedules })
+
   } catch (error) {
-    console.error('Error fetching schedules:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch schedules' },
-      { status: 500 }
-    )
+    return handleApiError(error)
   }
 }
 
-// POST /api/workflows/schedules
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const scheduleData = scheduleSchema.parse(body)
-
-    // Start scheduler if not running
-    if (!scheduler['isRunning']) {
-      await scheduler.start()
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const schedule = await scheduler.createSchedule(scheduleData)
+    const body = await request.json()
+    const scheduleData = createScheduleSchema.parse(body)
 
-    return NextResponse.json({
-      success: true,
-      schedule,
-      message: 'Schedule created successfully'
+    // Validate workflow exists and user has access
+    const { data: workflow, error: workflowError } = await supabase
+      .from('workflows')
+      .select('id, organization_id')
+      .eq('id', scheduleData.workflowId)
+      .single()
+
+    if (workflowError || !workflow) {
+      return NextResponse.json({ error: 'Workflow not found' }, { status: 404 })
+    }
+
+    // Check user belongs to organization
+    const { data: membership } = await supabase
+      .from('organization_members')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('organization_id', workflow.organization_id)
+      .single()
+
+    if (!membership) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    }
+
+    const triggerSystem = new TriggerSystem(supabase)
+    const scheduleId = await triggerSystem.scheduleWorkflow(scheduleData.workflowId, {
+      cron: scheduleData.cron,
+      timezone: scheduleData.timezone,
+      startDate: scheduleData.startDate,
+      endDate: scheduleData.endDate
+    })
+
+    return NextResponse.json({ 
+      message: 'Workflow scheduled successfully',
+      scheduleId 
     })
 
   } catch (error) {
-    console.error('Error creating schedule:', error)
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { success: false, error: 'Validation error', details: error.errors },
-        { status: 400 }
-      )
-    }
-
-    return NextResponse.json(
-      { success: false, error: 'Failed to create schedule' },
-      { status: 500 }
-    )
+    return handleApiError(error)
   }
 }
-
-// src/app/api/workflows/schedules/[scheduleId]/route.ts
-
-
-// src/app/api/workflows/schedules/[scheduleId]/toggle/route.ts
-
-
-// src/app/api/workflows/schedules/[scheduleId]/execute/route.ts
-
-// POST /api/workflows/schedules/[scheduleId]/execute
-
-
-// src/app/api/workflows/schedules/executions/route.ts
-
-// GET /api/workflows/schedules/executions
-
-
-// src/app/api/workflows/schedules/templates/route.ts
-
-// GET /api/workflows/schedules/templates
-
-
-// src/app/api/workflows/schedules/stats/route.ts
-
-// GET /api/workflows/schedules/stats
-
-// src/app/api/workflows/schedules/validate/route.ts
-

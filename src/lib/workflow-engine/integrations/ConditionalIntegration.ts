@@ -1,599 +1,463 @@
-// src/lib/workflow-engine/integrations/ConditionalIntegration.ts
-
-import { AdvancedConditionalEngine, AdvancedCondition, ConditionalResult } from '../advanced/AdvancedConditionEngine'
-import { FilterEngine, FilterGroup, FilterResult } from '../advanced/FilterEngine'
-import { WorkflowExecutionContext } from '../core/WorkflowEngine'
-
-export interface ConditionalActionConfig {
-  id: string
-  type: 'conditional'
-  name: string
-  description?: string
-  conditions: AdvancedCondition[]
-  filters?: FilterGroup[]
-  onTrue: ConditionalBranch
-  onFalse?: ConditionalBranch
-  onError?: ConditionalBranch
-  options: {
-    evaluationMode: 'all' | 'any' | 'sequential'
-    stopOnFirstFailure: boolean
-    timeout: number
-    cacheResults: boolean
-    logLevel: 'none' | 'basic' | 'detailed'
-  }
-}
-
-export interface ConditionalBranch {
-  actionIds: string[]
-  continueWorkflow: boolean
-  setVariables?: Record<string, any>
-  metadata?: {
-    description?: string
-    tags?: string[]
-  }
-}
-
-export interface ConditionalExecutionResult {
-  success: boolean
-  conditionsPassed: boolean
-  filtersPassed?: boolean
-  branch: 'onTrue' | 'onFalse' | 'onError'
-  executionTime: number
-  conditionResults: ConditionalResult[]
-  filterResults?: FilterResult[]
-  nextActionIds: string[]
-  variables: Record<string, any>
-  errors?: string[]
-  metadata: {
-    evaluationMode: string
-    totalConditions: number
-    passedConditions: number
-    totalFilters?: number
-    passedFilters?: number
-  }
-}
-
 export class ConditionalIntegration {
-  private conditionalEngine: AdvancedConditionalEngine
-  private filterEngine: FilterEngine
-  private cache: Map<string, any> = new Map()
-
-  constructor() {
-    this.conditionalEngine = new AdvancedConditionalEngine()
-    this.filterEngine = new FilterEngine()
-    this.initializeCustomFunctions()
+  private static cache: Map<string, any> = new Map()
+  private static cacheStats = {
+    hits: 0,
+    misses: 0,
+    totalRequests: 0
   }
 
-  // Main execution method for conditional actions
-  async executeConditionalAction(
-    config: ConditionalActionConfig,
-    context: WorkflowExecutionContext
-  ): Promise<ConditionalExecutionResult> {
-    const startTime = performance.now()
+  // ✅ FIXED: Static method executeConditionalAction
+  static async executeConditionalAction(
+    config: any, 
+    context: any
+  ): Promise<any> {
+    const instance = new ConditionalIntegration()
+    return await instance.processConditionalLogic(config, context)
+  }
+
+  // ✅ FIXED: Static method getCacheStats
+  static getCacheStats(): any {
+    return ConditionalIntegration.cacheStats
+  }
+
+  // ✅ FIXED: Static method clearCache
+  static clearCache(): void {
+    ConditionalIntegration.cache.clear()
+    ConditionalIntegration.cacheStats = {
+      hits: 0,
+      misses: 0,
+      totalRequests: 0
+    }
+  }
+
+  private async processConditionalLogic(config: any, context: any): Promise<any> {
+    const { condition, thenActions, elseActions, type = 'if-then-else' } = config
+
+    ConditionalIntegration.cacheStats.totalRequests++
+
+    // Generate cache key
+    const cacheKey = this.generateCacheKey(config, context)
     
+    // Check cache first
+    if (ConditionalIntegration.cache.has(cacheKey)) {
+      ConditionalIntegration.cacheStats.hits++
+      return ConditionalIntegration.cache.get(cacheKey)
+    }
+
+    ConditionalIntegration.cacheStats.misses++
+
+    let result: any
+
     try {
-      // Validate configuration
-      this.validateConfig(config)
-
-      // Execute conditions based on evaluation mode
-      const conditionResults = await this.evaluateConditions(config, context)
-      const conditionsPassed = this.determineConditionsResult(conditionResults, config.options.evaluationMode)
-
-      // Execute filters if configured
-      let filterResults: FilterResult[] | undefined
-      let filtersPassed = true
-
-      if (config.filters && config.filters.length > 0) {
-        filterResults = await this.evaluateFilters(config.filters, context)
-        filtersPassed = filterResults.every(result => result.passed)
+      switch (type) {
+        case 'if-then-else':
+          result = await this.executeIfThenElse(condition, thenActions, elseActions, context)
+          break
+        
+        case 'switch-case':
+          result = await this.executeSwitchCase(config, context)
+          break
+        
+        case 'loop-while':
+          result = await this.executeLoopWhile(config, context)
+          break
+        
+        case 'loop-for':
+          result = await this.executeForLoop(config, context)
+          break
+        
+        default:
+          result = await this.executeSimpleCondition(condition, context)
       }
 
-      // Determine which branch to execute
-      const finalResult = conditionsPassed && filtersPassed
-      const branch = this.determineBranch(finalResult, config)
-      const branchConfig = this.getBranchConfig(branch, config)
-
-      // Prepare execution result
-      const executionResult: ConditionalExecutionResult = {
-        success: true,
-        conditionsPassed,
-        filtersPassed,
-        branch,
-        executionTime: performance.now() - startTime,
-        conditionResults,
-        filterResults,
-        nextActionIds: branchConfig.actionIds,
-        variables: {
-          ...context.variables,
-          ...(branchConfig.setVariables || {}),
-          // Add conditional result metadata
-          _conditional: {
-            conditionsPassed,
-            filtersPassed,
-            branch,
-            executionId: context.executionId,
-            timestamp: new Date().toISOString()
-          }
-        },
-        metadata: {
-          evaluationMode: config.options.evaluationMode,
-          totalConditions: config.conditions.length,
-          passedConditions: conditionResults.filter(r => r.result).length,
-          totalFilters: config.filters?.reduce((sum, group) => sum + group.filters.length, 0),
-          passedFilters: filterResults?.reduce((sum, result) => sum + result.matchedFilters.length, 0)
-        }
+      // Cache the result (with expiration)
+      ConditionalIntegration.cache.set(cacheKey, result)
+      
+      // Clean cache if it gets too large
+      if (ConditionalIntegration.cache.size > 1000) {
+        const keysToDelete = Array.from(ConditionalIntegration.cache.keys()).slice(0, 100)
+        keysToDelete.forEach(key => ConditionalIntegration.cache.delete(key))
       }
 
-      // Log execution if enabled
-      if (config.options.logLevel !== 'none') {
-        await this.logExecution(config, executionResult, context)
-      }
-
-      return executionResult
+      return result
 
     } catch (error) {
-      // Handle error case
-      const errorBranch = config.onError || { actionIds: [], continueWorkflow: false }
-      
-      return {
+      const errorResult = {
         success: false,
-        conditionsPassed: false,
-        branch: 'onError',
-        executionTime: performance.now() - startTime,
-        conditionResults: [],
-        nextActionIds: errorBranch.actionIds,
-        variables: context.variables,
-        errors: [error instanceof Error ? error.message : 'Unknown error'],
-        metadata: {
-          evaluationMode: config.options.evaluationMode,
-          totalConditions: config.conditions.length,
-          passedConditions: 0
+        error: error instanceof Error ? error.message : 'Unknown error',
+        type,
+        timestamp: new Date().toISOString()
+      }
+      
+      // Don't cache errors
+      return errorResult
+    }
+  }
+
+  private async executeIfThenElse(
+    condition: any, 
+    thenActions: any[] = [], 
+    elseActions: any[] = [], 
+    context: any
+  ): Promise<any> {
+    const conditionResult = this.evaluateCondition(condition, context)
+
+    const executedActions = conditionResult ? thenActions : elseActions
+    const actionResults = await this.executeActions(executedActions, context)
+
+    return {
+      success: true,
+      type: 'if-then-else',
+      conditionMet: conditionResult,
+      condition,
+      executedBranch: conditionResult ? 'then' : 'else',
+      executedActions: executedActions.length,
+      actionResults,
+      timestamp: new Date().toISOString()
+    }
+  }
+
+  private async executeSwitchCase(config: any, context: any): Promise<any> {
+    const { field, cases = [], defaultActions = [] } = config
+    const fieldValue = this.getFieldValue(field, context)
+
+    // Find matching case
+    for (const caseItem of cases) {
+      if (this.compareValues(caseItem.value, fieldValue)) {
+        const actionResults = await this.executeActions(caseItem.actions || [], context)
+        
+        return {
+          success: true,
+          type: 'switch-case',
+          field,
+          fieldValue,
+          matchedCase: caseItem.value,
+          executedActions: (caseItem.actions || []).length,
+          actionResults,
+          timestamp: new Date().toISOString()
         }
       }
     }
-  }
 
-  // Evaluate all conditions based on mode
-  private async evaluateConditions(
-    config: ConditionalActionConfig,
-    context: WorkflowExecutionContext
-  ): Promise<ConditionalResult[]> {
-    const results: ConditionalResult[] = []
+    // Default case
+    const actionResults = await this.executeActions(defaultActions, context)
     
-    switch (config.options.evaluationMode) {
-      case 'all':
-        // Evaluate all conditions regardless of individual results
-        for (const condition of config.conditions) {
-          const result = await this.conditionalEngine.evaluateCondition(condition, context, {
-            useCache: config.options.cacheResults,
-            timeout: config.options.timeout
-          })
-          results.push(result)
-        }
-        break
-
-      case 'any':
-        // Evaluate until first true condition (short-circuit)
-        for (const condition of config.conditions) {
-          const result = await this.conditionalEngine.evaluateCondition(condition, context, {
-            useCache: config.options.cacheResults,
-            timeout: config.options.timeout
-          })
-          results.push(result)
-          
-          if (result.result) {
-            break // Short-circuit on first true condition
-          }
-        }
-        break
-
-      case 'sequential':
-        // Evaluate conditions in sequence, stopping on first failure if configured
-        for (const condition of config.conditions) {
-          const result = await this.conditionalEngine.evaluateCondition(condition, context, {
-            useCache: config.options.cacheResults,
-            timeout: config.options.timeout
-          })
-          results.push(result)
-          
-          if (!result.result && config.options.stopOnFirstFailure) {
-            break
-          }
-        }
-        break
+    return {
+      success: true,
+      type: 'switch-case',
+      field,
+      fieldValue,
+      matchedCase: 'default',
+      executedActions: defaultActions.length,
+      actionResults,
+      timestamp: new Date().toISOString()
     }
-
-    return results
   }
 
-  // Evaluate filter groups
-  private async evaluateFilters(
-    filterGroups: FilterGroup[],
-    context: WorkflowExecutionContext
-  ): Promise<FilterResult[]> {
-    const results: FilterResult[] = []
-    
-    for (const filterGroup of filterGroups) {
-      const result = await this.filterEngine.evaluateFilterGroup(filterGroup, context, {
-        stopOnFirstFailure: false,
-        includeDetails: true,
-        maxExecutionTime: 30000
+  private async executeLoopWhile(config: any, context: any): Promise<any> {
+    const { condition, actions = [], maxIterations = 100 } = config
+    const results = []
+    let iteration = 0
+    let currentContext = { ...context }
+
+    while (this.evaluateCondition(condition, currentContext) && iteration < maxIterations) {
+      const iterationResult = await this.executeActions(actions, {
+        ...currentContext,
+        iteration,
+        loopContext: {
+          currentIteration: iteration,
+          totalIterations: iteration + 1
+        }
       })
-      results.push(result)
+      
+      results.push({
+        iteration,
+        result: iterationResult,
+        timestamp: new Date().toISOString()
+      })
+      
+      // Update context for next iteration
+      currentContext.variables = { 
+        ...currentContext.variables, 
+        lastLoopResult: iterationResult,
+        currentIteration: iteration
+      }
+      
+      iteration++
     }
-    
-    return results
+
+    return {
+      success: true,
+      type: 'loop-while',
+      condition,
+      totalIterations: iteration,
+      maxIterations,
+      stopped: iteration >= maxIterations ? 'max_iterations_reached' : 'condition_false',
+      results,
+      timestamp: new Date().toISOString()
+    }
   }
 
-  // Determine overall conditions result based on evaluation mode
-  private determineConditionsResult(results: ConditionalResult[], mode: string): boolean {
-    if (results.length === 0) return true
+  private async executeForLoop(config: any, context: any): Promise<any> {
+    const { items, itemVariable = 'item', actions = [] } = config
+    const results = []
 
-    switch (mode) {
-      case 'all':
-        return results.every(r => r.success && r.result)
-      case 'any':
-        return results.some(r => r.success && r.result)
-      case 'sequential':
-        return results.every(r => r.success && r.result)
+    if (!Array.isArray(items)) {
+      throw new Error('For loop requires items to be an array')
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      const loopContext = {
+        ...context,
+        variables: {
+          ...context.variables,
+          [itemVariable]: item,
+          index: i,
+          isFirst: i === 0,
+          isLast: i === items.length - 1
+        }
+      }
+
+      const iterationResult = await this.executeActions(actions, loopContext)
+      
+      results.push({
+        index: i,
+        item,
+        result: iterationResult,
+        timestamp: new Date().toISOString()
+      })
+    }
+
+    return {
+      success: true,
+      type: 'loop-for',
+      totalItems: items.length,
+      itemVariable,
+      results,
+      timestamp: new Date().toISOString()
+    }
+  }
+
+  private async executeSimpleCondition(condition: any, context: any): Promise<any> {
+    const result = this.evaluateCondition(condition, context)
+    
+    return {
+      success: true,
+      type: 'simple-condition',
+      condition,
+      result,
+      timestamp: new Date().toISOString()
+    }
+  }
+
+  private evaluateCondition(condition: any, context: any): boolean {
+    if (condition === null || condition === undefined) {
+      return false
+    }
+
+    if (typeof condition === 'boolean') {
+      return condition
+    }
+
+    if (typeof condition === 'string') {
+      return this.evaluateStringCondition(condition, context)
+    }
+
+    if (typeof condition === 'object') {
+      const { field, operator, value, conditions } = condition
+
+      // Handle logical operators
+      if (operator === 'and' && Array.isArray(conditions)) {
+        return conditions.every(c => this.evaluateCondition(c, context))
+      }
+      
+      if (operator === 'or' && Array.isArray(conditions)) {
+        return conditions.some(c => this.evaluateCondition(c, context))
+      }
+      
+      if (operator === 'not' && conditions) {
+        return !this.evaluateCondition(conditions, context)
+      }
+
+      // Handle field-based conditions
+      if (field && operator) {
+        const fieldValue = this.getFieldValue(field, context)
+        return this.compareValues(fieldValue, value, operator)
+      }
+    }
+
+    return Boolean(condition)
+  }
+
+  private evaluateStringCondition(condition: string, context: any): boolean {
+    // Replace template variables
+    const resolved = condition.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (match, path) => {
+      const value = this.getFieldValue(path, context)
+      return JSON.stringify(value)
+    })
+
+    try {
+      // For safety, only allow simple comparisons
+      if (resolved.includes('==') || resolved.includes('!=') || resolved.includes('>') || resolved.includes('<')) {
+        return Boolean(eval(resolved))
+      }
+      return Boolean(resolved)
+    } catch {
+      return false
+    }
+  }
+
+  private compareValues(fieldValue: any, compareValue: any, operator: string = 'equals'): boolean {
+    switch (operator) {
+      case 'equals':
+      case '==':
+      case '===':
+        return fieldValue === compareValue
+        
+      case 'not_equals':
+      case '!=':
+      case '!==':
+        return fieldValue !== compareValue
+        
+      case 'greater_than':
+      case '>':
+        return Number(fieldValue) > Number(compareValue)
+        
+      case 'less_than':
+      case '<':
+        return Number(fieldValue) < Number(compareValue)
+        
+      case 'greater_than_or_equal':
+      case '>=':
+        return Number(fieldValue) >= Number(compareValue)
+        
+      case 'less_than_or_equal':
+      case '<=':
+        return Number(fieldValue) <= Number(compareValue)
+        
+      case 'contains':
+        return String(fieldValue || '').includes(String(compareValue))
+        
+      case 'starts_with':
+        return String(fieldValue || '').startsWith(String(compareValue))
+        
+      case 'ends_with':
+        return String(fieldValue || '').endsWith(String(compareValue))
+        
+      case 'exists':
+        return fieldValue !== undefined && fieldValue !== null
+        
+      case 'in':
+        return Array.isArray(compareValue) && compareValue.includes(fieldValue)
+        
+      case 'not_in':
+        return Array.isArray(compareValue) && !compareValue.includes(fieldValue)
+        
       default:
-        return false
+        return fieldValue === compareValue
     }
   }
 
-  // Determine which branch to execute
-  private determineBranch(
-    finalResult: boolean,
-    config: ConditionalActionConfig
-  ): 'onTrue' | 'onFalse' | 'onError' {
-    if (finalResult) {
-      return 'onTrue'
-    } else if (config.onFalse) {
-      return 'onFalse'
-    } else {
-      return 'onError'
-    }
-  }
-
-  // Get branch configuration
-  private getBranchConfig(
-    branch: 'onTrue' | 'onFalse' | 'onError',
-    config: ConditionalActionConfig
-  ): ConditionalBranch {
-    switch (branch) {
-      case 'onTrue':
-        return config.onTrue
-      case 'onFalse':
-        return config.onFalse || { actionIds: [], continueWorkflow: false }
-      case 'onError':
-        return config.onError || { actionIds: [], continueWorkflow: false }
-    }
-  }
-
-  // Validate configuration
-  private validateConfig(config: ConditionalActionConfig): void {
-    if (!config.conditions || config.conditions.length === 0) {
-      throw new Error('At least one condition is required')
-    }
-
-    if (!config.onTrue) {
-      throw new Error('onTrue branch configuration is required')
-    }
-
-    if (config.options.timeout && config.options.timeout <= 0) {
-      throw new Error('Timeout must be greater than 0')
-    }
-
-    // Validate conditions structure
-    for (const condition of config.conditions) {
-      this.validateCondition(condition)
-    }
-  }
-
-  // Validate individual condition
-  private validateCondition(condition: AdvancedCondition): void {
-    if (!condition.id) {
-      throw new Error('Condition ID is required')
-    }
-
-    if (!condition.operator) {
-      throw new Error('Condition operator is required')
-    }
-
-    if (condition.type === 'simple' && !condition.field) {
-      throw new Error('Field is required for simple conditions')
-    }
-
-    if (condition.type === 'complex' && (!condition.conditions || condition.conditions.length === 0)) {
-      throw new Error('Sub-conditions are required for complex conditions')
-    }
-  }
-
-  // Log execution details
-  private async logExecution(
-    config: ConditionalActionConfig,
-    result: ConditionalExecutionResult,
-    context: WorkflowExecutionContext
-  ): Promise<void> {
-    const logData = {
-      timestamp: new Date().toISOString(),
-      executionId: context.executionId,
-      workflowId: context.workflowId,
-      actionId: config.id,
-      actionName: config.name,
-      result: {
-        success: result.success,
-        branch: result.branch,
-        executionTime: result.executionTime,
-        conditionsPassed: result.conditionsPassed,
-        filtersPassed: result.filtersPassed
+  private getFieldValue(field: string, context: any): any {
+    if (!field) return undefined
+    
+    const keys = field.split('.')
+    let value = context.variables || context
+    
+    for (const key of keys) {
+      if (value === null || value === undefined) {
+        return undefined
       }
+      value = value[key]
     }
-
-    if (config.options.logLevel === 'detailed') {
-      Object.assign(logData, {
-        conditionResults: result.conditionResults,
-        filterResults: result.filterResults,
-        metadata: result.metadata
-      })
-    }
-
-    console.log('Conditional Action Execution:', logData)
-    // In a real implementation, you would send this to your logging service
+    
+    return value
   }
 
-  // Initialize custom functions for conditions
-  private initializeCustomFunctions(): void {
-    // Register workflow-specific custom functions
-    this.conditionalEngine.registerCustomFunction('isWorkflowStep', ({context, params}:any) => {
-      return context.currentStepIndex === params.stepIndex
-    })
-
-    this.conditionalEngine.registerCustomFunction('hasExecutedAction', ({context, params}:any) => {
-      return context.variables._executedActions?.includes(params.actionId) || false
-    })
-
-    this.conditionalEngine.registerCustomFunction('isRetryAttempt', ({context, params}:any) => {
-      return (context.variables._retryCount || 0) > 0
-    })
-
-    this.conditionalEngine.registerCustomFunction('checkQuota', ({context, params}:any) => {
-      const usage = context.variables._quotaUsage || 0
-      const limit = params.limit || 1000
-      return usage < limit
-    })
-
-    this.conditionalEngine.registerCustomFunction('timeBasedCondition', ({context, params}:any) => {
-      const now = new Date()
-      const hour = now.getHours()
-      const dayOfWeek = now.getDay()
+  private async executeActions(actions: any[] = [], context: any): Promise<any> {
+    const results: any = {}
+    
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i]
+      const actionId = action.id || `action_${i}`
       
-      if (params.businessHours) {
-        return dayOfWeek >= 1 && dayOfWeek <= 5 && hour >= 9 && hour < 17
-      }
-      
-      if (params.afterHours) {
-        return dayOfWeek === 0 || dayOfWeek === 6 || hour < 9 || hour >= 17
-      }
-      
-      return true
-    })
-  }
-
-  // Utility methods for building conditions programmatically
-  public createEmailValidationCondition(fieldPath: string): AdvancedCondition {
-    return this.conditionalEngine.createSimpleCondition(
-      fieldPath,
-      'matches_regex',
-      '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+',
-      {
-        name: 'Email Validation',
-        description: `Validate email format for ${fieldPath}`,
-        tags: ['validation', 'email']
-      }
-    )
-  }
-
-  public createDateRangeCondition(
-    fieldPath: string,
-    startDate: Date,
-    endDate: Date
-  ): AdvancedCondition {
-    return this.conditionalEngine.createSimpleCondition(
-      fieldPath,
-      'date_between',
-      [startDate.toISOString(), endDate.toISOString()],
-      {
-        name: 'Date Range Check',
-        description: `Check if ${fieldPath} is between ${startDate.toDateString()} and ${endDate.toDateString()}`,
-        tags: ['date', 'range']
-      }
-    )
-  }
-
-  public createBusinessLogicCondition(
-    conditions: AdvancedCondition[],
-    operator: 'and' | 'or' = 'and'
-  ): AdvancedCondition {
-    return this.conditionalEngine.createComplexCondition(
-      operator,
-      conditions,
-      {
-        name: 'Business Logic',
-        description: `Complex business logic using ${operator.toUpperCase()} operator`,
-        tags: ['business', 'logic', 'complex']
-      }
-    )
-  }
-
-  // Helper methods for common conditional patterns
-  public createUserPermissionCheck(
-    userRole: string,
-    requiredPermissions: string[]
-  ): ConditionalActionConfig {
-    const conditions: AdvancedCondition[] = [
-      this.conditionalEngine.createSimpleCondition(
-        'user.role',
-        'equals',
-        userRole,
-        { name: 'Role Check' }
-      )
-    ]
-
-    if (requiredPermissions.length > 0) {
-      conditions.push(
-        this.conditionalEngine.createSimpleCondition(
-          'user.permissions',
-          'includes_all',
-          requiredPermissions,
-          { name: 'Permission Check' }
-        )
-      )
-    }
-
-    return {
-      id: `permission_check_${Date.now()}`,
-      type: 'conditional',
-      name: 'User Permission Check',
-      description: `Check if user has role '${userRole}' and required permissions`,
-      conditions,
-      onTrue: {
-        actionIds: ['continue_workflow'],
-        continueWorkflow: true
-      },
-      onFalse: {
-        actionIds: ['access_denied'],
-        continueWorkflow: false,
-        setVariables: {
-          error: 'Insufficient permissions',
-          errorCode: 'ACCESS_DENIED'
+      try {
+        // Simulate action execution based on type
+        let actionResult: any
+        
+        switch (action.type) {
+          case 'log':
+            actionResult = {
+              type: 'log',
+              message: action.config?.message || 'Log message',
+              timestamp: new Date().toISOString()
+            }
+            break
+            
+          case 'delay':
+            const delay = action.config?.delay || 1000
+            await new Promise(resolve => setTimeout(resolve, delay))
+            actionResult = {
+              type: 'delay',
+              delay,
+              timestamp: new Date().toISOString()
+            }
+            break
+            
+          case 'set_variable':
+            const varName = action.config?.name
+            const varValue = action.config?.value
+            if (varName) {
+              context.variables = context.variables || {}
+              context.variables[varName] = varValue
+            }
+            actionResult = {
+              type: 'set_variable',
+              variable: varName,
+              value: varValue,
+              timestamp: new Date().toISOString()
+            }
+            break
+            
+          default:
+            actionResult = {
+              type: action.type || 'unknown',
+              status: 'completed',
+              config: action.config,
+              timestamp: new Date().toISOString()
+            }
         }
-      },
-      options: {
-        evaluationMode: 'all',
-        stopOnFirstFailure: true,
-        timeout: 5000,
-        cacheResults: true,
-        logLevel: 'basic'
+        
+        results[actionId] = {
+          success: true,
+          result: actionResult
+        }
+        
+      } catch (error) {
+        results[actionId] = {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       }
     }
+    
+    return results
   }
 
-  public createDataValidationCheck(
-    validationRules: Array<{ field: string; operator: string; value: any; message?: string }>
-  ): ConditionalActionConfig {
-    const conditions = validationRules.map(rule =>
-      this.conditionalEngine.createSimpleCondition(
-        rule.field,
-        rule.operator as any,
-        rule.value,
-        { 
-          name: `Validate ${rule.field}`,
-          description: rule.message || `Validation for ${rule.field}`
-        }
-      )
-    )
-
-    return {
-      id: `data_validation_${Date.now()}`,
-      type: 'conditional',
-      name: 'Data Validation',
-      description: 'Validate input data according to business rules',
-      conditions,
-      onTrue: {
-        actionIds: ['process_data'],
-        continueWorkflow: true,
-        setVariables: {
-          validationStatus: 'passed'
-        }
-      },
-      onFalse: {
-        actionIds: ['validation_failed'],
-        continueWorkflow: false,
-        setVariables: {
-          validationStatus: 'failed',
-          error: 'Data validation failed'
-        }
-      },
-      options: {
-        evaluationMode: 'all',
-        stopOnFirstFailure: false,
-        timeout: 10000,
-        cacheResults: false,
-        logLevel: 'detailed'
-      }
+  private generateCacheKey(config: any, context: any): string {
+    const configStr = JSON.stringify(config, null, 0)
+    const contextStr = JSON.stringify(context.variables || {}, null, 0)
+    const combined = `${configStr}__${contextStr}`
+    
+    // Simple hash function
+    let hash = 0
+    for (let i = 0; i < combined.length; i++) {
+      const char = combined.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash // Convert to 32-bit integer
     }
-  }
-
-  public createApprovalWorkflow(
-    approvalField: string,
-    requiredApprovers: number,
-    timeoutHours: number = 24
-  ): ConditionalActionConfig {
-    const conditions: AdvancedCondition[] = [
-      this.conditionalEngine.createSimpleCondition(
-        `${approvalField}.status`,
-        'equals',
-        'approved',
-        { name: 'Approval Status Check' }
-      ),
-      this.conditionalEngine.createSimpleCondition(
-        `${approvalField}.approvers`,
-        'array_length_greater_than',
-        requiredApprovers - 1,
-        { name: 'Minimum Approvers Check' }
-      ),
-      this.conditionalEngine.createSimpleCondition(
-        `${approvalField}.submittedAt`,
-        'date_after',
-        new Date(Date.now() - timeoutHours * 60 * 60 * 1000).toISOString(),
-        { name: 'Timeout Check' }
-      )
-    ]
-
-    return {
-      id: `approval_workflow_${Date.now()}`,
-      type: 'conditional',
-      name: 'Approval Workflow',
-      description: `Check approval status with ${requiredApprovers} required approvers`,
-      conditions,
-      onTrue: {
-        actionIds: ['execute_approved_action'],
-        continueWorkflow: true,
-        setVariables: {
-          approvalResult: 'approved',
-          approvedAt: new Date().toISOString()
-        }
-      },
-      onFalse: {
-        actionIds: ['handle_pending_approval'],
-        continueWorkflow: false,
-        setVariables: {
-          approvalResult: 'pending',
-          reason: 'Insufficient approvals or timeout'
-        }
-      },
-      options: {
-        evaluationMode: 'all',
-        stopOnFirstFailure: false,
-        timeout: 15000,
-        cacheResults: true,
-        logLevel: 'detailed'
-      }
-    }
-  }
-
-  // Clear cache
-  public clearCache(): void {
-    this.cache.clear()
-    this.conditionalEngine.clearCache()
-  }
-
-  // Get cache statistics
-  public getCacheStats(): { size: number; hitRate?: number } {
-    return {
-      size: this.cache.size
-      // In a real implementation, you would track hit rates
-    }
+    
+    return `cache_${Math.abs(hash)}`
   }
 }

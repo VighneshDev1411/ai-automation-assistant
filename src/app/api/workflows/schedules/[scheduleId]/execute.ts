@@ -1,3 +1,5 @@
+import { supabase } from "@/lib/supabase/supabase-test"
+import { TriggerSystem } from "@/lib/workflow-engine/core/TriggerSystem"
 import { NextRequest, NextResponse } from "next/server"
 
 interface RouteParams {
@@ -5,28 +7,37 @@ interface RouteParams {
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
+  const scheduler = new TriggerSystem(supabase)  // ✅ Create first
+  
   try {
     const { scheduleId } = params
     const body = await request.json()
     const { triggerData, userId } = body
 
-    const schedule = scheduler.getSchedule(scheduleId)
-    if (!schedule) {
+    // ✅ Get schedule directly from database
+    const { data: schedule, error } = await supabase
+      .from('workflow_schedules')
+      .select('*, workflows!inner(id, name)')
+      .eq('id', scheduleId)
+      .single()
+
+    if (error || !schedule) {
       return NextResponse.json(
         { success: false, error: 'Schedule not found' },
         { status: 404 }
       )
     }
 
-    const execution = await scheduler.executeWorkflowNow(
-      schedule.workflowId,
-      triggerData,
+    // ✅ Use existing handleManualTrigger method
+    const executionId = await scheduler.handleManualTrigger(
+      schedule.workflow_id,
+      { ...triggerData, scheduleId },
       userId
     )
 
     return NextResponse.json({
       success: true,
-      execution,
+      execution: { id: executionId, workflowId: schedule.workflow_id },
       message: 'Workflow executed successfully'
     })
 
@@ -40,25 +51,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function GET(request: NextRequest) {
+  const scheduler = new TriggerSystem(supabase)  // ✅ Create first
+  
   try {
     const url = new URL(request.url)
     const limit = parseInt(url.searchParams.get('limit') || '100')
     const status = url.searchParams.get('status')
     const scheduleId = url.searchParams.get('scheduleId')
 
-    let executions = scheduler.getExecutionHistory(limit)
+    // ✅ Use existing getExecutions method
+    const executions = await scheduler.getExecutions({
+      scheduleId: scheduleId ?? undefined,
+      status: status || undefined,
+      limit
+    })
 
-    // Filter by status if provided
-    if (status) {
-      executions = executions.filter(e => e.status === status)
-    }
-
-    // Filter by schedule ID if provided
-    if (scheduleId) {
-      executions = executions.filter(e => e.scheduleId === scheduleId)
-    }
-
-    const pending = scheduler.getPendingExecutions()
+    const pending = await scheduler.getPendingExecutions()  // ✅ Add await
 
     return NextResponse.json({
       success: true,

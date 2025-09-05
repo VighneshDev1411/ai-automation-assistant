@@ -22,7 +22,8 @@ export function handleApiError(error: unknown): NextResponse {
     return NextResponse.json(
       {
         error: 'Validation error',
-        details: error.issues.map((e: any) => ({ // ✅ Changed from error.errors to error.issues
+        details: error.issues.map((e: any) => ({
+          // Use 'issues' not 'errors'
           field: e.path.join('.'),
           message: e.message,
         })),
@@ -108,7 +109,10 @@ export async function withAuth<T>(
   handler: (user: any) => Promise<T>,
   supabase: any
 ): Promise<T> {
-  const { data: { user }, error } = await supabase.auth.getUser()
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
 
   if (error || !user) {
     throw new ApiError('Unauthorized', 401)
@@ -121,7 +125,7 @@ export async function withOrganization<T>(
   handler: (user: any, organizationId: string) => Promise<T>,
   supabase: any
 ): Promise<T> {
-  return withAuth(async (user) => {
+  return withAuth(async user => {
     const { data: membership, error } = await supabase
       .from('organization_members')
       .select('organization_id')
@@ -141,7 +145,7 @@ export async function withPermission<T>(
   supabase: any,
   requiredRole: 'owner' | 'admin' | 'member' | 'viewer' = 'member'
 ): Promise<T> {
-  return withAuth(async (user) => {
+  return withAuth(async user => {
     const { data: membership, error } = await supabase
       .from('organization_members')
       .select('organization_id, role')
@@ -243,7 +247,10 @@ export function checkRateLimit(
 }
 
 // API response helpers
-export function successResponse<T>(data: T, status: number = 200): NextResponse {
+export function successResponse<T>(
+  data: T,
+  status: number = 200
+): NextResponse {
   return NextResponse.json(data, { status })
 }
 

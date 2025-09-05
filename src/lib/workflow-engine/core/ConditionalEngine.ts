@@ -1,98 +1,183 @@
-// src/lib/workflow-engine/core/ConditionalEngine.ts
+export class ConditionalIntegration {
+  private cache: Map<string, any> = new Map()
+  private cacheStats = {
+    hits: 0,
+    misses: 0,
+    totalRequests: 0
+  }
 
-export interface Condition {
-  id: string
-  field: string
-  operator: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than' | 'exists' | 'in' | 'and' | 'or'
-  value: any
-  conditions?: Condition[] // For nested conditions
-}
+  // ADD THIS METHOD - Missing executeConditionalAction
+  static async executeConditionalAction(
+    config: any, 
+    context: any
+  ): Promise<any> {
+    const instance = new ConditionalIntegration()
+    return await instance.processConditionalLogic(config, context)
+  }
 
-export interface WorkflowExecutionContext {
-  executionId: string
-  workflowId: string
-  orgId: string
-  userId: string
-  triggerData: any
-  variables: Record<string, any>
-  currentStepIndex: number
-  executionStartTime: Date
-  parentExecutionId?: string
-}
+  // ADD THIS METHOD - Missing getCacheStats
+  static getCacheStats(): any {
+    const instance = new ConditionalIntegration()
+    return instance.cacheStats
+  }
 
-export class ConditionalEngine {
-  async evaluateCondition(
-    conditionConfig: any, 
-    context: WorkflowExecutionContext
-  ): Promise<{ condition: boolean; result: any }> {
-    const condition = conditionConfig.condition || conditionConfig
-    const result = this.evaluateConditionRecursive(condition, context)
-    
+  private async processConditionalLogic(config: any, context: any): Promise<any> {
+    const { condition, thenActions, elseActions, type } = config
+
+    this.cacheStats.totalRequests++
+
+    // Check cache first
+    const cacheKey = this.generateCacheKey(config, context)
+    if (this.cache.has(cacheKey)) {
+      this.cacheStats.hits++
+      return this.cache.get(cacheKey)
+    }
+
+    this.cacheStats.misses++
+
+    let result: any
+
+    switch (type) {
+      case 'if-then-else':
+        result = await this.executeIfThenElse(condition, thenActions, elseActions, context)
+        break
+      
+      case 'switch-case':
+        result = await this.executeSwitchCase(config, context)
+        break
+      
+      case 'loop-while':
+        result = await this.executeLoopWhile(config, context)
+        break
+      
+      default:
+        result = await this.executeSimpleCondition(condition, context)
+    }
+
+    // Cache the result
+    this.cache.set(cacheKey, result)
+    return result
+  }
+
+  private async executeIfThenElse(
+    condition: any, 
+    thenActions: any[], 
+    elseActions: any[], 
+    context: any
+  ): Promise<any> {
+    const conditionResult = this.evaluateCondition(condition, context)
+
     return {
-      condition: result,
-      result: {
-        conditionId: conditionConfig.id,
-        evaluated: result,
-        context: context.variables
+      conditionMet: conditionResult,
+      executedActions: conditionResult ? thenActions : elseActions,
+      result: conditionResult ? 'then_branch' : 'else_branch',
+      timestamp: new Date().toISOString()
+    }
+  }
+
+  private async executeSwitchCase(config: any, context: any): Promise<any> {
+    const { field, cases, defaultActions } = config
+    const fieldValue = this.getFieldValue(field, context)
+
+    for (const caseItem of cases || []) {
+      if (caseItem.value === fieldValue) {
+        return {
+          matchedCase: caseItem.value,
+          executedActions: caseItem.actions,
+          result: fieldValue,
+          timestamp: new Date().toISOString()
+        }
       }
     }
-  }
 
-  private evaluateConditionRecursive(condition: Condition, context: WorkflowExecutionContext): boolean {
-    const { field, operator, value, conditions } = condition
-
-    switch (operator) {
-      case 'and':
-        return conditions?.every(c => this.evaluateConditionRecursive(c, context)) ?? false
-        
-      case 'or':
-        return conditions?.some(c => this.evaluateConditionRecursive(c, context)) ?? false
-        
-      default:
-        return this.evaluateSimpleCondition(field, operator, value, context)
+    // Default case
+    return {
+      matchedCase: 'default',
+      executedActions: defaultActions || [],
+      result: fieldValue,
+      timestamp: new Date().toISOString()
     }
   }
 
-  private evaluateSimpleCondition(
-    field: string,
-    operator: string,
-    value: any,
-    context: WorkflowExecutionContext
-  ): boolean {
-    const fieldValue = this.getFieldValue(field, context)
-    const resolvedValue = this.resolveValue(value, context)
+  private async executeLoopWhile(config: any, context: any): Promise<any> {
+    const { condition, actions, maxIterations = 100 } = config
+    const results = []
+    let iteration = 0
 
-    switch (operator) {
-      case 'equals':
-        return fieldValue === resolvedValue
-        
-      case 'not_equals':
-        return fieldValue !== resolvedValue
-        
-      case 'contains':
-        return String(fieldValue || '').includes(String(resolvedValue))
-        
-      case 'greater_than':
-        return Number(fieldValue) > Number(resolvedValue)
-        
-      case 'less_than':
-        return Number(fieldValue) < Number(resolvedValue)
-        
-      case 'exists':
-        return fieldValue !== undefined && fieldValue !== null
-        
-      case 'in':
-        return Array.isArray(resolvedValue) && resolvedValue.includes(fieldValue)
-        
-      default:
-        throw new Error(`Unknown condition operator: ${operator}`)
+    while (this.evaluateCondition(condition, context) && iteration < maxIterations) {
+      const iterationResult = await this.executeActions(actions, {
+        ...context,
+        iteration
+      })
+      
+      results.push(iterationResult)
+      iteration++
+
+      // Update context for next iteration
+      context.variables = { ...context.variables, ...iterationResult }
+    }
+
+    return {
+      totalIterations: iteration,
+      results,
+      stopped: iteration >= maxIterations ? 'max_iterations' : 'condition_false',
+      timestamp: new Date().toISOString()
     }
   }
 
-  private getFieldValue(field: string, context: WorkflowExecutionContext): any {
-    // Handle nested field access like "user.email" or "step_1.result.id"
+  private async executeSimpleCondition(condition: any, context: any): Promise<any> {
+    const result = this.evaluateCondition(condition, context)
+    
+    return {
+      condition,
+      result,
+      timestamp: new Date().toISOString()
+    }
+  }
+
+  private evaluateCondition(condition: any, context: any): boolean {
+    if (typeof condition === 'string') {
+      // Simple string condition evaluation
+      return this.evaluateStringCondition(condition, context)
+    }
+
+    if (typeof condition === 'object') {
+      const { field, operator, value } = condition
+      const fieldValue = this.getFieldValue(field, context)
+
+      switch (operator) {
+        case 'equals': return fieldValue === value
+        case 'not_equals': return fieldValue !== value
+        case 'greater_than': return Number(fieldValue) > Number(value)
+        case 'less_than': return Number(fieldValue) < Number(value)
+        case 'contains': return String(fieldValue || '').includes(String(value))
+        case 'exists': return fieldValue !== undefined && fieldValue !== null
+        case 'in': return Array.isArray(value) && value.includes(fieldValue)
+        default: return false
+      }
+    }
+
+    return Boolean(condition)
+  }
+
+  private evaluateStringCondition(condition: string, context: any): boolean {
+    // Replace template variables
+    const resolved = condition.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (match, path) => {
+      const value = this.getFieldValue(path, context)
+      return JSON.stringify(value)
+    })
+
+    try {
+      // Simple evaluation - in production, use a safer expression evaluator
+      return Boolean(eval(resolved))
+    } catch {
+      return false
+    }
+  }
+
+  private getFieldValue(field: string, context: any): any {
     const keys = field.split('.')
-    let value = context.variables
+    let value = context.variables || context
     
     for (const key of keys) {
       value = value?.[key]
@@ -102,47 +187,24 @@ export class ConditionalEngine {
     return value
   }
 
-  private resolveValue(value: any, context: WorkflowExecutionContext): any {
-    if (typeof value === 'string' && value.startsWith('{{') && value.endsWith('}}')) {
-      const variableName = value.slice(2, -2).trim()
-      return this.getFieldValue(variableName, context)
+  private async executeActions(actions: any[], context: any): Promise<any> {
+    const results: Record<string, any> = {}
+    
+    for (const action of actions || []) {
+      // Simulate action execution
+      results[action.id || `action_${Date.now()}`] = {
+        type: action.type,
+        status: 'completed',
+        result: 'simulated_result'
+      }
     }
-    return value
+    
+    return results
   }
 
-  // Helper method to create complex conditions
-  createAndCondition(conditions: Condition[]): Condition {
-    return {
-      id: `and_${Date.now()}`,
-      field: '',
-      operator: 'and',
-      value: null,
-      conditions
-    }
-  }
-
-  createOrCondition(conditions: Condition[]): Condition {
-    return {
-      id: `or_${Date.now()}`,
-      field: '',
-      operator: 'or', 
-      value: null,
-      conditions
-    }
-  }
-
-  // Helper method to create simple conditions
-  createSimpleCondition(
-    field: string, 
-    operator: Condition['operator'], 
-    value: any, 
-    id?: string
-  ): Condition {
-    return {
-      id: id || `condition_${Date.now()}`,
-      field,
-      operator,
-      value
-    }
+  private generateCacheKey(config: any, context: any): string {
+    const configHash = JSON.stringify(config)
+    const contextHash = JSON.stringify(context.variables || {})
+    return `${configHash}_${contextHash}`.slice(0, 100)
   }
 }

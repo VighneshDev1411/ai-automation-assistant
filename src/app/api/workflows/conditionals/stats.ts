@@ -1,10 +1,11 @@
+import { ConditionalIntegration } from "@/lib/workflow-engine/integrations/ConditionalIntegration"
 import { NextResponse } from "next/server"
 
 
 export async function GET() {
   try {
     const stats = {
-      cacheStats: conditionalIntegration.getCacheStats(),
+      cacheStats: ConditionalIntegration.getCacheStats(),
       systemInfo: {
         version: '1.0.0',
         supportedOperators: 40,
