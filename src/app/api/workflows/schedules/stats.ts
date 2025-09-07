@@ -68,7 +68,7 @@ export async function GET() {
         name: 'Real-time Data Processing',
         description: 'Process incoming data every 5 minutes',
         scheduleType: 'interval',
-        schedule: ScheduleBuilder.everyMinutes(5),
+        schedule: ScheduleBuilder.everyNMinutes(5),
         timezone: 'UTC',
         maxExecutions: 1000
       },

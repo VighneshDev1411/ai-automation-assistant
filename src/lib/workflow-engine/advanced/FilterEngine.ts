@@ -62,6 +62,9 @@ export interface FilterExecutionDetail {
 }
 
 export class FilterEngine {
+  static evaluateFilterGroup(filterGroup: { id: string; name: string; operator: "and"; filters: any[]; enabled: boolean }, executionContext: { executionStartTime: Date }, arg2: any) {
+    throw new Error("Method not implemented.")
+  }
   private transformationFunctions: Map<string, Function> = new Map()
   private validationFunctions: Map<string, Function> = new Map()
 
