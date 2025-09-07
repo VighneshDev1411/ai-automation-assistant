@@ -15,6 +15,7 @@ export interface AIModel {
 export interface AIAgent {
   id: string
   name: string
+  description: string
   type: 'conversational' | 'analytical' | 'task' | 'custom'
   model: string
   systemPrompt: string
@@ -35,8 +36,13 @@ export interface AIAgent {
     totalCost: number
     averageLatency: number
   }
+  tags: string[]
+  performance: {
+    responseQuality: number
+    userSatisfaction: number
+  }
+  lastUsed: string
 }
-
 export interface AITool {
   name: string
   description: string
