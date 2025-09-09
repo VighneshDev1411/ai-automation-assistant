@@ -20,7 +20,7 @@ export interface AIAgentRow {
 }
 
 export async function getOrganizationAgents(organizationId: string): Promise<AIAgentRow[]> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data, error } = await supabase
     .from('ai_agents')
@@ -61,7 +61,7 @@ export async function createAgent(
   userId: string,
   agentData: any
 ): Promise<AIAgentRow> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data, error } = await supabase
     .from('ai_agents')
@@ -95,7 +95,7 @@ export async function updateAgent(
   organizationId: string,
   updateData: any
 ): Promise<AIAgentRow> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data, error } = await supabase
     .from('ai_agents')
@@ -119,7 +119,7 @@ export async function deleteAgent(
   agentId: string,
   organizationId: string
 ): Promise<void> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { error } = await supabase
     .from('ai_agents')
@@ -136,7 +136,7 @@ export async function toggleAgentStatus(
   agentId: string,
   organizationId: string
 ): Promise<AIAgentRow> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   // First get current status
   const { data: currentAgent, error: fetchError } = await supabase
@@ -180,7 +180,7 @@ export async function updateAgentUsage(
     cost: number
   }
 ): Promise<void> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   // Use a stored procedure or raw SQL for atomic updates
   const { error } = await supabase.rpc('update_agent_usage_stats', {
