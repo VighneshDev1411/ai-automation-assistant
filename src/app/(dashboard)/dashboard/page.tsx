@@ -215,7 +215,7 @@ export default function DashboardPage() {
                 onClick={handleRefresh}
                 variant="outline"
                 disabled={isRefreshing}
-                className="flex items-center gap-2 hover:bg-accent transition-colors"
+                className="btn-glass flex items-center gap-2 hover:bg-accent transition-colors"
               >
                 <RefreshCw
                   className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
@@ -223,7 +223,7 @@ export default function DashboardPage() {
                 {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
               </Button>
 
-              <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
+              <Button className="btn-shine bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Workflow
               </Button>
@@ -242,26 +242,20 @@ export default function DashboardPage() {
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   {profileLoaded ? (
-                    <Badge
-                      variant="secondary"
-                      className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                    >
+                    <span className="status-badge success">
                       <CheckCircle className="h-3 w-3 mr-1" />
                       Ready
-                    </Badge>
+                    </span>
                   ) : (
-                    <Badge
-                      variant="secondary"
-                      className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                    >
+                    <span className="status-badge warning">
                       <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                       Loading
-                    </Badge>
+                    </span>
                   )}
                 </div>
               </div>
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                <User className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                <User className="h-6 w-6 text-white" />
               </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -307,26 +301,20 @@ export default function DashboardPage() {
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   {organizationsLoaded ? (
-                    <Badge
-                      variant="secondary"
-                      className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                    >
+                    <span className="status-badge success">
                       <CheckCircle className="h-3 w-3 mr-1" />
                       Ready
-                    </Badge>
+                    </span>
                   ) : (
-                    <Badge
-                      variant="secondary"
-                      className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                    >
+                    <span className="status-badge warning">
                       <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                       Loading
-                    </Badge>
+                    </span>
                   )}
                 </div>
               </div>
-              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                <Building className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                <Building className="h-6 w-6 text-white" />
               </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -370,8 +358,8 @@ export default function DashboardPage() {
               <CardTitle className="text-base font-medium text-muted-foreground">
                 System Status
               </CardTitle>
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                <Activity className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                <Activity className="h-6 w-6 text-white" />
               </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -381,12 +369,9 @@ export default function DashboardPage() {
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                     Platform Status
                   </span>
-                  <Badge
-                    variant="secondary"
-                    className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                  >
+                  <span className="status-badge success">
                     Operational
-                  </Badge>
+                  </span>
                 </div>
 
                 <div className="space-y-2 text-sm">
@@ -426,7 +411,7 @@ export default function DashboardPage() {
             return (
               <Card
                 key={index}
-                className="glass-card border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                className="metric-card border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
               >
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -448,10 +433,8 @@ export default function DashboardPage() {
                         </p>
                       </div>
                     </div>
-                    <div
-                      className={`w-12 h-12 rounded-xl flex items-center justify-center ${stat.bgColor}`}
-                    >
-                      <Icon className={`h-6 w-6 ${stat.color}`} />
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                      <Icon className="h-6 w-6 text-white" />
                     </div>
                   </div>
                 </CardContent>
@@ -478,40 +461,40 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Button
                 variant="outline"
-                className="h-20 flex flex-col gap-2 hover:bg-accent hover:border-primary/20 transition-all duration-200 group"
+                className="btn-glass h-20 flex flex-col gap-2 hover:bg-accent hover:border-primary/20 transition-all duration-200 group"
               >
-                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <Plus className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                  <Plus className="h-5 w-5 text-white" />
                 </div>
                 <span className="font-medium">Create Workflow</span>
               </Button>
 
               <Button
                 variant="outline"
-                className="h-20 flex flex-col gap-2 hover:bg-accent hover:border-primary/20 transition-all duration-200 group"
+                className="btn-glass h-20 flex flex-col gap-2 hover:bg-accent hover:border-primary/20 transition-all duration-200 group"
               >
-                <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <BarChart3 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                  <BarChart3 className="h-5 w-5 text-white" />
                 </div>
                 <span className="font-medium">View Analytics</span>
               </Button>
 
               <Button
                 variant="outline"
-                className="h-20 flex flex-col gap-2 hover:bg-accent hover:border-primary/20 transition-all duration-200 group"
+                className="btn-glass h-20 flex flex-col gap-2 hover:bg-accent hover:border-primary/20 transition-all duration-200 group"
               >
-                <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <Zap className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                  <Zap className="h-5 w-5 text-white" />
                 </div>
                 <span className="font-medium">Add Integration</span>
               </Button>
 
               <Button
                 variant="outline"
-                className="h-20 flex flex-col gap-2 hover:bg-accent hover:border-primary/20 transition-all duration-200 group"
+                className="btn-glass h-20 flex flex-col gap-2 hover:bg-accent hover:border-primary/20 transition-all duration-200 group"
               >
-                <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <Users className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                  <Users className="h-5 w-5 text-white" />
                 </div>
                 <span className="font-medium">Manage Team</span>
               </Button>
@@ -549,7 +532,7 @@ export default function DashboardPage() {
                 <CheckCircle className="h-8 w-8 text-white" />
               </div>
               <h3 className="text-2xl font-bold mb-3">
-                🎉 Everything's Ready!
+                Everything's Ready!
               </h3>
               <p className="text-muted-foreground text-lg mb-6 max-w-2xl mx-auto">
                 Your AI automation platform is fully loaded and ready to go.
@@ -557,13 +540,13 @@ export default function DashboardPage() {
                 integrations.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
+                <Button className="btn-shine bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
                   <Workflow className="h-4 w-4 mr-2" />
                   Create Your First Workflow
                 </Button>
                 <Button
                   variant="outline"
-                  className="hover:bg-accent transition-colors"
+                  className="btn-glass hover:bg-accent transition-colors"
                 >
                   <Bot className="h-4 w-4 mr-2" />
                   Explore AI Agents
@@ -621,7 +604,7 @@ export default function DashboardPage() {
                   onClick={handleRefresh}
                   variant="outline"
                   disabled={isRefreshing}
-                  className="hover:bg-accent transition-colors"
+                  className="btn-glass hover:bg-accent transition-colors"
                 >
                   {isRefreshing ? (
                     <>
@@ -645,7 +628,7 @@ export default function DashboardPage() {
           <Card className="mt-8 border-dashed">
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                🔧 Debug Information (Development Only)
+                Debug Information (Development Only)
               </CardTitle>
             </CardHeader>
             <CardContent>

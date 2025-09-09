@@ -1,43 +1,57 @@
+// src/app/api/ai-agents/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAIAgentSchema } from '@/lib/validations/ai-agent.schema'
-import { AuthError } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase/supabase-test'
-import { RetryManager } from '@/lib/workflow-engine/core/RetryManager'
-import { error } from 'console'
 
 // GET /api/ai-agents - to list all agents for organization
-
 export const GET = async () => {
   try {
     const supabase = await createClient()
 
+    // Get the authenticated user
     const {
       data: { user },
-      error: AuthError,
+      error: authError,
     } = await supabase.auth.getUser()
-    if (AuthError || !user) {
-      return Response.json({ error: 'unauthorized' }, { status: 401 })
+    
+    if (authError) {
+      console.error('Auth error:', authError)
+      return NextResponse.json({ error: 'Authentication failed' }, { status: 401 })
     }
 
-    const { data: profile } = await supabase
+    if (!user) {
+      console.error('No user found')
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+
+    console.log('Authenticated user:', user.email) // Debug log
+
+    // Get user's organization
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('organization_id')
       .eq('id', user.id)
       .single()
 
+    if (profileError) {
+      console.error('Profile error:', profileError)
+      return NextResponse.json({ error: 'Failed to get user profile' }, { status: 500 })
+    }
+
     if (!profile?.organization_id) {
+      console.error('No organization found for user')
       return NextResponse.json(
         { error: 'No organization found' },
         { status: 400 }
       )
     }
 
+    console.log('User organization:', profile.organization_id) // Debug log
+
     // Fetching the AI agents for the organization
     const { data: agents, error } = await supabase
       .from('ai_agents')
-      .select(
-        `
+      .select(`
         id,
         name,
         type,
@@ -57,10 +71,10 @@ export const GET = async () => {
           last_name,
           email
         )
-      `
-      )
+      `)
       .eq('organization_id', profile.organization_id)
       .order('created_at', { ascending: false })
+      
     if (error) {
       console.error('Database error:', error)
       return NextResponse.json(
@@ -68,6 +82,8 @@ export const GET = async () => {
         { status: 500 }
       )
     }
+    
+    // Transform agents data
     const transformedAgents = agents.map(agent => ({
       id: agent.id,
       name: agent.name,
@@ -76,7 +92,7 @@ export const GET = async () => {
       description: agent.system_prompt?.substring(0, 100) + '...' || '',
       isActive: agent.is_active,
       createdAt: agent.created_at,
-      lastUsed: agent.updated_at, // Use updated_at as proxy for last used
+      lastUsed: agent.updated_at,
       usage: {
         totalRequests: agent.usage_stats?.total_requests || 0,
         totalTokens: agent.usage_stats?.total_tokens || 0,
@@ -93,18 +109,15 @@ export const GET = async () => {
       tools: agent.tools || [],
       createdBy:
         agent.profiles && agent.profiles.length > 0
-          ? {
-              name: `${agent.profiles[0].first_name} ${agent.profiles[0].last_name}`,
-              email: agent.profiles[0].email,
-            }
-          : null,
+          ? `${agent.profiles[0].first_name || ''} ${agent.profiles[0].last_name || ''}`.trim() || agent.profiles[0].email
+          : 'Unknown',
     }))
 
     return NextResponse.json({
       success: true,
       data: transformedAgents,
-      count: transformedAgents.length,
     })
+
   } catch (error) {
     console.error('API error:', error)
     return NextResponse.json(
@@ -114,22 +127,21 @@ export const GET = async () => {
   }
 }
 
-// POST , Now creating a agent
-
-export const POST = async (request: NextRequest) => {
+// POST /api/ai-agents - Create new agent
+export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-
-    // Get current user and organization
+    
+    // Fixed: Correct variable name for authError
     const {
       data: { user },
-      error: AuthError,
+      error: authError, // Fixed: was 'AuthError'
     } = await supabase.auth.getUser()
-    if (AuthError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' })
+    
+    if (authError || !user) {
+      console.error('Auth error:', authError)
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
     }
-
-    // Get user's organization
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -144,22 +156,23 @@ export const POST = async (request: NextRequest) => {
       )
     }
 
-    // Parsing and then validating the request body
-
     const body = await request.json()
+    
+    // Validate input
     const validationResult = createAIAgentSchema.safeParse(body)
-
     if (!validationResult.success) {
       return NextResponse.json(
-        {
-          error: 'Validation failed',
-          details: validationResult.error.format(),
+        { 
+          error: 'Invalid input',
+          details: validationResult.error.flatten()
         },
         { status: 400 }
       )
     }
+
     const agentData = validationResult.data
-    // Create agent in database
+
+    // Create agent
     const { data: newAgent, error } = await supabase
       .from('ai_agents')
       .insert({
@@ -168,8 +181,8 @@ export const POST = async (request: NextRequest) => {
         name: agentData.name,
         type: agentData.type,
         model: agentData.model,
-        prompt_template: agentData.prompt_template,
         system_prompt: agentData.system_prompt,
+        prompt_template: agentData.prompt_template || '',
         parameters: {
           ...agentData.parameters,
           tags: body.tags || [],
