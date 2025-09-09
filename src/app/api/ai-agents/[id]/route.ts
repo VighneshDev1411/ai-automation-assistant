@@ -1,10 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { updateAIAgentSchema } from '@/lib/validations/ai-agent.schema'
 import { NextRequest, NextResponse } from 'next/server'
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+type RouteContext = {
+  params: { id: string }
+}
+
+export async function GET(request: NextRequest, context: RouteContext) {
+  const { params } = context
   try {
     const supabase = await createClient()
 
