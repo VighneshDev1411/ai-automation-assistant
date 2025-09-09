@@ -4,9 +4,12 @@ import { createClient } from '@/lib/supabase/server'
 // POST /api/ai-agents/[id]/toggle - Toggle agent active status
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Fix: Await the params since they're now a Promise in Next.js 15
+    const { id } = await params
+    
     const supabase = await createClient()
     
     // Get current user
@@ -30,7 +33,7 @@ export async function POST(
     const { data: currentAgent, error: fetchError } = await supabase
       .from('ai_agents')
       .select('is_active, name')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', profile.organization_id)
       .single()
 
@@ -50,7 +53,7 @@ export async function POST(
         is_active: newStatus,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', profile.organization_id)
       .select()
       .single()
