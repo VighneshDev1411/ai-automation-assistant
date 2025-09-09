@@ -1,13 +1,17 @@
 import { createClient } from '@/lib/supabase/server'
 import { updateAIAgentSchema } from '@/lib/validations/ai-agent.schema'
 import { NextRequest, NextResponse } from 'next/server'
+
+// Fix: Use the correct Next.js route context type
 type RouteContext = {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export async function GET(request: NextRequest, context: RouteContext) {
-  const { params } = context
   try {
+    // Fix: Await the params since they're now a Promise
+    const { id } = await context.params
+    
     const supabase = await createClient()
 
     // Get current user
@@ -37,7 +41,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const { data: agent, error } = await supabase
       .from('ai_agents')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', profile.organization_id)
       .single()
 
@@ -64,9 +68,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
+    // Fix: Await the params since they're now a Promise
+    const { id } = await context.params
+    
     const supabase = await createClient()
 
     // Get current user
@@ -115,7 +122,7 @@ export async function PUT(
         ...updateData,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', profile.organization_id)
       .select()
       .single()
@@ -147,9 +154,12 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
+    // Fix: Await the params since they're now a Promise
+    const { id } = await context.params
+    
     const supabase = await createClient()
 
     // Get current user
@@ -179,7 +189,7 @@ export async function DELETE(
     const { data: existingAgent, error: checkError } = await supabase
       .from('ai_agents')
       .select('id, name')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', profile.organization_id)
       .single()
 
@@ -197,7 +207,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('ai_agents')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', profile.organization_id)
 
     if (error) {
