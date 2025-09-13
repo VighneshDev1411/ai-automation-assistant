@@ -13,6 +13,7 @@ export interface AIModel {
 }
 
 export interface AIAgent {
+  executeAgent(id: string, prompt: string, arg2: { [x: string]: any }): any
   id: string
   name: string
   description: string
