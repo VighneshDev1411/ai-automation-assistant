@@ -228,7 +228,7 @@ const Day15AgentFrameworkDemo = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
-      {/* Header */}
+
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold text-gray-900">
           Day 15: AI Agent Framework
@@ -245,7 +245,7 @@ const Day15AgentFrameworkDemo = () => {
         </div>
       </div>
 
-      {/* Performance Dashboard */}
+ 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -292,7 +292,7 @@ const Day15AgentFrameworkDemo = () => {
       {/* Demo Sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* Specialized Agents Demo */}
+    
         <DemoCard
           icon={Brain}
           title="Specialized Agents"
@@ -687,7 +687,6 @@ const Day15AgentFrameworkDemo = () => {
         </Card>
       )}
 
-      {/* Day 15 Completion Summary */}
       <Card className="border-green-200 bg-green-50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-green-800">
