@@ -1,6 +1,7 @@
 // src/lib/ai/EmbeddingService.ts
 import OpenAI from 'openai'
 
+
 export interface EmbeddingConfig {
   apiKey: string
   model?: string
@@ -14,7 +15,8 @@ export class OpenAIEmbeddingService {
 
   constructor(config: EmbeddingConfig) {
     this.openai = new OpenAI({
-      apiKey: config.apiKey
+      apiKey: config.apiKey,
+      dangerouslyAllowBrowser: true
     })
     this.model = config.model || 'text-embedding-ada-002'
     this.maxTokens = config.maxTokens || 8191 // Ada-002 token limit
@@ -146,7 +148,8 @@ export class OpenAIEmbeddingService {
 
 // Factory function to create embedding service
 export function createEmbeddingService(): OpenAIEmbeddingService {
-  const apiKey = process.env.OPENAI_API_KEY
+  // Check both server-side and client-side environment variables
+  const apiKey = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY
 
   if (!apiKey) {
     throw new Error('OpenAI API key not found in environment variables')
@@ -158,7 +161,6 @@ export function createEmbeddingService(): OpenAIEmbeddingService {
     maxTokens: 8191
   })
 }
-
 // Alternative embedding services for future expansion
 export class AnthropicEmbeddingService {
   // Placeholder for when Anthropic releases embedding models

@@ -1,6 +1,6 @@
 // src/lib/ai/DocumentProcessor.ts
 import mammoth from 'mammoth'
-import * as pdfjsLib from 'pdfjs-dist'
+// import * as pdfjsLib from 'pdfjs-dist'
 
 export interface ProcessedDocument {
   content: string
@@ -23,9 +23,9 @@ export interface ProcessingOptions {
 export class DocumentProcessor {
   constructor() {
     // Configure PDF.js worker
-    if (typeof window !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`
-    }
+    // if (typeof window !== 'undefined') {
+    //   pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`
+    // }
   }
 
   /**
@@ -36,7 +36,7 @@ export class DocumentProcessor {
     options: ProcessingOptions = {}
   ): Promise<ProcessedDocument> {
     const fileType = this.getFileType(file.name)
-    
+
     console.log(`Processing ${fileType} file: ${file.name}`)
 
     switch (fileType) {
@@ -60,24 +60,36 @@ export class DocumentProcessor {
     file: File,
     options: ProcessingOptions
   ): Promise<ProcessedDocument> {
+    if (typeof window === 'undefined') {
+      throw new Error('PDF processing is only available in the browser')
+    }
+
     try {
+      // Dynamic import PDF.js only when needed
+      const pdfjsLib = await import('pdfjs-dist')
+
+      // Configure worker
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`
+      }
+
       const arrayBuffer = await file.arrayBuffer()
       const loadingTask = pdfjsLib.getDocument(arrayBuffer)
       const pdf = await loadingTask.promise
 
       const maxPages = options.maxPages || pdf.numPages
       const pagesToProcess = Math.min(maxPages, pdf.numPages)
-      
+
       let fullText = ''
-      
+
       for (let i = 1; i <= pagesToProcess; i++) {
         const page = await pdf.getPage(i)
         const textContent = await page.getTextContent()
-        
+
         const pageText = textContent.items
           .map((item: any) => item.str)
           .join(' ')
-        
+
         fullText += `\n\n--- Page ${i} ---\n${pageText}`
       }
 
@@ -89,12 +101,14 @@ export class DocumentProcessor {
           pageCount: pdf.numPages,
           wordCount: this.countWords(fullText),
           fileType: 'pdf',
-          extractedAt: new Date()
-        }
+          extractedAt: new Date(),
+        },
       }
     } catch (error) {
       console.error('Error processing PDF:', error)
-      throw new Error(`Failed to process PDF: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to process PDF: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   }
 
@@ -107,9 +121,9 @@ export class DocumentProcessor {
   ): Promise<ProcessedDocument> {
     try {
       const arrayBuffer = await file.arrayBuffer()
-      
+
       const result = await mammoth.extractRawText({
-        arrayBuffer
+        arrayBuffer,
       })
 
       if (result.messages.length > 0) {
@@ -123,12 +137,14 @@ export class DocumentProcessor {
           source: file.name,
           wordCount: this.countWords(result.value),
           fileType: 'docx',
-          extractedAt: new Date()
-        }
+          extractedAt: new Date(),
+        },
       }
     } catch (error) {
       console.error('Error processing DOCX:', error)
-      throw new Error(`Failed to process DOCX: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to process DOCX: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   }
 
@@ -146,12 +162,14 @@ export class DocumentProcessor {
           source: file.name,
           wordCount: this.countWords(text),
           fileType: 'txt',
-          extractedAt: new Date()
-        }
+          extractedAt: new Date(),
+        },
       }
     } catch (error) {
       console.error('Error processing text file:', error)
-      throw new Error(`Failed to process text file: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to process text file: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   }
 
@@ -161,23 +179,26 @@ export class DocumentProcessor {
   private async processMarkdown(file: File): Promise<ProcessedDocument> {
     try {
       const text = await file.text()
-      
+
       // Remove markdown formatting for better text extraction
       const cleanText = this.stripMarkdown(text)
 
       return {
         content: cleanText,
         metadata: {
-          title: this.extractTitleFromMarkdown(text) || this.extractTitle(file.name),
+          title:
+            this.extractTitleFromMarkdown(text) || this.extractTitle(file.name),
           source: file.name,
           wordCount: this.countWords(cleanText),
           fileType: 'md',
-          extractedAt: new Date()
-        }
+          extractedAt: new Date(),
+        },
       }
     } catch (error) {
       console.error('Error processing markdown file:', error)
-      throw new Error(`Failed to process markdown file: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to process markdown file: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   }
 
@@ -189,7 +210,7 @@ export class DocumentProcessor {
     options: ProcessingOptions = {}
   ): Promise<ProcessedDocument[]> {
     console.log(`Processing ${files.length} files`)
-    
+
     const results = await Promise.allSettled(
       files.map(file => this.processFile(file, options))
     )
@@ -218,11 +239,11 @@ export class DocumentProcessor {
   validateFile(file: File): { valid: boolean; error?: string } {
     const maxSize = 50 * 1024 * 1024 // 50MB
     const allowedTypes = ['pdf', 'docx', 'txt', 'md']
-    
+
     if (file.size > maxSize) {
       return {
         valid: false,
-        error: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds maximum allowed size (50MB)`
+        error: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds maximum allowed size (50MB)`,
       }
     }
 
@@ -230,7 +251,7 @@ export class DocumentProcessor {
     if (!allowedTypes.includes(fileType)) {
       return {
         valid: false,
-        error: `File type '${fileType}' is not supported. Allowed types: ${allowedTypes.join(', ')}`
+        error: `File type '${fileType}' is not supported. Allowed types: ${allowedTypes.join(', ')}`,
       }
     }
 
@@ -241,7 +262,7 @@ export class DocumentProcessor {
 
   private getFileType(filename: string): string {
     const extension = filename.toLowerCase().split('.').pop() || ''
-    
+
     switch (extension) {
       case 'pdf':
         return 'pdf'
@@ -286,37 +307,38 @@ export class DocumentProcessor {
   }
 
   private stripMarkdown(text: string): string {
-    return text
-      // Remove code blocks
-      .replace(/```[\s\S]*?```/g, '')
-      .replace(/`([^`]+)`/g, '$1')
-      // Remove headers
-      .replace(/^#{1,6}\s+/gm, '')
-      // Remove bold/italic
-      .replace(/\*\*([^*]+)\*\*/g, '$1')
-      .replace(/\*([^*]+)\*/g, '$1')
-      .replace(/__([^_]+)__/g, '$1')
-      .replace(/_([^_]+)_/g, '$1')
-      // Remove links
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      // Remove images
-      .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
-      // Remove horizontal rules
-      .replace(/^---+$/gm, '')
-      // Remove list markers
-      .replace(/^[\s]*[-*+]\s+/gm, '')
-      .replace(/^[\s]*\d+\.\s+/gm, '')
-      // Clean up extra whitespace
-      .replace(/\n\s*\n/g, '\n\n')
-      .trim()
+    return (
+      text
+        // Remove code blocks
+        .replace(/```[\s\S]*?```/g, '')
+        .replace(/`([^`]+)`/g, '$1')
+        // Remove headers
+        .replace(/^#{1,6}\s+/gm, '')
+        // Remove bold/italic
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/__([^_]+)__/g, '$1')
+        .replace(/_([^_]+)_/g, '$1')
+        // Remove links
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        // Remove images
+        .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+        // Remove horizontal rules
+        .replace(/^---+$/gm, '')
+        // Remove list markers
+        .replace(/^[\s]*[-*+]\s+/gm, '')
+        .replace(/^[\s]*\d+\.\s+/gm, '')
+        // Clean up extra whitespace
+        .replace(/\n\s*\n/g, '\n\n')
+        .trim()
+    )
   }
 
   private countWords(text: string): number {
     return text
       .trim()
       .split(/\s+/)
-      .filter(word => word.length > 0)
-      .length
+      .filter(word => word.length > 0).length
   }
 }
 

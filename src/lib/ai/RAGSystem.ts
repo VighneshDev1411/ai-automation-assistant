@@ -1,7 +1,10 @@
 // src/lib/ai/RAGSystem.ts - UPDATED VERSION
 import OpenAI from 'openai'
 import { SupabaseVectorStore, createVectorStore } from './VectorStoreConnector'
-import { OpenAIEmbeddingService, createEmbeddingService } from './EmbeddingService'
+import {
+  OpenAIEmbeddingService,
+  createEmbeddingService,
+} from './EmbeddingService'
 import { th } from 'date-fns/locale'
 
 export interface DocumentChunk {
@@ -86,26 +89,31 @@ export class RAGSystem {
   private chunkSize: number
   private chunkOverlap: number
 
-  constructor(config?: {
-    chunkSize?: number
-    chunkOverlap?: number
-  }) {
+  constructor(config?: { chunkSize?: number; chunkOverlap?: number }) {
     this.vectorStore = createVectorStore()
     this.embeddingService = createEmbeddingService()
     this.chunkSize = config?.chunkSize || 1000
     this.chunkOverlap = config?.chunkOverlap || 200
 
     // Initialize OpenAI for answer generation
-    const apiKey = process.env.OPENAI_API_KEY
+    // Initialize OpenAI for answer generation
+    // Initialize OpenAI for answer generation
+    const apiKey =
+      process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY
     if (!apiKey) {
       throw new Error('OpenAI API key not found')
     }
-    this.openai = new OpenAI({ apiKey })
+    // this.openai = new OpenAI({ apiKey })
+    this.openai = new OpenAI({
+      apiKey,
+      dangerouslyAllowBrowser: true, // Only for development!
+    })
   }
 
   /**
    * Add documents to the knowledge base with full processing pipeline
    */
+
   async addDocuments(
     knowledgeBaseId: string,
     documents: Array<{
@@ -114,18 +122,29 @@ export class RAGSystem {
       metadata: Record<string, any>
     }>
   ): Promise<void> {
-    console.log(`Adding ${documents.length} documents to knowledge base: ${knowledgeBaseId}`)
-    
+    console.log(
+      `Adding ${documents.length} documents to knowledge base: ${knowledgeBaseId}`
+    )
+
     for (const doc of documents) {
       try {
         // Step 1: Chunk the document
+        // Step 0: Create document record first
+        await this.vectorStore.createDocumentRecord(
+          knowledgeBaseId,
+          doc.id,
+          doc.metadata.source || 'uploaded-file.txt',
+          doc.metadata
+        )
         const chunks = await this.chunkDocument(doc.content, doc.metadata)
         console.log(`Document ${doc.id} split into ${chunks.length} chunks`)
 
         // Step 2: Generate embeddings for each chunk
         const chunksWithEmbeddings = await Promise.all(
           chunks.map(async (chunk, index) => {
-            const embedding = await this.embeddingService.generateEmbedding(chunk.content)
+            const embedding = await this.embeddingService.generateEmbedding(
+              chunk.content
+            )
 
             const documentChunk: DocumentChunk = {
               id: `${doc.id}_chunk_${index}`,
@@ -135,7 +154,7 @@ export class RAGSystem {
                 ...chunk.metadata,
                 chunkIndex: index,
                 tokens: this.embeddingService.estimateTokens(chunk.content),
-                source: doc.metadata.source || doc.id
+                source: doc.metadata.source || doc.id,
               },
               embedding,
               createdAt: new Date(),
@@ -147,8 +166,9 @@ export class RAGSystem {
 
         // Step 3: Store in vector database
         await this.vectorStore.addChunks(knowledgeBaseId, chunksWithEmbeddings)
-        console.log(`Successfully processed document ${doc.id}: ${chunksWithEmbeddings.length} chunks`)
-        
+        console.log(
+          `Successfully processed document ${doc.id}: ${chunksWithEmbeddings.length} chunks`
+        )
       } catch (error) {
         console.error(`Error processing document ${doc.id}:`, error)
         throw error
@@ -177,7 +197,8 @@ export class RAGSystem {
       if (retrievalResults.length === 0) {
         return {
           query: ragQuery.query,
-          answer: "I couldn't find relevant information in the knowledge base to answer your question.",
+          answer:
+            "I couldn't find relevant information in the knowledge base to answer your question.",
           sources: [],
           confidence: 0,
           processingTime: Date.now() - startTime,
@@ -304,7 +325,7 @@ export class RAGSystem {
       {
         chunkSize: settings?.chunkSize || this.chunkSize,
         chunkOverlap: settings?.chunkOverlap || this.chunkOverlap,
-        embeddingModel: settings?.embeddingModel || 'text-embedding-ada-002'
+        embeddingModel: settings?.embeddingModel || 'text-embedding-ada-002',
       }
     )
   }
@@ -333,8 +354,12 @@ export class RAGSystem {
           metadata: {
             ...metadata,
             chunkIndex,
-            startChar: chunks.length === 0 ? 0 : chunks[chunks.length - 1].metadata.endChar - this.chunkOverlap,
-            endChar: currentChunk.length
+            startChar:
+              chunks.length === 0
+                ? 0
+                : chunks[chunks.length - 1].metadata.endChar -
+                  this.chunkOverlap,
+            endChar: currentChunk.length,
           },
         })
 
@@ -352,7 +377,10 @@ export class RAGSystem {
         metadata: {
           ...metadata,
           chunkIndex,
-          startChar: chunks.length === 0 ? 0 : chunks[chunks.length - 1].metadata.endChar - this.chunkOverlap,
+          startChar:
+            chunks.length === 0
+              ? 0
+              : chunks[chunks.length - 1].metadata.endChar - this.chunkOverlap,
           endChar: content.length,
         },
       })
@@ -375,7 +403,9 @@ export class RAGSystem {
     knowledgeBaseId: string,
     ragQuery: RAGQuery
   ): Promise<RetrievalResult[]> {
-    const queryEmbedding = await this.embeddingService.generateEmbedding(ragQuery.query)
+    const queryEmbedding = await this.embeddingService.generateEmbedding(
+      ragQuery.query
+    )
 
     let results = await this.vectorStore.similaritySearch(
       knowledgeBaseId,
@@ -422,7 +452,10 @@ export class RAGSystem {
     tokensUsed: number
   }> {
     const context = retrievalResults
-      .map(result => `Source: ${result.chunk.metadeta.source}\nContent: ${result.chunk.content}`)
+      .map(
+        result =>
+          `Source: ${result.chunk.metadeta.source}\nContent: ${result.chunk.content}`
+      )
       .join('\n\n---\n\n')
 
     const prompt = `Based on the following context, please answer the question. If the context doesn't contain enough information to answer the question, please say so.
@@ -440,28 +473,32 @@ Answer:`
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that answers questions based on provided context. Be accurate and cite your sources when possible.'
+            content:
+              'You are a helpful assistant that answers questions based on provided context. Be accurate and cite your sources when possible.',
           },
           {
             role: 'user',
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         temperature: 0.1,
-        max_tokens: 1000
+        max_tokens: 1000,
       })
 
-      const answer = response.choices[0]?.message?.content || 'No answer generated'
+      const answer =
+        response.choices[0]?.message?.content || 'No answer generated'
       const tokensUsed = response.usage?.total_tokens || 0
 
       // Calculate confidence based on retrieval scores
-      const avgScore = retrievalResults.reduce((sum, r) => sum + r.score, 0) / retrievalResults.length
+      const avgScore =
+        retrievalResults.reduce((sum, r) => sum + r.score, 0) /
+        retrievalResults.length
       const confidence = Math.min(avgScore * 100, 95) // Cap at 95%
 
       return {
         content: answer,
         confidence,
-        tokensUsed
+        tokensUsed,
       }
     } catch (error) {
       console.error('Error generating answer:', error)
@@ -469,8 +506,6 @@ Answer:`
     }
   }
 }
-
-
 
 // Export factory function
 export function createRAGSystem(config?: {

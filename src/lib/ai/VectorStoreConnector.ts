@@ -2,7 +2,6 @@ import { createClient } from '@supabase/supabase-js'
 import { DocumentChunk, RetrievalResult } from './RAGSystem'
 import { tr } from 'zod/v4/locales'
 
-
 export interface VectorStoreConfig {
   supabaseUrl: string
   supabaseKey: string
@@ -19,6 +18,28 @@ export class SupabaseVectorStore {
 
     // Add document chunks with embeddings to the vecotr store
   }
+  async createDocumentRecord(
+    knowledgeBaseId: string,
+    documentId: string,
+    filename: string,
+    metadata: any
+  ): Promise<void> {
+    const { error } = await this.supabase.from('documents').insert({
+      id: documentId,
+      knowledge_base_id: knowledgeBaseId,
+      uploaded_by: '11111111-1111-1111-1111-111111111111', // Use same test UUID
+      filename,
+      content_type: 'text/plain',
+      file_size_bytes: 0,
+      processed: true,
+      metadata,
+    })
+
+    if (error) {
+      console.error('Error creating document record:', error)
+      throw error
+    }
+  }
   async addChunks(
     knowledgeBaseId: string,
     chunks: DocumentChunk[]
@@ -28,43 +49,44 @@ export class SupabaseVectorStore {
     )
 
     try {
-      // First ensure the knowledge base exists
-      const { data: kb, error: kbError } = await this.supabase
-        .from('knowledge_bases')
-        .select('id')
-        .eq('id', knowledgeBaseId)
-        .single()
-      if (kbError || !kb) {
-        throw new Error(`Knowledge base ${knowledgeBaseId} not found`)
-      }
-
       // Prepare embedding data for insertion
-
-      const embeddingData = chunks.map((chunk: any) => ({
+      const embeddingData = chunks.map(chunk => ({
         document_id: chunk.documentId,
-        chunk_index: chunk.metadata.chunkIndex,
+        chunk_index: chunk.metadeta.chunkIndex,
         content: chunk.content,
-        embedding: `[${chunk.embedding?.join(',')}]`, // Convert array to string format
+        embedding: chunk.embedding, // Keep as array, don't convert to string
         metadata: {
-          ...chunk.metadeta,
-          tokens: chunk.metadeta.tokens,
           source: chunk.metadeta.source,
+          tokens: chunk.metadeta.tokens,
+          chunkIndex: chunk.metadeta.chunkIndex,
         },
       }))
 
-      // Insert embeddings in batches to avoid size limits
-
-      const batchSize = 100
-
+      // Insert embeddings in smaller batches
+      const batchSize = 10 // Reduced batch size
       for (let i = 0; i < embeddingData.length; i += batchSize) {
         const batch = embeddingData.slice(i, i + batchSize)
+
+        console.log(
+          `Inserting batch ${Math.floor(i / batchSize) + 1}, items: ${batch.length}`
+        )
 
         const { error } = await this.supabase.from('embeddings').insert(batch)
 
         if (error) {
-          console.error(`Error inserting batch ${i / batchSize + 1}: `, error)
+          console.error(
+            `Batch ${Math.floor(i / batchSize) + 1} error details:`,
+            {
+              code: error.code,
+              message: error.message,
+              details: error.details,
+              hint: error.hint,
+            }
+          )
+          throw error
         }
       }
+
       console.log(`Successfully added ${chunks.length} chunks to vector store`)
     } catch (error) {
       console.error('Error adding chunks to vector store:', error)
@@ -210,9 +232,6 @@ export class SupabaseVectorStore {
     }
   }
 
-  /**
-   * Create a new knowledge base
-   */
   async createKnowledgeBase(
     organizationId: string,
     name: string,
@@ -224,32 +243,69 @@ export class SupabaseVectorStore {
     }
   ): Promise<string> {
     try {
+      console.log('Testing Supabase connection...')
+
+      // Test basic connection first
+      const { data: testData, error: testError } = await this.supabase
+        .from('knowledge_bases')
+        .select('count')
+        .limit(1)
+
+      console.log('Connection test result:', { testData, testError })
+
+      if (testError) {
+        console.error('Connection failed:', testError)
+        throw new Error(`Connection failed: ${testError.message}`)
+      }
+
+      console.log('Connection OK, attempting insert...')
+
+      const insertData = {
+        // organization_id: crypto.randomUUID(),
+        organization_id: '11111111-1111-1111-1111-111111111111',
+        name,
+        description,
+        embedding_model: settings.embeddingModel,
+        chunk_size: settings.chunkSize,
+        chunk_overlap: settings.chunkOverlap,
+      }
+
+      console.log('Insert data:', insertData)
+
       const { data, error } = await this.supabase
         .from('knowledge_bases')
-        .insert({
-          organization_id: organizationId,
-          name,
-          description,
-          embedding_model: settings.embeddingModel,
-          chunk_size: settings.chunkSize,
-          chunk_overlap: settings.chunkOverlap,
-        })
+        .insert(insertData)
         .select('id')
         .single()
 
-      if (error) throw error
+      console.log('Insert result - data:', data, 'error:', error)
+      console.log('Error type:', typeof error)
+      console.log('Error keys:', error ? Object.keys(error) : 'no error')
 
-      console.log(`Created knowledge base: ${data.id}`)
+      if (error) {
+        console.error('Insert error details:', JSON.stringify(error, null, 2))
+        throw new Error(`Insert failed: ${JSON.stringify(error)}`)
+      }
+
+      if (!data) {
+        throw new Error('No data returned from insert')
+      }
+
       return data.id
     } catch (error) {
-      console.error('Error creating knowledge base:', error)
+      console.error('Full error object:', error)
+      console.error('Error stringified:', JSON.stringify(error, null, 2))
       throw error
     }
   }
 
-  /**
-   * List all knowledge bases for an organization
-   */
+  // Add this helper method to the class
+  private isValidUUID(uuid: string): boolean {
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    return uuidRegex.test(uuid)
+  }
+
   async listKnowledgeBases(organizationId: string) {
     try {
       const { data, error } = await this.supabase
