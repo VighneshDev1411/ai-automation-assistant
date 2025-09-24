@@ -51,6 +51,7 @@ export class AgentWithTools {
 
   // Process a message and execute tools if needed
 
+  // Process a message and execute tools if needed
   async processMessage(
     message: string,
     context: ToolExecutionContext
@@ -62,8 +63,6 @@ export class AgentWithTools {
       const availableTools = this.getAgentTools()
 
       // Prepare OpenAI function definitions
-      // FIX: Removed the explicit ': any' type for 'tool' to allow for correct type inference.
-      // This resolves the issue where 'param' was being inferred as 'unknown'.
       const functions = availableTools.map(tool => ({
         name: tool.name,
         description: tool.description,
@@ -108,7 +107,6 @@ export class AgentWithTools {
       }> = []
 
       // Handle function calls
-
       if (assistantMessage.function_call) {
         const functionCall = assistantMessage.function_call
         const toolName = functionCall.name
@@ -117,7 +115,6 @@ export class AgentWithTools {
         console.log(`Agent calling tool: ${toolName}`)
 
         // Execute the function
-
         const result = await this.functionSystem.executeFunction(
           toolName,
           parameters,
@@ -130,8 +127,7 @@ export class AgentWithTools {
           result: result.result,
         })
 
-        // Get final response with function result
-
+        // Get final response with function result - FIXED
         const followupResponse = await this.openai.chat.completions.create({
           model: this.config.model,
           messages: [
@@ -145,7 +141,7 @@ export class AgentWithTools {
             },
             {
               role: 'assistant',
-              content: assistantMessage.content,
+              content: assistantMessage.content || '', // FIX: Handle null content
               function_call: assistantMessage.function_call,
             },
             {
@@ -155,11 +151,12 @@ export class AgentWithTools {
             },
           ],
           temperature: this.config.temperature || 0.7,
-          max_tokens: this.config.maxTokens || 100,
+          max_tokens: this.config.maxTokens || 1500, // FIX: Increase token limit
         })
 
         finalMessage =
-          followupResponse.choices[0]?.message?.content || finalMessage
+          followupResponse.choices[0]?.message?.content ||
+          `I used the ${toolName} tool and found: ${JSON.stringify(result.result).substring(0, 500)}`
       }
 
       const processingTime = Date.now() - startTime

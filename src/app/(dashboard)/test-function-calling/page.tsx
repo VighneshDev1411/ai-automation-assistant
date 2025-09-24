@@ -79,12 +79,32 @@ export default function FunctionCallingTest() {
       setFunctionSystem(system)
       setAvailableTools(system.getAvailableTools())
 
-      // Initialize default agent
+      // In the initializeFunctionSystem function, update the agent config:
       const agentConfig = {
         ...AGENT_PRESETS.assistant,
-        availableTools: ['get_current_time', 'generate_uuid', 'calculate_math'],
-      }
+        systemPrompt: `You are an automation assistant. When users request actions, execute them immediately.
 
+IMPORTANT RULES:
+- If someone says "trigger [workflow]" → Use trigger_workflow tool immediately, no confirmation needed
+- If someone says "search for [topic]" → Use search_knowledge_base immediately  
+- If someone says "run [workflow]" → Use trigger_workflow immediately
+- Only ask for confirmation if the request is ambiguous or dangerous
+
+You have these tools: trigger_workflow, list_workflows, get_workflow_status, search_knowledge_base, etc.
+
+Execute automation requests immediately without asking "would you like me to proceed?"`,
+        availableTools: [
+          'get_current_time',
+          'generate_uuid',
+          'calculate_math',
+          'search_knowledge_base',
+          'add_document_to_kb',
+          'get_kb_stats',
+          'trigger_workflow',
+          'get_workflow_status',
+          'list_workflows',
+        ],
+      }
       const agentInstance = new AgentWithTools(agentConfig, system)
       setAgent(agentInstance)
 
