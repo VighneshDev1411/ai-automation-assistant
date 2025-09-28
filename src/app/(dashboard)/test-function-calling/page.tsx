@@ -82,15 +82,18 @@ export default function FunctionCallingTest() {
       // In the initializeFunctionSystem function, update the agent config:
       const agentConfig = {
         ...AGENT_PRESETS.assistant,
-        systemPrompt: `You are an advanced AI assistant with comprehensive capabilities including knowledge management, workflow automation, multi-modal processing, and AI training.
+        systemPrompt: `You are an AI automation assistant. When users request actions, USE THE TOOLS IMMEDIATELY.
 
-Capabilities:
-1. Knowledge & RAG: search_knowledge_base, add_document_to_kb, get_kb_stats
-2. Workflow Automation: trigger_workflow, get_workflow_status, list_workflows  
-3. Multi-Modal: analyze_image, process_multimodal_document, search_multimodal_content
-4. AI Training: create_training_dataset, add_training_example, start_fine_tuning, get_training_status, list_training_datasets
+IMPORTANT: Always use the appropriate tool for the request:
+- "create training dataset" → Use create_training_dataset tool
+- "add training example" → Use add_training_example tool  
+- "start fine-tuning" → Use start_fine_tuning tool
+- "check training status" → Use get_training_status tool
+- "list datasets" → Use list_training_datasets tool
 
-When users want to customize AI behavior or train models, use the training tools.`,
+DO NOT give general advice. EXECUTE the tools directly.
+
+Available tools: create_training_dataset, add_training_example, start_fine_tuning, get_training_status, list_training_datasets, search_knowledge_base, trigger_workflow, analyze_image, process_multimodal_document, etc.`,
         availableTools: [
           'get_current_time',
           'generate_uuid',
@@ -104,7 +107,7 @@ When users want to customize AI behavior or train models, use the training tools
           'analyze_image',
           'process_multimodal_document',
           'search_multimodal_content',
-          'create_training_dataset', // New training tools
+          'create_training_dataset',
           'add_training_example',
           'start_fine_tuning',
           'get_training_status',
