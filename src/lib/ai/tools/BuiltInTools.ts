@@ -2,6 +2,7 @@
 import { ToolDefinition } from '../FunctionCallingSystem'
 import { MULTIMODAL_TOOLS } from './MultiModalTools'
 import { RAG_TOOLS } from './RAGTools'
+import { TRAINING_TOOLS } from './TrainingTools'
 import { WORKFLOW_TOOLS } from './WorkflowTools'
 
 /**
@@ -360,7 +361,8 @@ export const BUILT_IN_TOOLS: ToolDefinition[] = [
   // Workflow tools
   ...WORKFLOW_TOOLS,
 
-  ...MULTIMODAL_TOOLS
+  ...MULTIMODAL_TOOLS,
+  ...TRAINING_TOOLS
 ]
 
 // Debug: Log the tools being exported

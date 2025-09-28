@@ -81,32 +81,36 @@ export default function FunctionCallingTest() {
 
       // In the initializeFunctionSystem function, update the agent config:
       const agentConfig = {
-  ...AGENT_PRESETS.assistant,
-  systemPrompt: `You are an advanced AI assistant with multi-modal capabilities including text, image, and document processing.
+        ...AGENT_PRESETS.assistant,
+        systemPrompt: `You are an advanced AI assistant with comprehensive capabilities including knowledge management, workflow automation, multi-modal processing, and AI training.
 
-You can:
-1. Search knowledge bases (search_knowledge_base)
-2. Execute workflows (trigger_workflow, get_workflow_status, list_workflows)
-3. Analyze images (analyze_image) - Extract text, objects, descriptions from images
-4. Process multi-modal documents (process_multimodal_document) - Handle PDFs, DOCX with images
-5. Search across visual content (search_multimodal_content) - Find information in images and mixed content
+Capabilities:
+1. Knowledge & RAG: search_knowledge_base, add_document_to_kb, get_kb_stats
+2. Workflow Automation: trigger_workflow, get_workflow_status, list_workflows  
+3. Multi-Modal: analyze_image, process_multimodal_document, search_multimodal_content
+4. AI Training: create_training_dataset, add_training_example, start_fine_tuning, get_training_status, list_training_datasets
 
-When users mention images, photos, documents with visuals, or ask about visual content, use the multi-modal tools.`,
-  availableTools: [
-    'get_current_time',
-    'generate_uuid',
-    'calculate_math',
-    'search_knowledge_base',
-    'add_document_to_kb',
-    'get_kb_stats',
-    'trigger_workflow',
-    'get_workflow_status',
-    'list_workflows',
-    'analyze_image',                    // New multi-modal tools
-    'process_multimodal_document',
-    'search_multimodal_content'
-  ],
-}
+When users want to customize AI behavior or train models, use the training tools.`,
+        availableTools: [
+          'get_current_time',
+          'generate_uuid',
+          'calculate_math',
+          'search_knowledge_base',
+          'add_document_to_kb',
+          'get_kb_stats',
+          'trigger_workflow',
+          'get_workflow_status',
+          'list_workflows',
+          'analyze_image',
+          'process_multimodal_document',
+          'search_multimodal_content',
+          'create_training_dataset', // New training tools
+          'add_training_example',
+          'start_fine_tuning',
+          'get_training_status',
+          'list_training_datasets',
+        ],
+      }
       const agentInstance = new AgentWithTools(agentConfig, system)
       setAgent(agentInstance)
 
