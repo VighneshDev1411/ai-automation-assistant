@@ -211,6 +211,15 @@ export class AgentWithTools {
           param.properties
         )
       }
+
+      if (param.items) {
+        converted[name].items = {
+          type: param.items.type,
+        }
+        if (param.items.enum) {
+          converted[name].items.enum = param.items.enum
+        }
+      }
     }
 
     return converted
@@ -232,6 +241,7 @@ export class AgentWithTools {
 }
 
 // Predefined agent configurations
+// Available MultiModal tool names: 'analyze_image', 'process_multimodal_document', 'search_multimodal_content'
 export const AGENT_PRESETS: Record<
   string,
   Omit<AgentConfig, 'availableTools'>
@@ -264,5 +274,25 @@ export const AGENT_PRESETS: Record<
       'You are an automation bot. Execute tasks efficiently and communicate results clearly.',
     temperature: 0.5,
     maxTokens: 800,
+  },
+
+  multiModalProcessor: {
+    name: 'Multi-Modal Processor',
+    description: 'Specialized in processing images, documents, and mixed content using AI vision',
+    model: 'gpt-4-vision-preview',
+    systemPrompt:
+      'You are a multi-modal AI processor. You excel at analyzing images, processing documents with mixed content, and understanding visual information. Use your vision capabilities and multi-modal tools to provide comprehensive analysis of text, images, charts, diagrams, and complex documents.',
+    temperature: 0.4,
+    maxTokens: 2000,
+  },
+
+  documentProcessor: {
+    name: 'Document Processor',
+    description: 'Advanced document processing with text, image, and table extraction',
+    model: 'gpt-4',
+    systemPrompt:
+      'You are a document processing specialist. You can extract, analyze, and process content from various document types including PDFs, Word documents, and images. You understand document structure, can extract tables, analyze charts, and provide comprehensive document insights.',
+    temperature: 0.3,
+    maxTokens: 1800,
   },
 }

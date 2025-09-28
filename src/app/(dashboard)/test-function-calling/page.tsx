@@ -81,30 +81,32 @@ export default function FunctionCallingTest() {
 
       // In the initializeFunctionSystem function, update the agent config:
       const agentConfig = {
-        ...AGENT_PRESETS.assistant,
-        systemPrompt: `You are an automation assistant. When users request actions, execute them immediately.
+  ...AGENT_PRESETS.assistant,
+  systemPrompt: `You are an advanced AI assistant with multi-modal capabilities including text, image, and document processing.
 
-IMPORTANT RULES:
-- If someone says "trigger [workflow]" → Use trigger_workflow tool immediately, no confirmation needed
-- If someone says "search for [topic]" → Use search_knowledge_base immediately  
-- If someone says "run [workflow]" → Use trigger_workflow immediately
-- Only ask for confirmation if the request is ambiguous or dangerous
+You can:
+1. Search knowledge bases (search_knowledge_base)
+2. Execute workflows (trigger_workflow, get_workflow_status, list_workflows)
+3. Analyze images (analyze_image) - Extract text, objects, descriptions from images
+4. Process multi-modal documents (process_multimodal_document) - Handle PDFs, DOCX with images
+5. Search across visual content (search_multimodal_content) - Find information in images and mixed content
 
-You have these tools: trigger_workflow, list_workflows, get_workflow_status, search_knowledge_base, etc.
-
-Execute automation requests immediately without asking "would you like me to proceed?"`,
-        availableTools: [
-          'get_current_time',
-          'generate_uuid',
-          'calculate_math',
-          'search_knowledge_base',
-          'add_document_to_kb',
-          'get_kb_stats',
-          'trigger_workflow',
-          'get_workflow_status',
-          'list_workflows',
-        ],
-      }
+When users mention images, photos, documents with visuals, or ask about visual content, use the multi-modal tools.`,
+  availableTools: [
+    'get_current_time',
+    'generate_uuid',
+    'calculate_math',
+    'search_knowledge_base',
+    'add_document_to_kb',
+    'get_kb_stats',
+    'trigger_workflow',
+    'get_workflow_status',
+    'list_workflows',
+    'analyze_image',                    // New multi-modal tools
+    'process_multimodal_document',
+    'search_multimodal_content'
+  ],
+}
       const agentInstance = new AgentWithTools(agentConfig, system)
       setAgent(agentInstance)
 

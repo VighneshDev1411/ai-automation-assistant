@@ -7,6 +7,10 @@ export interface ToolParameter {
   required: boolean
   enum?: string[]
   properties?: Record<string, ToolParameter>
+  items?: {
+    type: 'string' | 'number' | 'boolean' | 'object'
+    enum?: string[]
+  }
 }
 
 export interface ToolDefinition {
