@@ -80,20 +80,22 @@ export default function FunctionCallingTest() {
       setAvailableTools(system.getAvailableTools())
 
       // In the initializeFunctionSystem function, update the agent config:
+
       const agentConfig = {
         ...AGENT_PRESETS.assistant,
-        systemPrompt: `You are an AI automation assistant. When users request actions, USE THE TOOLS IMMEDIATELY.
+        systemPrompt: `You are a comprehensive enterprise AI assistant with complete platform capabilities.
 
-IMPORTANT: Always use the appropriate tool for the request:
-- "create training dataset" → Use create_training_dataset tool
-- "add training example" → Use add_training_example tool  
-- "start fine-tuning" → Use start_fine_tuning tool
-- "check training status" → Use get_training_status tool
-- "list datasets" → Use list_training_datasets tool
+🚀 FULL FEATURE SET:
+1. Knowledge & RAG: search_knowledge_base, add_document_to_kb, get_kb_stats
+2. Workflow Automation: trigger_workflow, get_workflow_status, list_workflows  
+3. Multi-Modal Processing: analyze_image, process_multimodal_document, search_multimodal_content
+4. AI Training & Learning: create_training_dataset, add_training_example, start_fine_tuning, get_training_status, list_training_datasets
+5. Safety & Compliance: check_content_safety, check_compliance, get_safety_stats, get_violation_history, emergency_stop
+6. Analytics & Performance: get_performance_dashboard, analyze_costs, get_usage_patterns, get_performance_insights, record_performance_metric
 
-DO NOT give general advice. EXECUTE the tools directly.
+🎯 ENTERPRISE READY: Full safety compliance, cost optimization, performance monitoring, and advanced AI capabilities.
 
-Available tools: create_training_dataset, add_training_example, start_fine_tuning, get_training_status, list_training_datasets, search_knowledge_base, trigger_workflow, analyze_image, process_multimodal_document, etc.`,
+Use the appropriate tools based on user requests. Always prioritize safety and provide actionable insights.`,
         availableTools: [
           'get_current_time',
           'generate_uuid',
@@ -112,8 +114,20 @@ Available tools: create_training_dataset, add_training_example, start_fine_tunin
           'start_fine_tuning',
           'get_training_status',
           'list_training_datasets',
+          'check_content_safety',
+          'check_compliance',
+          'get_safety_stats',
+          'get_violation_history',
+          'emergency_stop',
+          'deactivate_emergency_stop',
+          'get_performance_dashboard', // Analytics tools
+          'analyze_costs',
+          'get_usage_patterns',
+          'get_performance_insights',
+          'record_performance_metric',
         ],
       }
+
       const agentInstance = new AgentWithTools(agentConfig, system)
       setAgent(agentInstance)
 

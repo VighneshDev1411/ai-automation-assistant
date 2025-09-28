@@ -1,7 +1,9 @@
 // src/lib/ai/tools/BuiltInTools.ts
 import { ToolDefinition } from '../FunctionCallingSystem'
+import { ANALYTICS_TOOLS } from './AnalyticsTools'
 import { MULTIMODAL_TOOLS } from './MultiModalTools'
 import { RAG_TOOLS } from './RAGTools'
+import { SAFETY_TOOLS } from './SafetyTools'
 import { TRAINING_TOOLS } from './TrainingTools'
 import { WORKFLOW_TOOLS } from './WorkflowTools'
 
@@ -362,7 +364,9 @@ export const BUILT_IN_TOOLS: ToolDefinition[] = [
   ...WORKFLOW_TOOLS,
 
   ...MULTIMODAL_TOOLS,
-  ...TRAINING_TOOLS
+  ...TRAINING_TOOLS,
+  ...SAFETY_TOOLS,
+  ...ANALYTICS_TOOLS
 ]
 
 // Debug: Log the tools being exported
