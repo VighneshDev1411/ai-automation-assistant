@@ -354,8 +354,6 @@ Use the appropriate tools based on user requests. Always prioritize safety and p
             </CardContent>
           </Card>
         </TabsContent>
-
-        {/* Agent Chat Tab */}
         <TabsContent value="agent" className="space-y-6">
           <Card>
             <CardHeader>
