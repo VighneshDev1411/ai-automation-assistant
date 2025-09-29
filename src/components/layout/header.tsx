@@ -1,11 +1,20 @@
 'use client'
 
-import { Menu, Bell, Search, User } from 'lucide-react'
+import { Menu, Bell, Search, User, Settings, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ThemeToggle } from '@/components/common/theme-toggle'
 import { cn } from '@/lib/utils'
 import { useMediaQuery } from '@/hooks/use-media-query'
+import Link from 'next/link'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface HeaderProps {
   onMenuClick?: () => void
@@ -83,9 +92,50 @@ export function Header({ onMenuClick, showMenuButton, className }: HeaderProps) 
         <ThemeToggle variant="icon" />
 
         {/* User Menu */}
-        <Button variant="ghost" size="icon" className="ml-2">
-          <User className="h-5 w-5" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-2"
+            >
+              <User className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56" style={{ pointerEvents: 'auto' }}>
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault()
+                window.location.href = '/profile'
+              }}
+            >
+              <User className="mr-2 h-4 w-4" />
+              <span>Profile</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault()
+                window.location.href = '/settings'
+              }}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-red-600 dark:text-red-400"
+              onSelect={(e) => {
+                e.preventDefault()
+                console.log('Logout clicked')
+              }}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   )

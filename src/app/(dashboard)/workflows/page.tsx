@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Card,
   CardContent,
@@ -182,6 +183,7 @@ function useWorkflows() {
 }
 
 export default function WorkflowsPage() {
+  const router = useRouter()
   const {
     workflows,
     isLoading,
@@ -252,7 +254,7 @@ export default function WorkflowsPage() {
               Manage and monitor your automation workflows
             </p>
           </div>
-          <Button className="btn-shine">
+          <Button className="btn-shine" onClick={() => router.push('/workflow-builder')}>
             <Plus className="h-4 w-4 mr-2" />
             Create Workflow
           </Button>
@@ -534,7 +536,7 @@ export default function WorkflowsPage() {
                   : 'Get started by creating your first automated workflow.'}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button className="btn-shine">
+                <Button className="btn-shine" onClick={() => router.push('/workflow-builder')}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Your First Workflow
                 </Button>
