@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { Menu, Bell, Search, User, Settings, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,14 +8,7 @@ import { ThemeToggle } from '@/components/common/theme-toggle'
 import { cn } from '@/lib/utils'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import Link from 'next/link'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { useRouter } from 'next/navigation'
 
 interface HeaderProps {
   onMenuClick?: () => void
@@ -23,6 +17,8 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick, showMenuButton, className }: HeaderProps) {
+  const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false)
+  const router = useRouter()
   const isMobile = useMediaQuery('(max-width: 768px)')
   const isTablet = useMediaQuery('(max-width: 1024px)')
 
@@ -92,50 +88,63 @@ export function Header({ onMenuClick, showMenuButton, className }: HeaderProps) 
         <ThemeToggle variant="icon" />
 
         {/* User Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="ml-2"
-            >
-              <User className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56" style={{ pointerEvents: 'auto' }}>
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault()
-                window.location.href = '/profile'
-              }}
-            >
-              <User className="mr-2 h-4 w-4" />
-              <span>Profile</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault()
-                window.location.href = '/settings'
-              }}
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-red-600 dark:text-red-400"
-              onSelect={(e) => {
-                e.preventDefault()
-                console.log('Logout clicked')
-              }}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="relative ml-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+          >
+            <User className="h-5 w-5" />
+          </Button>
+
+          {isUserMenuOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setIsUserMenuOpen(false)}
+              />
+              <div className="absolute right-0 mt-2 w-56 bg-popover text-popover-foreground rounded-md border shadow-md z-50">
+                <div className="px-2 py-1.5 text-sm font-semibold">My Account</div>
+                <div className="h-px bg-border my-1" />
+
+                <button
+                  onClick={() => {
+                    router.push('/profile')
+                    setIsUserMenuOpen(false)
+                  }}
+                  className="w-full flex items-center px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer"
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    router.push('/settings')
+                    setIsUserMenuOpen(false)
+                  }}
+                  className="w-full flex items-center px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer"
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </button>
+
+                <div className="h-px bg-border my-1" />
+
+                <button
+                  onClick={() => {
+                    console.log('Logout clicked')
+                    setIsUserMenuOpen(false)
+                  }}
+                  className="w-full flex items-center px-2 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </header>
   )
