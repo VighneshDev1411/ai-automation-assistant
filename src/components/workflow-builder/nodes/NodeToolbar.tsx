@@ -275,30 +275,33 @@ export function NodeToolbar({ className }: NodeToolbarProps) {
   }
 
   return (
-    <Card className={`w-80 h-full flex flex-col ${className}`}>
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2">
-          <Plus className="h-5 w-5" />
-          Add Nodes
-        </CardTitle>
-        
+    <div className={`h-full flex flex-col border-r bg-background ${className}`}>
+      <div className="p-4 border-b bg-muted/30">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+            <Plus className="h-4 w-4 text-white" />
+          </div>
+          <h2 className="font-bold text-lg">Workflow Nodes</h2>
+        </div>
+
         {/* Search */}
-        <div className="relative">
+        <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search nodes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 h-9"
           />
         </div>
 
         {/* Category Filters */}
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant={selectedCategory === 'All' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedCategory('All')}
+            className="h-8 text-xs font-medium"
           >
             All
           </Button>
@@ -308,75 +311,79 @@ export function NodeToolbar({ className }: NodeToolbarProps) {
               variant={selectedCategory === category ? 'default' : 'outline'}
               size="sm"
               onClick={() => setSelectedCategory(category)}
+              className="h-8 text-xs font-medium"
             >
               {category}
             </Button>
           ))}
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="flex-1 p-0">
-        <ScrollArea className="h-full px-4">
-          <div className="space-y-4 pb-4">
-            {/* Popular Nodes */}
-            {selectedCategory === 'All' && (
-              <div className="space-y-2">
-                <h3 className="font-medium text-sm text-muted-foreground">Popular</h3>
-                <div className="grid gap-2">
-                  {filteredTemplates
-                    .filter(template => template.isPopular)
-                    .map(template => (
-                      <NodeTemplateCard
-                        key={template.id}
-                        template={template}
-                        onDragStart={onDragStart}
-                      />
-                    ))}
-                </div>
-                <Separator />
+      <ScrollArea className="flex-1">
+        <div className="p-4 space-y-6">
+          {/* Popular Nodes - Only show when "All" is selected and not searching */}
+          {selectedCategory === 'All' && !searchTerm && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-1 w-1 rounded-full bg-primary"></div>
+                <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Popular</h3>
               </div>
-            )}
+              <div className="grid gap-2">
+                {nodeTemplates
+                  .filter(template => template.isPopular)
+                  .map(template => (
+                    <NodeTemplateCard
+                      key={`popular-${template.id}`}
+                      template={template}
+                      onDragStart={onDragStart}
+                    />
+                  ))}
+              </div>
+            </div>
+          )}
 
-            {/* Nodes by Category */}
-            {categories.map(category => {
-              const categoryTemplates = filteredTemplates.filter(
-                template => template.category === category &&
-                           (selectedCategory === 'All' || selectedCategory === category)
-              )
+          {/* Nodes by Category */}
+          {categories.map(category => {
+            // Filter templates for this category, excluding popular ones if showing Popular section
+            const categoryTemplates = filteredTemplates.filter(
+              template => template.category === category &&
+                         (selectedCategory === 'All' || selectedCategory === category) &&
+                         !(selectedCategory === 'All' && !searchTerm && template.isPopular)
+            )
 
-              if (categoryTemplates.length === 0) return null
+            if (categoryTemplates.length === 0) return null
 
-              return (
-                <div key={category} className="space-y-2">
-                  <h3 className="font-medium text-sm text-muted-foreground">
+            return (
+              <div key={category} className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-1 w-1 rounded-full bg-primary"></div>
+                  <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
                     {category}
                   </h3>
-                  <div className="grid gap-2">
-                    {categoryTemplates.map(template => (
-                      <NodeTemplateCard
-                        key={template.id}
-                        template={template}
-                        onDragStart={onDragStart}
-                        showPopular={selectedCategory === 'All'}
-                      />
-                    ))}
-                  </div>
-                  {category !== categories[categories.length - 1] && <Separator />}
                 </div>
-              )
-            })}
-
-            {filteredTemplates.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No nodes found</p>
-                <p className="text-xs">Try adjusting your search</p>
+                <div className="grid gap-2">
+                  {categoryTemplates.map(template => (
+                    <NodeTemplateCard
+                      key={template.id}
+                      template={template}
+                      onDragStart={onDragStart}
+                    />
+                  ))}
+                </div>
               </div>
-            )}
-          </div>
-        </ScrollArea>
-      </CardContent>
-    </Card>
+            )
+          })}
+
+          {filteredTemplates.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              <Search className="h-12 w-12 mx-auto mb-3 opacity-30" />
+              <p className="text-sm font-medium">No nodes found</p>
+              <p className="text-xs mt-1">Try adjusting your search or filters</p>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
   )
 }
 
@@ -384,61 +391,51 @@ export function NodeToolbar({ className }: NodeToolbarProps) {
 interface NodeTemplateCardProps {
   template: NodeTemplate
   onDragStart: (event: React.DragEvent, nodeType: string) => void
-  showPopular?: boolean
 }
 
-function NodeTemplateCard({ template, onDragStart, showPopular = false }: NodeTemplateCardProps) {
+function NodeTemplateCard({ template, onDragStart }: NodeTemplateCardProps) {
   return (
     <div
-      className="p-3 border rounded-lg cursor-grab hover:bg-accent transition-colors group relative"
+      className="p-3 border rounded-lg cursor-grab hover:shadow-md hover:border-primary/50 transition-all group relative bg-background/50 hover:bg-background"
       draggable
       onDragStart={(event) => onDragStart(event, template.type)}
     >
       <div className="flex items-start gap-3">
         {/* Icon */}
-        <div className={`p-2 rounded-md ${template.color} text-white flex-shrink-0`}>
+        <div className={`w-9 h-9 rounded-lg ${template.color} text-white flex items-center justify-center flex-shrink-0 shadow-sm`}>
           {template.icon}
         </div>
-        
+
         {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-medium text-sm truncate">{template.label}</h4>
-            <div className="flex gap-1">
-              {template.isPopular && showPopular && (
-                <Badge variant="secondary" className="text-xs px-1 py-0">
-                  Popular
-                </Badge>
-              )}
-              {template.isPro && (
-                <Badge variant="outline" className="text-xs px-1 py-0">
-                  Pro
-                </Badge>
-              )}
-            </div>
+        <div className="flex-1 min-w-0 pr-4">
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <h4 className="font-semibold text-sm leading-tight">{template.label}</h4>
+            {template.isPro && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20 flex-shrink-0">
+                Pro
+              </Badge>
+            )}
           </div>
-          <p className="text-xs text-muted-foreground leading-tight">
+          <p className="text-xs text-muted-foreground leading-snug line-clamp-2">
             {template.description}
           </p>
         </div>
       </div>
 
       {/* Drag indicator */}
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="text-muted-foreground">
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 12 12"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M2 2h2v2H2V2zM2 5h2v2H2V5zM2 8h2v2H2V8zM5 2h2v2H5V2zM5 5h2v2H5V5zM5 8h2v2H5V8zM8 2h2v2H8V2zM8 5h2v2H8V5zM8 8h2v2H8V8z"
-              fill="currentColor"
-            />
-          </svg>
-        </div>
+      <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-50 transition-opacity">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 12 12"
+          fill="none"
+          className="text-muted-foreground"
+        >
+          <path
+            d="M2 2h2v2H2V2zM2 5h2v2H2V5zM2 8h2v2H2V8zM5 2h2v2H5V2zM5 5h2v2H5V5zM5 8h2v2H5V8zM8 2h2v2H8V2zM8 5h2v2H8V5zM8 8h2v2H8V8z"
+            fill="currentColor"
+          />
+        </svg>
       </div>
     </div>
   )

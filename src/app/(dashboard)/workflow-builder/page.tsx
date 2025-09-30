@@ -114,6 +114,8 @@ export default function WorkflowBuilderPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [isExecuting, setIsExecuting] = useState(false)
   const [showToolbar, setShowToolbar] = useState(true)
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [tempName, setTempName] = useState(currentWorkflow.name)
   
   // Sample execution history
   const [executionHistory] = useState<WorkflowExecution[]>([
@@ -221,11 +223,41 @@ export default function WorkflowBuilderPage() {
     })
   }
 
+  // Handle inline name edit
+  const handleNameClick = () => {
+    setIsEditingName(true)
+    setTempName(currentWorkflow.name)
+  }
+
+  const handleNameSave = () => {
+    if (tempName.trim()) {
+      setCurrentWorkflow(prev => ({ ...prev, name: tempName.trim() }))
+      setIsEditingName(false)
+      toast({
+        title: "Name Updated",
+        description: `Workflow renamed to "${tempName.trim()}"`,
+      })
+    }
+  }
+
+  const handleNameCancel = () => {
+    setTempName(currentWorkflow.name)
+    setIsEditingName(false)
+  }
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleNameSave()
+    } else if (e.key === 'Escape') {
+      handleNameCancel()
+    }
+  }
+
   // Share workflow
   const handleShareWorkflow = () => {
     const shareUrl = `${window.location.origin}/workflows/shared/${currentWorkflow.id || 'demo'}`
     navigator.clipboard.writeText(shareUrl)
-    
+
     toast({
       title: "Link Copied",
       description: "Workflow share link copied to clipboard",
@@ -259,50 +291,114 @@ export default function WorkflowBuilderPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-background via-background to-muted/30">
       {/* Header */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-16 items-center px-6">
-          <div className="flex items-center gap-4 flex-1">
-            {/* Workflow Info */}
-            <div className="flex items-center gap-2">
-              <Workflow className="h-6 w-6 text-primary" />
-              <div>
-                <h1 className="text-lg font-semibold">{currentWorkflow.name}</h1>
-                <p className="text-xs text-muted-foreground">
-                  {currentWorkflow.description || 'No description'}
-                </p>
+      <div className="border-b bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 shadow-sm">
+        <div className="flex flex-col gap-3 px-6 py-4">
+          {/* Top Row - Title and Primary Actions */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1">
+              {/* Workflow Icon & Title */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                  <Workflow className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex flex-col">
+                  {isEditingName ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={tempName}
+                        onChange={(e) => setTempName(e.target.value)}
+                        onKeyDown={handleNameKeyDown}
+                        onBlur={handleNameSave}
+                        autoFocus
+                        className="h-8 text-xl font-bold px-2 py-1"
+                        placeholder="Workflow name..."
+                      />
+                    </div>
+                  ) : (
+                    <h1
+                      className="text-xl font-bold tracking-tight cursor-pointer hover:text-primary transition-colors"
+                      onClick={handleNameClick}
+                      title="Click to edit name"
+                    >
+                      {currentWorkflow.name}
+                    </h1>
+                  )}
+                  <p className="text-sm text-muted-foreground">
+                    {currentWorkflow.description || 'Add a description in settings'}
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Workflow Status */}
+            {/* Primary Actions - Right Side */}
             <div className="flex items-center gap-2">
-              <Badge variant="outline">{currentWorkflow.category}</Badge>
-              <Badge variant="secondary">v{currentWorkflow.version}</Badge>
-              {currentWorkflow.isPublic && (
-                <Badge variant="default">Public</Badge>
-              )}
+              {/* Save */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleSaveWorkflow({ nodes: [], edges: [] })}
+                disabled={isSaving}
+                className="gap-2"
+              >
+                {isSaving ? (
+                  <Clock className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save'}</span>
+              </Button>
+
+              {/* Execute - Primary Action */}
+              <Button
+                onClick={() => handleExecuteWorkflow(currentWorkflow.id || 'demo')}
+                disabled={isExecuting}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg gap-2"
+                size="sm"
+              >
+                {isExecuting ? (
+                  <Clock className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                {isExecuting ? 'Running...' : 'Execute'}
+              </Button>
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            {/* Toggle Toolbar */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowToolbar(!showToolbar)}
-            >
-              <FolderOpen className="h-4 w-4" />
-            </Button>
+          {/* Bottom Row - Metadata and Secondary Actions */}
+          <div className="flex items-center justify-between">
+            {/* Workflow Metadata */}
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="font-medium">{currentWorkflow.category}</Badge>
+              <Badge variant="secondary" className="font-mono text-xs">v{currentWorkflow.version}</Badge>
+              {currentWorkflow.isPublic && (
+                <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">Public</Badge>
+              )}
+            </div>
 
-            {/* Execution History */}
-            <Dialog open={isExecutionHistoryOpen} onOpenChange={setIsExecutionHistoryOpen}>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <History className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
+            {/* Secondary Actions */}
+            <div className="flex items-center gap-2">
+              {/* Toggle Toolbar */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowToolbar(!showToolbar)}
+                className="gap-2"
+              >
+                <FolderOpen className="h-4 w-4" />
+                <span className="hidden md:inline">{showToolbar ? 'Hide' : 'Show'} Toolbar</span>
+              </Button>
+
+              {/* Execution History */}
+              <Dialog open={isExecutionHistoryOpen} onOpenChange={setIsExecutionHistoryOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <History className="h-4 w-4" />
+                    <span className="hidden md:inline">History</span>
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="max-w-4xl">
                 <DialogHeader>
                   <DialogTitle>Execution History</DialogTitle>
@@ -311,28 +407,37 @@ export default function WorkflowBuilderPage() {
                   </DialogDescription>
                 </DialogHeader>
                 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {executionHistory.map((execution) => (
-                    <Card key={execution.id}>
+                    <Card key={execution.id} className="glass-card border-0 shadow-md hover:shadow-lg transition-all">
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {execution.status === 'completed' && (
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                            )}
-                            {execution.status === 'failed' && (
-                              <AlertTriangle className="h-4 w-4 text-red-500" />
-                            )}
-                            {execution.status === 'running' && (
-                              <Clock className="h-4 w-4 text-blue-500 animate-spin" />
-                            )}
-                            <span className="font-medium">
-                              Execution {execution.id}
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                              execution.status === 'completed' ? 'bg-green-100 dark:bg-green-900/20' :
+                              execution.status === 'failed' ? 'bg-red-100 dark:bg-red-900/20' :
+                              'bg-blue-100 dark:bg-blue-900/20'
+                            }`}>
+                              {execution.status === 'completed' && (
+                                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                              )}
+                              {execution.status === 'failed' && (
+                                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                              )}
+                              {execution.status === 'running' && (
+                                <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400 animate-spin" />
+                              )}
+                            </div>
+                            <span className="font-semibold text-base">
+                              {execution.id}
                             </span>
                           </div>
-                          <Badge 
-                            variant={execution.status === 'completed' ? 'default' : 
-                                   execution.status === 'failed' ? 'destructive' : 'secondary'}
+                          <Badge
+                            className={
+                              execution.status === 'completed' ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20' :
+                              execution.status === 'failed' ? 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20' :
+                              'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20'
+                            }
                           >
                             {execution.status}
                           </Badge>
@@ -340,28 +445,29 @@ export default function WorkflowBuilderPage() {
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">Started:</span>
-                            <div>{new Date(execution.startedAt).toLocaleString()}</div>
+                          <div className="space-y-1">
+                            <span className="text-xs text-muted-foreground font-medium">Started</span>
+                            <div className="font-medium">{new Date(execution.startedAt).toLocaleString()}</div>
                           </div>
-                          <div>
-                            <span className="text-muted-foreground">Duration:</span>
-                            <div>{execution.duration ? `${(execution.duration / 1000).toFixed(1)}s` : 'N/A'}</div>
+                          <div className="space-y-1">
+                            <span className="text-xs text-muted-foreground font-medium">Duration</span>
+                            <div className="font-medium">{execution.duration ? `${(execution.duration / 1000).toFixed(1)}s` : 'N/A'}</div>
                           </div>
-                          <div>
-                            <span className="text-muted-foreground">Triggered by:</span>
-                            <div>{execution.triggeredBy}</div>
+                          <div className="space-y-1">
+                            <span className="text-xs text-muted-foreground font-medium">Triggered by</span>
+                            <div className="font-medium">{execution.triggeredBy}</div>
                           </div>
-                          <div>
-                            <span className="text-muted-foreground">Steps:</span>
-                            <div className="flex gap-1">
+                          <div className="space-y-1">
+                            <span className="text-xs text-muted-foreground font-medium">Steps Progress</span>
+                            <div className="flex gap-1.5">
                               {execution.stepResults.map((step, index) => (
                                 <div
                                   key={index}
-                                  className={`w-3 h-3 rounded-full ${
+                                  className={`w-4 h-4 rounded-full shadow-sm ${
                                     step.status === 'success' ? 'bg-green-500' :
-                                    step.status === 'error' ? 'bg-red-500' : 'bg-gray-300'
+                                    step.status === 'error' ? 'bg-red-500' : 'bg-gray-300 dark:bg-gray-600'
                                   }`}
+                                  title={`Step ${index + 1}: ${step.status}`}
                                 />
                               ))}
                             </div>
@@ -374,13 +480,14 @@ export default function WorkflowBuilderPage() {
               </DialogContent>
             </Dialog>
 
-            {/* Settings */}
-            <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
+              {/* Settings */}
+              <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <Settings className="h-4 w-4" />
+                    <span className="hidden md:inline">Settings</span>
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Workflow Settings</DialogTitle>
@@ -513,43 +620,16 @@ export default function WorkflowBuilderPage() {
                   </Button>
                 </div>
               </DialogContent>
-            </Dialog>
+              </Dialog>
 
-            {/* Save */}
-            <Button
-              variant="outline"
-              onClick={() => handleSaveWorkflow({ nodes: [], edges: [] })}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <Clock className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
-              {isSaving ? 'Saving...' : 'Save'}
-            </Button>
-
-            {/* Execute */}
-            <Button
-              onClick={() => handleExecuteWorkflow(currentWorkflow.id || 'demo')}
-              disabled={isExecuting}
-            >
-              {isExecuting ? (
-                <Clock className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4 mr-2" />
-              )}
-              {isExecuting ? 'Running...' : 'Execute'}
-            </Button>
-
-            {/* New Workflow */}
-            <Dialog open={isNewWorkflowOpen} onOpenChange={setIsNewWorkflowOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New
-                </Button>
-              </DialogTrigger>
+              {/* New Workflow */}
+              <Dialog open={isNewWorkflowOpen} onOpenChange={setIsNewWorkflowOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    <span className="hidden md:inline">New</span>
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Create New Workflow</DialogTitle>
@@ -574,7 +654,8 @@ export default function WorkflowBuilderPage() {
                   </Button>
                 </div>
               </DialogContent>
-            </Dialog>
+              </Dialog>
+            </div>
           </div>
         </div>
       </div>
@@ -583,13 +664,13 @@ export default function WorkflowBuilderPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Node Toolbar */}
         {showToolbar && (
-          <div className="w-80 border-r bg-background/50 overflow-hidden">
+          <div className="w-80 border-r bg-background/80 backdrop-blur-sm overflow-hidden shadow-sm">
             <NodeToolbar />
           </div>
         )}
 
         {/* Workflow Canvas */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden relative">
           <WorkflowCanvasWrapper
             workflowId={currentWorkflow.id}
             onSave={handleSaveWorkflow}
@@ -598,20 +679,29 @@ export default function WorkflowBuilderPage() {
         </div>
       </div>
 
-      {/* Status Bar */}
-      <div className="h-8 border-t bg-muted/50 flex items-center justify-between px-4 text-xs text-muted-foreground">
-        <div className="flex items-center gap-4">
-          <span>Ready</span>
-          <span>•</span>
-          <span>Organization: {currentOrganization?.name || 'Personal'}</span>
-          <span>•</span>
-          <span>User: {user?.email}</span>
+      {/* Status Bar - Enhanced */}
+      <div className="h-10 border-t bg-muted/30 backdrop-blur-sm flex items-center justify-between px-6 text-sm">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+            <span className="font-medium text-foreground">Ready</span>
+          </div>
+          <div className="h-4 w-px bg-border"></div>
+          <span className="text-muted-foreground">
+            <span className="text-foreground font-medium">{currentOrganization?.name || 'Personal'}</span>
+          </span>
+          <div className="h-4 w-px bg-border"></div>
+          <span className="text-muted-foreground hidden md:block">{user?.email}</span>
         </div>
-        
-        <div className="flex items-center gap-4">
-          <span>Last saved: Never</span>
-          <span>•</span>
-          <span>Version: {currentWorkflow.version}</span>
+
+        <div className="flex items-center gap-6">
+          <span className="text-muted-foreground">
+            Last saved: <span className="text-foreground">Never</span>
+          </span>
+          <div className="h-4 w-px bg-border"></div>
+          <span className="text-muted-foreground">
+            Version: <span className="text-foreground font-mono">{currentWorkflow.version}</span>
+          </span>
         </div>
       </div>
     </div>
