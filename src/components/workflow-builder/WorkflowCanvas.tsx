@@ -328,80 +328,122 @@ export function WorkflowCanvas({
 
   return (
     <div className="h-full w-full flex flex-col">
-      {/* Toolbar */}
-      <div className="bg-background border-b p-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xl font-semibold">Workflow Builder</h2>
-          <Badge variant="outline">
-            {nodes.length} nodes, {edges.length} connections
-          </Badge>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {!isReadOnly && (
-            <>
-              {selectedNode && (
+      {/* Enhanced Toolbar */}
+      <div className="bg-background/95 backdrop-blur-sm border-b shadow-sm">
+        <div className="px-6 py-3 flex items-center justify-between">
+          {/* Left Section - Title & Stats */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
+                <Zap className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold">Canvas</h2>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>{nodes.length} nodes</span>
+                  <span>•</span>
+                  <span>{edges.length} connections</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Section - Actions */}
+          <div className="flex items-center gap-2">
+            {!isReadOnly && (
+              <>
+                {/* Delete Node (appears when selected) */}
+                {selectedNode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setNodes((nds) => nds.filter((node) => node.id !== selectedNode.id))
+                      setEdges((eds) => eds.filter(
+                        (edge) => edge.source !== selectedNode.id && edge.target !== selectedNode.id
+                      ))
+                      setSelectedNode(null)
+                      toast({
+                        title: "Node Deleted",
+                        description: "Node and its connections removed",
+                      })
+                    }}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50 border-red-200 dark:border-red-900"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Node
+                  </Button>
+                )}
+
+                {/* Separator */}
+                {selectedNode && <div className="h-6 w-px bg-border"></div>}
+
+                {/* Layout Actions */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleAutoLayout}
+                  title="Auto arrange nodes"
+                >
+                  <Grid className="h-4 w-4 mr-2" />
+                  <span className="hidden md:inline">Auto Layout</span>
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleFitView}
+                  title="Fit to view"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+
+                {/* Separator */}
+                <div className="h-6 w-px bg-border"></div>
+
+                {/* Primary Actions */}
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setNodes((nds) => nds.filter((node) => node.id !== selectedNode.id))
-                    setEdges((eds) => eds.filter(
-                      (edge) => edge.source !== selectedNode.id && edge.target !== selectedNode.id
-                    ))
-                    setSelectedNode(null)
-                    toast({
-                      title: "Node Deleted",
-                      description: "Node and its connections removed",
-                    })
-                  }}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                  onClick={handleSave}
+                  className="gap-2"
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
+                  <Save className="h-4 w-4" />
+                  <span className="hidden sm:inline">Save</span>
                 </Button>
-              )}
 
+                <Button
+                  size="sm"
+                  onClick={handleExecute}
+                  disabled={isExecuting}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-md gap-2"
+                >
+                  {isExecuting ? (
+                    <>
+                      <Square className="h-4 w-4 animate-pulse" />
+                      <span>Running...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4" />
+                      <span>Execute</span>
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+
+            {isReadOnly && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleAutoLayout}
+                onClick={handleFitView}
               >
-                <Grid className="h-4 w-4 mr-2" />
-                Auto Layout
+                <Maximize2 className="h-4 w-4 mr-2" />
+                Fit View
               </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSave}
-              >
-                <Save className="h-4 w-4 mr-2" />
-                Save
-              </Button>
-
-              <Button
-                size="sm"
-                onClick={handleExecute}
-                disabled={isExecuting}
-              >
-                {isExecuting ? (
-                  <Square className="h-4 w-4 mr-2" />
-                ) : (
-                  <Play className="h-4 w-4 mr-2" />
-                )}
-                {isExecuting ? 'Running...' : 'Execute'}
-              </Button>
-            </>
-          )}
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleFitView}
-          >
-            <Maximize2 className="h-4 w-4" />
-          </Button>
+            )}
+          </div>
         </div>
       </div>
 
