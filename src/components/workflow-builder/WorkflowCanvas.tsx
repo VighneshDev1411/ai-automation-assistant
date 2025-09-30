@@ -39,6 +39,7 @@ import {
   Maximize2,
   ZoomIn,
   ZoomOut,
+  Trash2,
 } from 'lucide-react'
 
 // Import our custom node types (we'll create these next)
@@ -198,6 +199,55 @@ export function WorkflowCanvas({
     []
   )
 
+  // Delete selected nodes (Delete/Backspace key)
+  const onNodesDelete = useCallback(
+    (deleted: Node[]) => {
+      toast({
+        title: "Node Deleted",
+        description: `${deleted.length} node(s) removed from workflow`,
+      })
+    },
+    [toast]
+  )
+
+  // Delete selected edges
+  const onEdgesDelete = useCallback(
+    (deleted: Edge[]) => {
+      toast({
+        title: "Connection Deleted",
+        description: `${deleted.length} connection(s) removed`,
+      })
+    },
+    [toast]
+  )
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Delete selected nodes with Delete or Backspace
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedNode) {
+        event.preventDefault()
+        setNodes((nds) => nds.filter((node) => node.id !== selectedNode.id))
+        setEdges((eds) => eds.filter(
+          (edge) => edge.source !== selectedNode.id && edge.target !== selectedNode.id
+        ))
+        setSelectedNode(null)
+        toast({
+          title: "Node Deleted",
+          description: "Node and its connections removed",
+        })
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedNode, setNodes, setEdges, toast])
+
+  // Clear selection when clicking canvas
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null)
+  }, [])
+
   // Save workflow
   const handleSave = useCallback(() => {
     const workflow = {
@@ -290,6 +340,28 @@ export function WorkflowCanvas({
         <div className="flex items-center gap-2">
           {!isReadOnly && (
             <>
+              {selectedNode && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setNodes((nds) => nds.filter((node) => node.id !== selectedNode.id))
+                    setEdges((eds) => eds.filter(
+                      (edge) => edge.source !== selectedNode.id && edge.target !== selectedNode.id
+                    ))
+                    setSelectedNode(null)
+                    toast({
+                      title: "Node Deleted",
+                      description: "Node and its connections removed",
+                    })
+                  }}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              )}
+
               <Button
                 variant="outline"
                 size="sm"
@@ -298,7 +370,7 @@ export function WorkflowCanvas({
                 <Grid className="h-4 w-4 mr-2" />
                 Auto Layout
               </Button>
-              
+
               <Button
                 variant="outline"
                 size="sm"
@@ -307,7 +379,7 @@ export function WorkflowCanvas({
                 <Save className="h-4 w-4 mr-2" />
                 Save
               </Button>
-              
+
               <Button
                 size="sm"
                 onClick={handleExecute}
@@ -322,7 +394,7 @@ export function WorkflowCanvas({
               </Button>
             </>
           )}
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -342,16 +414,20 @@ export function WorkflowCanvas({
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onNodesDelete={onNodesDelete}
+            onEdgesDelete={onEdgesDelete}
             onInit={setReactFlowInstance}
             onDrop={onDrop}
             onDragOver={onDragOver}
             onNodeClick={onNodeClick}
+            onPaneClick={onPaneClick}
             nodeTypes={nodeTypes}
             defaultEdgeOptions={defaultEdgeOptions}
             connectionMode={ConnectionMode.Loose}
             fitView
             className="bg-background"
             proOptions={{ hideAttribution: true }}
+            deleteKeyCode={['Delete', 'Backspace']}
           >
             <Background
               variant={showGrid ? BackgroundVariant.Dots : BackgroundVariant.Lines}
