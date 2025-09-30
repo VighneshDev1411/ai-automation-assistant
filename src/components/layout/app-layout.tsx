@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ThemeToggle } from '@/components/common/theme-toggle'
+import { PageTransition } from '@/components/common/page-transition'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/use-toast'
 import {
@@ -315,7 +316,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
         )}
       >
-        <div className="p-6">{children}</div>
+        <div className="p-6">
+          <PageTransition>{children}</PageTransition>
+        </div>
       </main>
     </div>
   )

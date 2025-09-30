@@ -31,6 +31,7 @@ import {
   Upload,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function DashboardPage() {
   const {
@@ -42,6 +43,7 @@ export default function DashboardPage() {
     refreshProfile,
   } = useAuth()
 
+  const router = useRouter()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [forceShowContent, setForceShowContent] = useState(false)
 
@@ -223,7 +225,10 @@ export default function DashboardPage() {
                 {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
               </Button>
 
-              <Button className="btn-shine bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
+              <Button
+                onClick={() => router.push('/workflow-builder')}
+                className="btn-shine bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Workflow
               </Button>
@@ -460,6 +465,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Button
+                onClick={() => router.push('/workflow-builder')}
                 variant="outline"
                 className="btn-glass h-20 flex flex-col gap-2 hover:bg-accent hover:border-primary/20 transition-all duration-200 group"
               >
@@ -540,7 +546,10 @@ export default function DashboardPage() {
                 integrations.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button className="btn-shine bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
+                <Button
+                  onClick={() => router.push('/workflow-builder')}
+                  className="btn-shine bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                >
                   <Workflow className="h-4 w-4 mr-2" />
                   Create Your First Workflow
                 </Button>
