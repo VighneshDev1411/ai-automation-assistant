@@ -68,43 +68,43 @@ export function ThemeToggle({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onClick={() => setTheme('light')}
           className={cn(
-            "cursor-pointer",
-            theme === 'light' && "bg-accent"
+            "cursor-pointer relative z-10",
+            theme === 'light' && "bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-100"
           )}
         >
           <Sun className="mr-2 h-4 w-4" />
           <span>Light</span>
           {theme === 'light' && (
-            <div className="ml-auto h-2 w-2 rounded-full bg-primary" />
+            <div className="ml-auto h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400" />
           )}
         </DropdownMenuItem>
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onClick={() => setTheme('dark')}
           className={cn(
-            "cursor-pointer",
-            theme === 'dark' && "bg-accent"
+            "cursor-pointer relative z-10",
+            theme === 'dark' && "bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-100"
           )}
         >
           <Moon className="mr-2 h-4 w-4" />
           <span>Dark</span>
           {theme === 'dark' && (
-            <div className="ml-auto h-2 w-2 rounded-full bg-primary" />
+            <div className="ml-auto h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400" />
           )}
         </DropdownMenuItem>
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onClick={() => setTheme('system')}
           className={cn(
-            "cursor-pointer",
-            theme === 'system' && "bg-accent"
+            "cursor-pointer relative z-10",
+            theme === 'system' && "bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-100"
           )}
         >
           <Monitor className="mr-2 h-4 w-4" />
           <span>System</span>
           {theme === 'system' && (
-            <div className="ml-auto h-2 w-2 rounded-full bg-primary" />
+            <div className="ml-auto h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400" />
           )}
         </DropdownMenuItem>
       </DropdownMenuContent>
