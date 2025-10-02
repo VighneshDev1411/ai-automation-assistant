@@ -613,7 +613,7 @@ export class SlackIntegration extends BaseIntegration {
   }
 
   // Send message to channel
-  private async sendMessage(channel: string, text: string, options: any = {}): Promise<any> {
+  public async sendMessage(channel: string, text: string, options: any = {}): Promise<any> {
     const body: any = {
       channel,
       text,
