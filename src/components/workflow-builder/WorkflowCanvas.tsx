@@ -157,30 +157,71 @@ export function WorkflowCanvas({
     (event: React.DragEvent) => {
       event.preventDefault()
 
-      const type = event.dataTransfer.getData('application/reactflow')
-      if (!type || !reactFlowInstance) return
+      const nodeId = event.dataTransfer.getData('application/reactflow')
+      if (!nodeId || !reactFlowInstance) return
+
+      // Map node IDs to their types
+      const nodeTypeMap: Record<string, string> = {
+        'webhook-trigger': 'trigger',
+        'schedule-trigger': 'trigger',
+        'email-trigger': 'trigger',
+        'file-trigger': 'trigger',
+        'send-email': 'action',
+        'create-record': 'action',
+        'send-slack': 'action',
+        'create-calendar': 'action',
+        'upload-file': 'action',
+        'call-api': 'action',
+        'ai-text-analysis': 'aiAgent',
+        'ai-content-generation': 'aiAgent',
+        'ai-image-analysis': 'aiAgent',
+        'ai-data-processing': 'aiAgent',
+        'condition': 'condition',
+        'filter': 'condition',
+        'delay': 'delay',
+        'transform': 'action',
+        'custom-code': 'action',
+        'webhook-call': 'webhook',
+      }
+
+      const type = nodeTypeMap[nodeId] || 'action'
 
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       })
 
-      const newNodeId = `${type}_${Date.now()}`
+      const newNodeId = `${nodeId}_${Date.now()}`
+
+      // Map nodeId to actionType for ActionNode
+      const actionTypeMap: Record<string, string> = {
+        'send-email': 'sendEmail',
+        'create-record': 'createRecord',
+        'send-slack': 'sendSlack',
+        'create-calendar': 'createCalendarEvent',
+        'upload-file': 'uploadFile',
+        'call-api': 'apiCall',
+        'custom-code': 'customCode',
+        'transform': 'transformData',
+      }
+
       const newNode: Node = {
         id: newNodeId,
         type,
         position,
         data: {
-          label: getDefaultLabel(type),
+          label: getDefaultLabelForNode(nodeId),
+          nodeId,
+          actionType: actionTypeMap[nodeId],
           config: {},
         },
       }
 
       setNodes((nds) => nds.concat(newNode))
-      
+
       toast({
         title: "Node Added",
-        description: `${type.charAt(0).toUpperCase() + type.slice(1)} node added to workflow`,
+        description: `${getDefaultLabelForNode(nodeId)} added to workflow`,
       })
     },
     [reactFlowInstance, setNodes, toast]
@@ -558,6 +599,34 @@ function getDefaultLabel(type: string): string {
     default:
       return 'New node'
   }
+}
+
+// Helper function to get specific label based on node ID
+function getDefaultLabelForNode(nodeId: string): string {
+  const labelMap: Record<string, string> = {
+    'webhook-trigger': 'Webhook Trigger',
+    'schedule-trigger': 'Schedule Trigger',
+    'email-trigger': 'Email Received',
+    'file-trigger': 'File Upload',
+    'send-email': 'Send Email',
+    'create-record': 'Create Record',
+    'send-slack': 'Send Slack Message',
+    'create-calendar': 'Create Calendar Event',
+    'upload-file': 'Upload File',
+    'call-api': 'API Call',
+    'ai-text-analysis': 'Text Analysis',
+    'ai-content-generation': 'Content Generation',
+    'ai-image-analysis': 'Image Analysis',
+    'ai-data-processing': 'Data Processing',
+    'condition': 'Condition',
+    'filter': 'Filter',
+    'delay': 'Delay',
+    'transform': 'Transform Data',
+    'custom-code': 'Custom Code',
+    'webhook-call': 'Webhook Call',
+  }
+
+  return labelMap[nodeId] || 'New Node'
 }
 
 // Wrapper component with ReactFlowProvider

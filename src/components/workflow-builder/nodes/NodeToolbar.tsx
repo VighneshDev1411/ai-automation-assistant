@@ -398,7 +398,7 @@ function NodeTemplateCard({ template, onDragStart }: NodeTemplateCardProps) {
     <div
       className="p-3 border rounded-lg cursor-grab hover:shadow-md hover:border-primary/50 transition-all group relative bg-background/50 hover:bg-background"
       draggable
-      onDragStart={(event) => onDragStart(event, template.type)}
+      onDragStart={(event) => onDragStart(event, template.id)}
     >
       <div className="flex items-start gap-3">
         {/* Icon */}
