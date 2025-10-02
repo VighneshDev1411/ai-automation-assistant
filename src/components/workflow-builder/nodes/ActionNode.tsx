@@ -95,8 +95,8 @@ const actionTypes = {
     color: 'bg-purple-500',
     category: 'Communication',
     fields: [
-      { key: 'workspace', label: 'Workspace', type: 'select' as const, options: [], required: true },
-      { key: 'channel', label: 'Channel', type: 'text' as const, placeholder: '#general or @username', required: true },
+      { key: 'workspace', label: 'Workspace', type: 'select' as const, options: ['Demo Workspace', 'Your Workspace', 'Production Workspace'], required: true },
+      { key: 'channel', label: 'Channel', type: 'select' as const, options: ['#general', '#random', '#demo-workflow', '#notifications'], required: true },
       { key: 'message', label: 'Message', type: 'textarea' as const, placeholder: 'Message content...', required: true },
       { key: 'asBot', label: 'Send as Bot', type: 'boolean' as const, default: true },
       { key: 'threadReply', label: 'Thread Reply', type: 'text' as const, placeholder: 'Optional thread timestamp' },
