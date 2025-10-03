@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { SkeletonTable, RefreshIndicator } from '@/components/ui/loading-state'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
+import { useToast } from '@/components/ui/use-toast'
 import {
   Workflow,
   Plus,
@@ -80,73 +81,43 @@ function useWorkflows() {
   const [sortBy, setSortBy] = useState<'name' | 'lastRun' | 'executions'>('lastRun')
 
   useEffect(() => {
-    // Simulate loading workflows
-    setTimeout(() => {
-      setWorkflows([
-        {
-          id: '1',
-          name: 'Email Notification System',
-          description: 'Automated email notifications for new user registrations',
-          status: 'active',
-          lastRun: '2024-01-15T10:30:00Z',
-          nextRun: '2024-01-15T11:00:00Z',
-          executions: 1247,
-          successRate: 98.5,
-          createdAt: '2023-12-01T09:00:00Z',
-          tags: ['email', 'users', 'notifications'],
-        },
-        {
-          id: '2',
-          name: 'Data Sync Pipeline',
-          description: 'Synchronize customer data between CRM and database',
-          status: 'active',
-          lastRun: '2024-01-15T09:45:00Z',
-          nextRun: '2024-01-15T10:45:00Z',
-          executions: 2156,
-          successRate: 99.2,
-          createdAt: '2023-11-15T14:20:00Z',
-          tags: ['data', 'sync', 'crm'],
-        },
-        {
-          id: '3',
-          name: 'Report Generator',
-          description: 'Generate weekly performance reports automatically',
-          status: 'inactive',
-          lastRun: '2024-01-08T06:00:00Z',
-          nextRun: '-',
-          executions: 52,
-          successRate: 96.2,
-          createdAt: '2023-11-30T16:45:00Z',
-          tags: ['reports', 'analytics'],
-        },
-        {
-          id: '4',
-          name: 'Slack Integration',
-          description: 'Post updates to Slack channels on specific events',
-          status: 'error',
-          lastRun: '2024-01-14T15:20:00Z',
-          nextRun: '-',
-          executions: 89,
-          successRate: 87.6,
-          createdAt: '2024-01-10T11:30:00Z',
-          tags: ['slack', 'notifications', 'alerts'],
-        },
-        {
-          id: '5',
-          name: 'Backup Automation',
-          description: 'Daily database backup to cloud storage',
-          status: 'draft',
-          lastRun: '-',
-          nextRun: '-',
-          executions: 0,
-          successRate: 0,
-          createdAt: '2024-01-12T13:15:00Z',
-          tags: ['backup', 'database', 'cloud'],
-        },
-      ])
-      setIsLoading(false)
-    }, 1500)
+    fetchWorkflows()
   }, [])
+
+  const fetchWorkflows = async () => {
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/workflows')
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch workflows')
+      }
+
+      const data = await response.json()
+
+      // Transform the API response to match the expected WorkflowType format
+      const transformedWorkflows: WorkflowType[] = (data.workflows || []).map((w: any) => ({
+        id: w.id,
+        name: w.name,
+        description: w.description || '',
+        status: w.status,
+        lastRun: w.lastRun || '-',
+        nextRun: w.nextRun || '-',
+        executions: w.executions || 0,
+        successRate: w.successRate || 0,
+        createdAt: w.createdAt,
+        tags: w.tags || [],
+      }))
+
+      setWorkflows(transformedWorkflows)
+    } catch (error) {
+      console.error('Error fetching workflows:', error)
+      // Keep workflows as empty array on error
+      setWorkflows([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Filter and sort workflows
   const filteredWorkflows = workflows
@@ -179,11 +150,13 @@ function useWorkflows() {
     setStatusFilter,
     sortBy,
     setSortBy,
+    refetchWorkflows: fetchWorkflows,
   }
 }
 
 export default function WorkflowsPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const {
     workflows,
     isLoading,
@@ -193,9 +166,48 @@ export default function WorkflowsPage() {
     setStatusFilter,
     sortBy,
     setSortBy,
+    refetchWorkflows,
   } = useWorkflows()
 
   const [selectedWorkflows, setSelectedWorkflows] = useState<string[]>([])
+
+  // Delete workflow handler
+  const handleDeleteWorkflow = async (workflowId: string, workflowName: string) => {
+    if (!confirm(`Are you sure you want to delete "${workflowName}"? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/workflows/${workflowId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to delete workflow' }))
+        throw new Error(errorData.error || 'Failed to delete workflow')
+      }
+
+      toast({
+        title: 'Workflow Deleted',
+        description: `"${workflowName}" has been deleted successfully`,
+      })
+
+      // Refetch workflows to update the list
+      refetchWorkflows()
+    } catch (error) {
+      console.error('Error deleting workflow:', error)
+      toast({
+        title: 'Delete Failed',
+        description: error instanceof Error ? error.message : 'Failed to delete workflow',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  // Edit workflow handler
+  const handleEditWorkflow = (workflowId: string) => {
+    router.push(`/workflow-builder?id=${workflowId}`)
+  }
 
   const toggleWorkflowSelection = (id: string) => {
     setSelectedWorkflows(prev =>
@@ -489,7 +501,7 @@ export default function WorkflowsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditWorkflow(workflow.id)}>
                               <Edit className="h-4 w-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
@@ -507,7 +519,10 @@ export default function WorkflowsPage() {
                               Settings
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600 dark:text-red-400">
+                            <DropdownMenuItem
+                              className="text-red-600 dark:text-red-400"
+                              onClick={() => handleDeleteWorkflow(workflow.id, workflow.name)}
+                            >
                               <Trash2 className="h-4 w-4 mr-2" />
                               Delete
                             </DropdownMenuItem>

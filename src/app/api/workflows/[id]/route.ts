@@ -159,7 +159,7 @@ export async function DELETE(
 
     await service.delete(id)
 
-    return NextResponse.json({ success: true }, { status: 204 })
+    return NextResponse.json({ success: true }, { status: 200 })
   } catch (error: any) {
     console.error('Error deleting workflow:', error)
     return NextResponse.json(

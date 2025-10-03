@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -96,7 +97,9 @@ const categories = [
 export default function WorkflowBuilderPage() {
   const { toast } = useToast()
   const { user, currentOrganization } = useAuth()
-  
+  const searchParams = useSearchParams()
+  const workflowId = searchParams.get('id')
+
   // Workflow state
   const [currentWorkflow, setCurrentWorkflow] = useState<WorkflowMetadata>({
     name: 'Untitled Workflow',
@@ -106,7 +109,8 @@ export default function WorkflowBuilderPage() {
     isPublic: false,
     version: '1.0.0',
   })
-  
+  const [loadedWorkflowData, setLoadedWorkflowData] = useState<any>(null)
+
   // UI state
   const [isNewWorkflowOpen, setIsNewWorkflowOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -115,7 +119,60 @@ export default function WorkflowBuilderPage() {
   const [isExecuting, setIsExecuting] = useState(false)
   const [showToolbar, setShowToolbar] = useState(true)
   const [isEditingName, setIsEditingName] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [tempName, setTempName] = useState(currentWorkflow.name)
+
+  // Load existing workflow if ID is provided
+  useEffect(() => {
+    if (workflowId) {
+      loadWorkflow(workflowId)
+    }
+  }, [workflowId])
+
+  const loadWorkflow = async (id: string) => {
+    try {
+      setIsLoading(true)
+      const response = await fetch(`/api/workflows/${id}`)
+
+      if (!response.ok) {
+        throw new Error('Failed to load workflow')
+      }
+
+      const data = await response.json()
+
+      setCurrentWorkflow({
+        id: data.id,
+        name: data.name,
+        description: data.description || '',
+        category: 'Automation', // You can add this field to the database
+        tags: data.tags || [],
+        isPublic: false,
+        version: '1.0.0',
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      })
+
+      // Store the full workflow data to pass to canvas
+      setLoadedWorkflowData({
+        nodes: data.trigger_config?.nodes || [],
+        edges: data.trigger_config?.edges || [],
+      })
+
+      toast({
+        title: 'Workflow Loaded',
+        description: `"${data.name}" loaded successfully`,
+      })
+    } catch (error) {
+      console.error('Error loading workflow:', error)
+      toast({
+        title: 'Load Failed',
+        description: error instanceof Error ? error.message : 'Failed to load workflow',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
   
   // Sample execution history
   const [executionHistory] = useState<WorkflowExecution[]>([
@@ -150,34 +207,103 @@ export default function WorkflowBuilderPage() {
   // Save workflow
   const handleSaveWorkflow = useCallback(async (workflowData: any) => {
     setIsSaving(true)
-    
+
     try {
-      // In real implementation, this would save to your API
-      console.log('Saving workflow:', {
-        ...currentWorkflow,
-        nodes: workflowData.nodes,
-        edges: workflowData.edges,
-        organizationId: currentOrganization?.id,
-        updatedAt: new Date().toISOString(),
+      // Find trigger node to determine trigger type
+      const triggerNode = workflowData.nodes.find((n: any) => n.type === 'trigger')
+      const triggerType = triggerNode?.data?.triggerType || 'manual'
+
+      // Transform action nodes to match schema
+      const actionNodes = workflowData.nodes.filter((n: any) => n.type === 'action')
+      const actions = actionNodes.length > 0 ? actionNodes.map((node: any) => ({
+        id: node.id,
+        type: 'transform', // Map to valid action type from schema
+        name: node.data?.label || 'Action',
+        config: node.data?.config || {},
+      })) : [
+        // If no actions, add a dummy one to pass validation
+        {
+          id: 'dummy-action',
+          type: 'transform',
+          name: 'Placeholder Action',
+          config: {},
+        }
+      ]
+
+      // Transform condition nodes to match schema
+      const conditionNodes = workflowData.nodes.filter((n: any) => n.type === 'condition')
+      const conditions = conditionNodes.map((node: any) => ({
+        id: node.id,
+        field: node.data?.config?.field || 'trigger.data',
+        operator: node.data?.config?.operator || 'equals',
+        value: node.data?.config?.value || '',
+      }))
+
+      const payload = {
+        name: currentWorkflow.name,
+        description: currentWorkflow.description,
+        trigger_config: {
+          type: triggerType,
+          config: {
+            nodes: workflowData.nodes,
+            edges: workflowData.edges,
+          },
+        },
+        actions,
+        conditions: conditions.length > 0 ? conditions : undefined,
+        status: 'draft',
+        tags: currentWorkflow.tags,
+      }
+
+      const isUpdate = !!currentWorkflow.id
+      const url = isUpdate ? `/api/workflows/${currentWorkflow.id}` : '/api/workflows'
+      const method = isUpdate ? 'PATCH' : 'POST'
+
+      console.log('Saving workflow with payload:', payload)
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       })
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to save workflow' }))
+        console.error('Save failed with error:', errorData)
+        throw new Error(errorData.error || errorData.details?.[0]?.message || 'Failed to save workflow')
+      }
+
+      const result = await response.json()
+
+      // Update current workflow with the saved ID (for new workflows)
+      if (!isUpdate) {
+        setCurrentWorkflow(prev => ({
+          ...prev,
+          id: result.workflow?.id || result.id,
+          updatedAt: new Date().toISOString(),
+        }))
+      } else {
+        setCurrentWorkflow(prev => ({
+          ...prev,
+          updatedAt: new Date().toISOString(),
+        }))
+      }
+
       toast({
-        title: "Workflow Saved",
-        description: `"${currentWorkflow.name}" has been saved successfully`,
+        title: isUpdate ? "Workflow Updated" : "Workflow Saved",
+        description: `"${currentWorkflow.name}" has been ${isUpdate ? 'updated' : 'saved'} successfully`,
       })
     } catch (error) {
+      console.error('Error saving workflow:', error)
       toast({
         title: "Save Failed",
-        description: "Failed to save workflow. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to save workflow. Please try again.",
         variant: "destructive",
       })
     } finally {
       setIsSaving(false)
     }
-  }, [currentWorkflow, currentOrganization, toast])
+  }, [currentWorkflow, toast])
 
   // Execute workflow
   const handleExecuteWorkflow = useCallback(async (workflowId: string) => {
@@ -671,11 +797,22 @@ export default function WorkflowBuilderPage() {
 
         {/* Workflow Canvas */}
         <div className="flex-1 overflow-hidden relative">
-          <WorkflowCanvasWrapper
-            workflowId={currentWorkflow.id}
-            onSave={handleSaveWorkflow}
-            onExecute={handleExecuteWorkflow}
-          />
+          {isLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading workflow...</p>
+              </div>
+            </div>
+          ) : (
+            <WorkflowCanvasWrapper
+              workflowId={currentWorkflow.id}
+              initialNodes={loadedWorkflowData?.nodes}
+              initialEdges={loadedWorkflowData?.edges}
+              onSave={handleSaveWorkflow}
+              onExecute={handleExecuteWorkflow}
+            />
+          )}
         </div>
       </div>
 

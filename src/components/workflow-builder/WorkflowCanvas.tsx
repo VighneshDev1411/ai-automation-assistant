@@ -91,6 +91,8 @@ const defaultEdgeOptions = {
 interface WorkflowCanvasProps {
   workflowId?: string
   isReadOnly?: boolean
+  initialNodes?: Node[]
+  initialEdges?: Edge[]
   onSave?: (workflow: { nodes: Node[]; edges: Edge[] }) => void
   onExecute?: (workflowId: string) => void
 }
@@ -98,16 +100,28 @@ interface WorkflowCanvasProps {
 export function WorkflowCanvas({
   workflowId,
   isReadOnly = false,
+  initialNodes: providedInitialNodes,
+  initialEdges: providedInitialEdges,
   onSave,
   onExecute,
 }: WorkflowCanvasProps) {
   const { toast } = useToast()
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null)
-  
-  // React Flow state
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
+
+  // React Flow state - use provided initial data if available, otherwise use defaults
+  const [nodes, setNodes, onNodesChange] = useNodesState(providedInitialNodes || initialNodes)
+  const [edges, setEdges, onEdgesChange] = useEdgesState(providedInitialEdges || initialEdges)
+
+  // Update nodes and edges when initial data changes (for loading existing workflows)
+  useEffect(() => {
+    if (providedInitialNodes && providedInitialNodes.length > 0) {
+      setNodes(providedInitialNodes)
+    }
+    if (providedInitialEdges && providedInitialEdges.length > 0) {
+      setEdges(providedInitialEdges)
+    }
+  }, [providedInitialNodes, providedInitialEdges, setNodes, setEdges])
   
   // UI state
   const [isExecuting, setIsExecuting] = useState(false)
