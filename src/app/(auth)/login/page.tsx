@@ -51,10 +51,8 @@ type LoginForm = z.infer<typeof loginSchema>
 // Loading component for Suspense fallback
 function LoginPageLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800">
-      {/* <Card className="w-full max-w-md glass-card"> */}
-      <Card className="w-full max-w-md clean-card">
-
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted">
+      <Card className="w-full max-w-md">
         <CardContent className="flex items-center justify-center p-8">
           <div className="flex items-center gap-3">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -130,19 +128,19 @@ function LoginFormContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
 
-      <Card className="w-full max-w-md clean-card">
+      <Card className="w-full max-w-md">
         <CardHeader className="text-center pb-4">
           <div className="flex items-center justify-center mb-4">
-            <div className="status-icon-bg info w-12 h-12">
-              <Sparkles className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Sparkles className="h-6 w-6 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold gradient-text">
+          <CardTitle className="text-2xl font-bold">
             Welcome Back
           </CardTitle>
           <CardDescription>
@@ -278,7 +276,7 @@ function LoginFormContent() {
 
               <Button
                 type="submit"
-                className="w-full btn-shine"
+                className="w-full"
                 disabled={isLoading}
               >
                 {isLoading ? (

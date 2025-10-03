@@ -6,73 +6,84 @@ export default function AuthLayout({
 }) {
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
-      {/* Left side - Modern hero section with improved alignment */}
-      <div className="relative hidden lg:flex bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800">
-        {/* Background effects */}
-        <div className="absolute inset-0 bg-black/20" />
-        
-        {/* Improved Content Container with perfect centering */}
-        <div className="relative z-10 flex items-center justify-center p-8 xl:p-12 w-full">
-          <div className="text-white flex flex-col items-center justify-center max-w-md mx-auto">
-            {/* Logo Section - Better proportions and spacing */}
-            <div className="flex flex-col items-center text-center mb-12">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-white/20 rounded-3xl backdrop-blur mb-6 hover:scale-105 transition-transform duration-300">
-                <span className="text-3xl font-bold">CF</span>
-              </div>
-              <div className="space-y-2">
-                <h1 className="text-4xl font-bold tracking-tight">CogniFlow</h1>
-                <p className="text-blue-100 text-lg font-medium">Enterprise Grade Workflows</p>
-              </div>
+      {/* Left side - Stunning animated hero section */}
+      <div className="relative hidden lg:flex bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 dark:from-indigo-900 dark:via-purple-900 dark:to-pink-900 overflow-hidden h-screen sticky top-0">
+        {/* Animated gradient orbs */}
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl animate-pulse"></div>
+          <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-400 rounded-full mix-blend-multiply filter blur-3xl animate-pulse animation-delay-2000"></div>
+          <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-pink-400 rounded-full mix-blend-multiply filter blur-3xl animate-pulse animation-delay-4000"></div>
+        </div>
+
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjA1IiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-40"></div>
+
+        {/* Content Container */}
+        <div className="relative z-10 flex flex-col justify-between p-8 xl:p-12 w-full h-full">
+          {/* Top - Logo */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="w-12 h-12 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center border border-white/30 shadow-2xl">
+              <span className="text-2xl font-black text-white">✨</span>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white tracking-tight">CogniFlow</h1>
+              <p className="text-white/70 text-xs font-medium">AI Automation Platform</p>
+            </div>
+          </div>
+
+          {/* Middle - Hero Content */}
+          <div className="space-y-6 max-w-lg flex-1 flex flex-col justify-center">
+            <div className="space-y-3">
+              <h2 className="text-4xl xl:text-5xl font-bold text-white leading-tight">
+                Automate<br />
+                <span className="bg-gradient-to-r from-yellow-200 via-pink-200 to-blue-200 bg-clip-text text-transparent">
+                  Everything
+                </span>
+              </h2>
+
+              <p className="text-lg text-white/90 leading-relaxed font-light">
+                Build powerful AI-driven workflows in minutes. Connect your tools, automate processes, and scale effortlessly.
+              </p>
             </div>
 
-            {/* Hero Content - Better vertical rhythm */}
-            <div className="text-center space-y-8">
-              <div className="space-y-4">
-                <h2 className="text-4xl xl:text-5xl font-bold leading-tight tracking-tight">
-                  Build Powerful 
-                  <span className="block text-yellow-300 mt-1">AI Workflows</span>
-                </h2>
-                
-                <p className="text-xl text-blue-100 leading-relaxed">
-                  Connect apps, automate processes, and let AI handle the complexity.
-                </p>
-              </div>
+            {/* Feature pills */}
+            <div className="flex flex-wrap gap-2">
+              {['No-code builder', 'AI-powered', '50+ integrations', 'Enterprise ready'].map((feature, idx) => (
+                <div key={idx} className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-medium hover:bg-white/20 transition-all duration-300 cursor-default">
+                  {feature}
+                </div>
+              ))}
+            </div>
 
-              {/* Features - Perfect center alignment */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-center gap-4 p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 hover:bg-white/15 transition-all duration-300">
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl">⚡</span>
-                  </div>
-                  <span className="text-blue-100 font-medium">10x faster automation</span>
-                </div>
-                
-                <div className="flex items-center justify-center gap-4 p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 hover:bg-white/15 transition-all duration-300">
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl">🤖</span>
-                  </div>
-                  <span className="text-blue-100 font-medium">AI-powered intelligence</span>
-                </div>
-                
-                <div className="flex items-center justify-center gap-4 p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 hover:bg-white/15 transition-all duration-300">
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl">🔒</span>
-                  </div>
-                  <span className="text-blue-100 font-medium">Enterprise security</span>
-                </div>
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-0.5">
+                <div className="text-2xl font-bold text-white">10K+</div>
+                <div className="text-white/70 text-xs">Workflows</div>
               </div>
+              <div className="space-y-0.5">
+                <div className="text-2xl font-bold text-white">99.9%</div>
+                <div className="text-white/70 text-xs">Uptime</div>
+              </div>
+              <div className="space-y-0.5">
+                <div className="text-2xl font-bold text-white">24/7</div>
+                <div className="text-white/70 text-xs">Support</div>
+              </div>
+            </div>
+          </div>
 
-              {/* Additional testimonial/trust element */}
-              {/* <div className="pt-8 border-t border-white/10">
-                <div className="flex items-center justify-center gap-2 text-blue-100">
-                  <div className="flex -space-x-2">
-                    <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full border-2 border-white/20"></div>
-                    <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full border-2 border-white/20"></div>
-                    <div className="w-8 h-8 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full border-2 border-white/20"></div>
-                  </div>
-                  <span className="text-sm font-medium ml-2">Trusted by 10+ teams</span>
-                </div>
-              </div> */}
+          {/* Bottom - Trust indicator */}
+          <div className="flex-shrink-0">
+            <div className="flex items-center justify-center gap-3 text-white/80">
+              <div className="flex -space-x-2">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-cyan-400 border-2 border-white/20"></div>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 border-2 border-white/20"></div>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 to-orange-400 border-2 border-white/20"></div>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-emerald-400 border-2 border-white/20"></div>
+              </div>
+              <div className="text-sm">
+                <span className="font-semibold text-white">Trusted by teams worldwide</span>
+              </div>
             </div>
           </div>
         </div>

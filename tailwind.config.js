@@ -50,7 +50,23 @@ module.exports = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
+      animationDelay: {
+        '500': '500ms',
+        '1000': '1000ms',
+      },
     },
   },
-  plugins: [],
+  plugins: [
+    function ({ addUtilities }) {
+      const newUtilities = {
+        '.delay-500': {
+          'animation-delay': '500ms',
+        },
+        '.delay-1000': {
+          'animation-delay': '1000ms',
+        },
+      }
+      addUtilities(newUtilities)
+    },
+  ],
 }
