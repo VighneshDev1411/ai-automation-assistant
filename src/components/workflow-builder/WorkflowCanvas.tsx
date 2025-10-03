@@ -115,10 +115,15 @@ export function WorkflowCanvas({
 
   // Update nodes and edges when initial data changes (for loading existing workflows)
   useEffect(() => {
+    console.log('🎨 WorkflowCanvas: providedInitialNodes changed:', providedInitialNodes)
+    console.log('🎨 WorkflowCanvas: providedInitialEdges changed:', providedInitialEdges)
+
     if (providedInitialNodes && providedInitialNodes.length > 0) {
+      console.log('✅ Setting nodes:', providedInitialNodes.length, 'nodes')
       setNodes(providedInitialNodes)
     }
     if (providedInitialEdges && providedInitialEdges.length > 0) {
+      console.log('✅ Setting edges:', providedInitialEdges.length, 'edges')
       setEdges(providedInitialEdges)
     }
   }, [providedInitialNodes, providedInitialEdges, setNodes, setEdges])

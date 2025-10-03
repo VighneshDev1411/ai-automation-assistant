@@ -35,31 +35,42 @@ export async function POST(request: NextRequest) {
     // Initialize Slack integration
     const slack = new SlackIntegration(slackConfig, slackCredentials)
 
-    // First, let's list available channels to see what we can access
-    console.log('📋 Fetching available channels...')
-    let targetChannel = 'general' // Default
+    // Try to list available channels to auto-detect
+    console.log('📋 Attempting to fetch available channels...')
+    let targetChannel = 'demo-workflow' // Your default channel name
+
     try {
       const channelData = await slack.executeAction('list_channels', {})
       const channels = channelData?.channels || []
-      console.log('✅ Found', channels.length, 'channels')
 
       if (channels.length > 0) {
-        // Log first few channels
-        channels.slice(0, 5).forEach((ch: any) => {
-          console.log(`  - ${ch.name} (ID: ${ch.id})${ch.is_member ? ' ✓ Bot is member' : ' ✗ Bot not member'}`)
+        console.log('✅ Found', channels.length, 'channels')
+
+        // Log all channels
+        channels.forEach((ch: any) => {
+          console.log(`  - ${ch.name} (ID: ${ch.id})${ch.is_member ? ' ✓ Bot is member' : ' ✗ Not member'}`)
         })
 
-        // Find a channel where bot is a member
-        const memberChannel = channels.find((ch: any) => ch.is_member)
-        if (memberChannel) {
-          targetChannel = memberChannel.id // Use channel ID instead of name
-          console.log('📍 Will use channel:', memberChannel.name, '(ID:', targetChannel, ')')
+        // Try to find demo-workflow channel first
+        const demoChannel = channels.find((ch: any) => ch.name === 'demo-workflow' && ch.is_member)
+        if (demoChannel) {
+          targetChannel = demoChannel.id
+          console.log('✅ Using demo-workflow channel ID:', targetChannel)
         } else {
-          console.warn('⚠️ Bot is not a member of any channels! Please invite bot to a channel.')
+          // Fallback to any channel where bot is a member
+          const memberChannel = channels.find((ch: any) => ch.is_member)
+          if (memberChannel) {
+            targetChannel = memberChannel.id
+            console.log('✅ Using fallback channel:', memberChannel.name, 'ID:', targetChannel)
+          } else {
+            console.warn('⚠️ Bot is not a member of any channels!')
+          }
         }
       }
-    } catch (listError) {
-      console.warn('⚠️ Could not list channels:', listError)
+    } catch (listError: any) {
+      console.warn('⚠️ Could not list channels (error:', listError.message, ')')
+      console.warn('⚠️ This usually means missing "channels:read" scope in your bot token')
+      console.warn('⚠️ Will try to send to "demo-workflow" channel anyway...')
     }
 
     // Create rich Slack message

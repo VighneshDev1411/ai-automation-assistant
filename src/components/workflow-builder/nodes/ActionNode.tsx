@@ -1,6 +1,6 @@
 'use client'
 
-import React, { memo, useState } from 'react'
+import React, { memo, useState, useEffect } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -207,9 +207,54 @@ export const ActionNode = memo(({ data, selected }: NodeProps) => {
   const [localActionType, setLocalActionType] = useState<keyof typeof actionTypes>(
     nodeData.actionType || 'sendEmail'
   )
+  const [slackChannels, setSlackChannels] = useState<string[]>([])
+  const [slackWorkspaces, setSlackWorkspaces] = useState<string[]>([])
+  const [isLoadingSlackData, setIsLoadingSlackData] = useState(false)
 
   const currentAction = actionTypes[localActionType]
   const isConfigured = nodeData.actionType && Object.keys(nodeData.config || {}).length > 0
+
+  // Fetch Slack channels when dialog opens and action is Slack
+  useEffect(() => {
+    if (isConfigOpen && localActionType === 'sendSlack') {
+      fetchSlackData()
+    }
+  }, [isConfigOpen, localActionType])
+
+  const fetchSlackData = async () => {
+    setIsLoadingSlackData(true)
+    try {
+      const response = await fetch('/api/integrations/slack/channels')
+      const data = await response.json()
+
+      if (data.channels) {
+        const channelNames = data.channels.map((ch: any) => ch.display)
+        setSlackChannels(channelNames)
+      }
+
+      if (data.workspaces) {
+        const workspaceNames = data.workspaces.map((w: any) => w.display)
+        setSlackWorkspaces(workspaceNames)
+      }
+
+      console.log('✅ Fetched Slack data:', {
+        channels: data.channels?.length,
+        workspaces: data.workspaces?.length
+      })
+    } catch (error) {
+      console.error('Error fetching Slack data:', error)
+      toast({
+        title: 'Failed to Load Slack Data',
+        description: 'Using default values. Please check your Slack bot token.',
+        variant: 'destructive'
+      })
+      // Fallback to hardcoded values
+      setSlackChannels(['#general', '#random', '#demo-workflow'])
+      setSlackWorkspaces(['Your Workspace'])
+    } finally {
+      setIsLoadingSlackData(false)
+    }
+  }
 
   // Handle configuration save
   const handleSave = () => {
@@ -376,16 +421,35 @@ export const ActionNode = memo(({ data, selected }: NodeProps) => {
                               <Select
                                 value={localConfig[field.key] || field.default || ''}
                                 onValueChange={(value) => handleFieldChange(field.key, value)}
+                                disabled={localActionType === 'sendSlack' && isLoadingSlackData}
                               >
                                 <SelectTrigger>
-                                  <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+                                  <SelectValue placeholder={
+                                    isLoadingSlackData && localActionType === 'sendSlack'
+                                      ? 'Loading...'
+                                      : `Select ${field.label.toLowerCase()}`
+                                  } />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {field.options?.map((option) => (
-                                    <SelectItem key={option} value={option}>
-                                      {option}
-                                    </SelectItem>
-                                  ))}
+                                  {/* Use dynamic options for Slack fields, fallback to static */}
+                                  {(() => {
+                                    let options = field.options || []
+
+                                    // Override with dynamic data for Slack
+                                    if (localActionType === 'sendSlack') {
+                                      if (field.key === 'workspace' && slackWorkspaces.length > 0) {
+                                        options = slackWorkspaces
+                                      } else if (field.key === 'channel' && slackChannels.length > 0) {
+                                        options = slackChannels
+                                      }
+                                    }
+
+                                    return options.map((option) => (
+                                      <SelectItem key={option} value={option}>
+                                        {option}
+                                      </SelectItem>
+                                    ))
+                                  })()}
                                 </SelectContent>
                               </Select>
                             )}

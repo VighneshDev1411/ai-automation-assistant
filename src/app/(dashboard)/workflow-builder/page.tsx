@@ -121,6 +121,7 @@ export default function WorkflowBuilderPage() {
   const [isEditingName, setIsEditingName] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [tempName, setTempName] = useState(currentWorkflow.name)
+  const [currentWorkflowData, setCurrentWorkflowData] = useState<{ nodes: any[], edges: any[] }>({ nodes: [], edges: [] })
 
   // Load existing workflow if ID is provided
   useEffect(() => {
@@ -135,10 +136,21 @@ export default function WorkflowBuilderPage() {
       const response = await fetch(`/api/workflows/${id}`)
 
       if (!response.ok) {
-        throw new Error('Failed to load workflow')
+        const errorData = await response.json().catch(() => ({ error: 'Failed to load workflow' }))
+        console.error('❌ Load failed with status:', response.status)
+        console.error('❌ Error:', errorData)
+        throw new Error(errorData.error || `Failed to load workflow (${response.status})`)
       }
 
       const data = await response.json()
+
+      console.log('📦 Loaded workflow data:', data)
+      console.log('📦 trigger_config:', data.trigger_config)
+      console.log('📦 trigger_config.config:', data.trigger_config?.config)
+      console.log('📦 Looking for nodes at:', {
+        'trigger_config.nodes': data.trigger_config?.nodes,
+        'trigger_config.config.nodes': data.trigger_config?.config?.nodes,
+      })
 
       setCurrentWorkflow({
         id: data.id,
@@ -153,14 +165,26 @@ export default function WorkflowBuilderPage() {
       })
 
       // Store the full workflow data to pass to canvas
+      // The nodes/edges are stored in trigger_config.config (nested)
+      const nodesData = data.trigger_config?.config?.nodes || data.trigger_config?.nodes || []
+      const edgesData = data.trigger_config?.config?.edges || data.trigger_config?.edges || []
+
+      console.log('✅ Extracted nodes:', nodesData.length, 'nodes')
+      console.log('✅ Extracted edges:', edgesData.length, 'edges')
+
       setLoadedWorkflowData({
-        nodes: data.trigger_config?.nodes || [],
-        edges: data.trigger_config?.edges || [],
+        nodes: nodesData,
+        edges: edgesData,
       })
+
+      // Only show toast on first load, not on re-renders
+      if (nodesData.length === 0 && edgesData.length === 0) {
+        console.warn('⚠️ Workflow loaded but has no nodes/edges. Was it saved empty?')
+      }
 
       toast({
         title: 'Workflow Loaded',
-        description: `"${data.name}" loaded successfully`,
+        description: `"${data.name}" loaded with ${nodesData.length} nodes`,
       })
     } catch (error) {
       console.error('Error loading workflow:', error)
@@ -259,7 +283,8 @@ export default function WorkflowBuilderPage() {
       const url = isUpdate ? `/api/workflows/${currentWorkflow.id}` : '/api/workflows'
       const method = isUpdate ? 'PATCH' : 'POST'
 
-      console.log('Saving workflow with payload:', payload)
+      console.log('Saving workflow with payload:', JSON.stringify(payload, null, 2))
+      console.log('Is update?', isUpdate, 'URL:', url, 'Method:', method)
 
       const response = await fetch(url, {
         method,
@@ -269,8 +294,18 @@ export default function WorkflowBuilderPage() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Failed to save workflow' }))
-        console.error('Save failed with error:', errorData)
-        throw new Error(errorData.error || errorData.details?.[0]?.message || 'Failed to save workflow')
+        console.error('❌ Save failed with status:', response.status)
+        console.error('❌ Error data:', errorData)
+
+        // Show detailed validation errors if available
+        if (errorData.details && Array.isArray(errorData.details)) {
+          const validationErrors = errorData.details.map((e: any) =>
+            `${e.path?.join('.') || 'Field'}: ${e.message}`
+          ).join('\n')
+          throw new Error(`Validation failed:\n${validationErrors}`)
+        }
+
+        throw new Error(errorData.error || 'Failed to save workflow')
       }
 
       const result = await response.json()
@@ -460,20 +495,20 @@ export default function WorkflowBuilderPage() {
 
             {/* Primary Actions - Right Side */}
             <div className="flex items-center gap-2">
-              {/* Save */}
+              {/* Save - Disabled: Use the Save button in the canvas toolbar instead */}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleSaveWorkflow({ nodes: [], edges: [] })}
-                disabled={isSaving}
+                onClick={() => {
+                  toast({
+                    title: "Use Canvas Save Button",
+                    description: "Please use the Save button in the canvas toolbar below",
+                  })
+                }}
                 className="gap-2"
               >
-                {isSaving ? (
-                  <Clock className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save'}</span>
+                <Save className="h-4 w-4" />
+                <span className="hidden sm:inline">Save</span>
               </Button>
 
               {/* Execute - Primary Action */}

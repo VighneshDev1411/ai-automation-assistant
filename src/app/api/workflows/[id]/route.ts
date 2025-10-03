@@ -29,13 +29,21 @@ export async function GET(
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404 })
     }
 
-    const { data: hasAccess } = await supabase.rpc('check_organization_membership', {
-      org_id: (workflow as any).organization_id,
-      user_id: user.id
-    })
+    // Check if user has access to this workflow's organization
+    const { data: membership, error: membershipError } = await supabase
+      .from('organization_members')
+      .select('role')
+      .eq('organization_id', (workflow as any).organization_id)
+      .eq('user_id', user.id)
+      .single()
 
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    if (membershipError) {
+      console.error('Membership check error:', membershipError)
+    }
+
+    if (!membership) {
+      console.error('User has no membership in organization:', (workflow as any).organization_id)
+      return NextResponse.json({ error: 'Access denied - not a member of this organization' }, { status: 403 })
     }
 
     return NextResponse.json(workflow)
@@ -95,14 +103,15 @@ export async function PATCH(
     return NextResponse.json(updatedWorkflow)
   } catch (error: any) {
     console.error('Error updating workflow:', error)
-    
+
     if (error.name === 'ZodError') {
+      console.error('Zod validation errors:', error.issues)
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       )
     }
-    
+
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
