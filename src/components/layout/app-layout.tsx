@@ -1,7 +1,7 @@
 // src/components/layout/app-layout.tsx
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -51,11 +51,12 @@ interface NavItem {
   href: string
   icon: React.ElementType
   badge?: string
+  badgeKey?: string  // Key to identify dynamic badges
 }
 
 const navigation: NavItem[] = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { title: 'Workflows', href: '/workflows', icon: Workflow, badge: '6' },
+  { title: 'Workflows', href: '/workflows', icon: Workflow, badgeKey: 'workflows' },
   { title: 'Integrations', href: '/integrations', icon: Zap },
   { title: 'Analytics', href: '/analytics', icon: BarChart3 },
   { title: 'AI Agents', href: '/ai-agents', icon: Bot },
@@ -75,6 +76,28 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [dynamicBadges, setDynamicBadges] = useState<Record<string, string>>({})
+
+  // Fetch dynamic badge counts
+  useEffect(() => {
+    const fetchBadgeCounts = async () => {
+      try {
+        // Fetch workflow count
+        const workflowResponse = await fetch('/api/workflows')
+        const workflowData = await workflowResponse.json()
+        const workflowCount = workflowData.workflows?.length || 0
+
+        setDynamicBadges(prev => ({
+          ...prev,
+          workflows: workflowCount > 0 ? workflowCount.toString() : ''
+        }))
+      } catch (error) {
+        console.error('Error fetching badge counts:', error)
+      }
+    }
+
+    fetchBadgeCounts()
+  }, [])
 
   const handleLogout = async () => {
     try {
@@ -227,6 +250,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <nav className="flex-1 space-y-1 px-3 py-2">
             {navigation.map(item => {
               const isActive = pathname === item.href
+              const badgeValue = item.badgeKey ? dynamicBadges[item.badgeKey] : item.badge
               return (
                 <Link
                   key={item.href}
@@ -246,8 +270,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     <span className="whitespace-nowrap">{item.title}</span>
                   )}
 
-                  {/* FIXED: Proper badge hiding */}
-                  {item.badge && sidebarOpen && (
+                  {/* FIXED: Proper badge hiding - now with dynamic badges */}
+                  {badgeValue && sidebarOpen && (
                     <span
                       className={cn(
                         'ml-auto rounded-full px-2 py-0.5 text-xs',
@@ -256,7 +280,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                           : 'bg-primary/10 text-primary'
                       )}
                     >
-                      {item.badge}
+                      {badgeValue}
                     </span>
                   )}
                 </Link>
