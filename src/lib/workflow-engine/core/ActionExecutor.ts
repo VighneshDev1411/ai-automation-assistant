@@ -1,6 +1,9 @@
 // src/lib/workflow-engine/core/ActionExecutor.ts
 
 import { SupabaseClient } from '@supabase/supabase-js'
+import { GmailIntegration } from '@/lib/integrations/providers/google/GmailIntegration'
+import { SlackIntegration } from '@/lib/integrations/providers/slack/SlackIntegration'
+import { MicrosoftIntegration } from '@/lib/integrations/providers/microsoft/MicrosoftIntegration'
 
 export interface WorkflowExecutionContext {
   executionId: string
@@ -629,24 +632,51 @@ export class ActionExecutor {
   }
 
   private async createIntegrationInstance(provider: string, credentials: any): Promise<any> {
-    // This would dynamically load the appropriate integration provider
-    switch (provider) {
+    // Dynamically load the appropriate integration provider with real classes
+    switch (provider.toLowerCase()) {
+      case 'google':
       case 'gmail':
-        // Return Gmail integration instance
-        return {
-          sendEmail: async (emailData: any) => ({
-            messageId: `msg_${Date.now()}`,
-            status: 'sent'
-          })
+        const googleConfig = {
+          clientId: process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+          redirectUri: process.env.GOOGLE_REDIRECT_URI || `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/google/callback`,
+          scopes: [
+            'https://www.googleapis.com/auth/gmail.send',
+            'https://www.googleapis.com/auth/gmail.readonly',
+            'https://www.googleapis.com/auth/drive.file',
+            'https://www.googleapis.com/auth/spreadsheets'
+          ]
         }
+        return new GmailIntegration(googleConfig, credentials)
+
       case 'slack':
-        // Return Slack integration instance
-        return {
-          sendMessage: async (messageData: any) => ({
-            messageId: `slack_${Date.now()}`,
-            channel: messageData.channel
-          })
+        const slackConfig = {
+          clientId: process.env.SLACK_CLIENT_ID || process.env.NEXT_PUBLIC_SLACK_CLIENT_ID || '',
+          clientSecret: process.env.SLACK_CLIENT_SECRET || '',
+          signingSecret: process.env.SLACK_SIGNING_SECRET || '',
+          redirectUri: process.env.SLACK_REDIRECT_URI || `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/slack/callback`,
+          scopes: ['chat:write', 'channels:read', 'users:read', 'channels:history']
         }
+        return new SlackIntegration(slackConfig, credentials)
+
+      case 'microsoft':
+      case 'microsoft365':
+      case 'outlook':
+        const microsoftConfig = {
+          clientId: process.env.MICROSOFT_CLIENT_ID || process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID || '',
+          clientSecret: process.env.MICROSOFT_CLIENT_SECRET || '',
+          tenantId: process.env.MICROSOFT_TENANT_ID || 'common',
+          redirectUri: process.env.MICROSOFT_REDIRECT_URI || `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/microsoft/callback`,
+          scopes: [
+            'Mail.Send',
+            'Mail.Read',
+            'Calendars.ReadWrite',
+            'Files.ReadWrite',
+            'User.Read'
+          ]
+        }
+        return new MicrosoftIntegration(microsoftConfig, credentials)
+
       default:
         throw new Error(`Provider not implemented: ${provider}`)
     }
