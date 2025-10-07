@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { WorkflowBuilder } from '@/app/components/workflow-builder/WorkflowBuilder'
+import { WorkflowCanvas } from '@/components/workflow-builder/WorkflowCanvas'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
@@ -324,7 +324,7 @@ export default function WorkflowBuilderPage() {
 
       {/* Workflow Builder */}
       <div className="flex-1 overflow-hidden">
-        <WorkflowBuilder
+        <WorkflowCanvas
           workflowId={workflow.id}
           initialWorkflow={workflow}
           onSave={handleSave}
