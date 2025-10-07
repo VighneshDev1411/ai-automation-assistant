@@ -995,16 +995,7 @@ import React, { useState, useRef, useEffect } from 'react'
 //   )
 // }
 
-export default function RAGTestPage() {
-  return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-4">RAG Test Page</h1>
-      <SlackTestButton />
-    </div>
-  )
-}
-
-export function SlackTestButton() {
+function SlackTestButton() {
   const testSlack = async () => {
     try {
       const response = await fetch('/api/demo/slack', {
@@ -1015,9 +1006,9 @@ export function SlackTestButton() {
           channel: '#general'
         })
       })
-      
+
       const result = await response.json()
-      
+
       if (result.success) {
         alert('✅ Slack message sent successfully!')
       } else {
@@ -1029,11 +1020,20 @@ export function SlackTestButton() {
   }
 
   return (
-    <button 
+    <button
       onClick={testSlack}
       className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
     >
       🚀 Test Slack Integration
     </button>
+  )
+}
+
+export default function RAGTestPage() {
+  return (
+    <div className="container mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-4">RAG Test Page</h1>
+      <SlackTestButton />
+    </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -94,7 +94,7 @@ const categories = [
   'Custom'
 ]
 
-export default function WorkflowBuilderPage() {
+function WorkflowBuilderContent() {
   const { toast } = useToast()
   const { user, currentOrganization } = useAuth()
   const searchParams = useSearchParams()
@@ -877,5 +877,20 @@ export default function WorkflowBuilderPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function WorkflowBuilderPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading workflow builder...</p>
+        </div>
+      </div>
+    }>
+      <WorkflowBuilderContent />
+    </Suspense>
   )
 }
