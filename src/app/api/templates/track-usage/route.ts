@@ -12,12 +12,34 @@ export async function POST(request: NextRequest) {
 
     const { templateId } = await request.json()
 
-    // Here you would track template usage in your database
-    // For now, we'll just return success
-    
-    return NextResponse.json({ success: true })
+    if (!templateId) {
+      return NextResponse.json({ error: 'Template ID required' }, { status: 400 })
+    }
+
+    // Increment template usage count
+    const { data, error } = await supabase.rpc('increment_template_usage', {
+      template_id: templateId
+    })
+
+    if (error) {
+      // If function doesn't exist, just log it for now
+      console.log('Template usage tracking not configured in database')
+      return NextResponse.json({ success: true, tracked: false })
+    }
+
+    // Track user's template usage
+    await supabase
+      .from('template_usage')
+      .insert({
+        template_id: templateId,
+        user_id: user.id,
+        used_at: new Date().toISOString()
+      })
+
+    return NextResponse.json({ success: true, tracked: true })
 
   } catch (error: any) {
+    console.error('Error tracking template usage:', error)
     return NextResponse.json(
       { error: error.message || 'Failed to track usage' },
       { status: 500 }

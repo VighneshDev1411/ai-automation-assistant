@@ -326,9 +326,12 @@ export default function WorkflowBuilderPage() {
       <div className="flex-1 overflow-hidden">
         <WorkflowCanvas
           workflowId={workflow.id}
-          initialWorkflow={workflow}
+          initialNodes={workflow.nodes}
+          initialEdges={workflow.edges}
           onSave={handleSave}
-          onExecute={handleExecute}
+          onExecute={async (workflowId: string) => {
+            await handleExecute(workflow)
+          }}
         />
       </div>
     </div>
