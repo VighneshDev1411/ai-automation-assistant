@@ -1,26 +1,40 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { WorkflowCanvas } from '@/components/workflow-builder/WorkflowCanvas'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useToast } from '@/components/ui/use-toast'
-import { createClient } from '@/lib/supabase/client'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, ArrowLeft, Save, Play, Share2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { WorkflowBuilder } from '@/app/components/workflow-builder/WorkflowBuilder'
+import { WorkflowVersionControl } from '@/app/components/workflow-builder/WorkflowVersionControl'
+import { WorkflowTesting } from '@/app/components/workflow-builder/WorkflowTesting'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useToast } from '@/components/ui/use-toast'
+import {
+  Settings,
+  GitBranch,
+  Bug,
+  Play,
+  Save,
+  ArrowLeft,
+  Loader2,
+  ChevronRight,
+  Share2,
+} from 'lucide-react'
 
-export default function WorkflowBuilderPage() {
+function WorkflowBuilderContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { toast } = useToast()
+  const supabase = createClient()
+
+  const workflowId = searchParams.get('id')
+
   const [workflow, setWorkflow] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [executing, setExecuting] = useState(false)
-  const { toast } = useToast()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const supabase = createClient()
-
-  // Get workflow ID from URL (for editing existing workflow)
-  const workflowId = searchParams?.get('id')
+  const [showToolsPanel, setShowToolsPanel] = useState(false)
+  const [activeToolTab, setActiveToolTab] = useState('versions')
 
   useEffect(() => {
     loadWorkflow()
@@ -29,41 +43,7 @@ export default function WorkflowBuilderPage() {
   // Load workflow from database
   const loadWorkflow = async () => {
     try {
-      setLoading(true)
-
-      if (workflowId) {
-        // Load existing workflow
-        const { data, error } = await supabase
-          .from('workflows')
-          .select('*')
-          .eq('id', workflowId)
-          .single()
-
-        if (error) throw error
-
-        setWorkflow({
-          id: data.id,
-          name: data.name,
-          description: data.description,
-          nodes: data.trigger_config ? [
-            {
-              id: 'trigger-1',
-              type: 'trigger',
-              position: { x: 100, y: 100 },
-              data: data.trigger_config
-            },
-            ...(data.actions || []).map((action: any, index: number) => ({
-              id: `action-${index + 1}`,
-              type: 'action',
-              position: { x: 100 + (index + 1) * 300, y: 100 },
-              data: action
-            }))
-          ] : [],
-          edges: [],
-          status: data.status,
-          version: data.version
-        })
-      } else {
+      if (!workflowId) {
         // Create new workflow
         setWorkflow({
           name: 'Untitled Workflow',
@@ -84,6 +64,28 @@ export default function WorkflowBuilderPage() {
           status: 'draft',
           version: 1
         })
+        setLoading(false)
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('workflows')
+        .select('*')
+        .eq('id', workflowId)
+        .single()
+
+      if (error) throw error
+
+      if (data) {
+        setWorkflow({
+          id: data.id,
+          name: data.name,
+          description: data.description,
+          nodes: data.nodes || [],
+          edges: data.edges || [],
+          status: data.status,
+          version: data.version || 1
+        })
       }
     } catch (error: any) {
       console.error('Error loading workflow:', error)
@@ -97,15 +99,13 @@ export default function WorkflowBuilderPage() {
     }
   }
 
-  // Save workflow to database
+  // Save workflow
   const handleSave = async (workflowData: any) => {
     try {
       setSaving(true)
 
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
+      if (!user) throw new Error('User not authenticated')
 
       // Get user's organization
       const { data: membership } = await supabase
@@ -114,68 +114,56 @@ export default function WorkflowBuilderPage() {
         .eq('user_id', user.id)
         .single()
 
-      if (!membership) {
-        throw new Error('No organization found')
-      }
-
-      // Extract trigger and actions from nodes
-      const triggerNode = workflowData.nodes.find((n: any) => n.type === 'trigger')
-      const actionNodes = workflowData.nodes.filter((n: any) => n.type === 'action')
-      const conditionNodes = workflowData.nodes.filter((n: any) => n.type === 'condition')
+      if (!membership) throw new Error('No organization found')
 
       const workflowPayload = {
-        name: workflowData.name || 'Untitled Workflow',
-        description: workflowData.description || '',
+        name: workflowData.name || workflow.name,
+        description: workflowData.description || workflow.description,
+        nodes: workflowData.nodes || workflow.nodes,
+        edges: workflowData.edges || workflow.edges,
         organization_id: membership.organization_id,
         created_by: user.id,
         status: 'draft',
-        trigger_config: triggerNode?.data || {},
-        actions: actionNodes.map((n: any) => n.data),
-        conditions: conditionNodes.map((n: any) => n.data),
-        version: workflow?.version || 1
+        version: (workflow.version || 0) + 1,
+        updated_at: new Date().toISOString()
       }
 
-      if (workflowId) {
+      if (workflow.id) {
         // Update existing workflow
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('workflows')
           .update(workflowPayload)
-          .eq('id', workflowId)
-          .select()
-          .single()
+          .eq('id', workflow.id)
 
         if (error) throw error
 
-        setWorkflow({ ...workflowData, id: data.id })
-        
         toast({
-          title: 'Success',
-          description: 'Workflow updated successfully'
+          title: 'Workflow Saved',
+          description: 'Your workflow has been updated successfully'
         })
       } else {
         // Create new workflow
         const { data, error } = await supabase
           .from('workflows')
-          .insert(workflowPayload)
+          .insert([workflowPayload])
           .select()
           .single()
 
         if (error) throw error
 
         setWorkflow({ ...workflowData, id: data.id })
-        
-        // Update URL with new workflow ID
         router.push(`/workflow-builder?id=${data.id}`)
-        
+
         toast({
-          title: 'Success',
-          description: 'Workflow created successfully'
+          title: 'Workflow Created',
+          description: 'Your workflow has been saved successfully'
         })
       }
+
     } catch (error: any) {
       console.error('Error saving workflow:', error)
       toast({
-        title: 'Error',
+        title: 'Save Failed',
         description: error.message || 'Failed to save workflow',
         variant: 'destructive'
       })
@@ -185,38 +173,42 @@ export default function WorkflowBuilderPage() {
   }
 
   // Execute workflow
-  const handleExecute = async (workflowData: any) => {
+  const handleExecute = async (_workflowData: any) => {
     try {
       setExecuting(true)
 
-      if (!workflowData.id) {
-        // Save first if not saved
-        await handleSave(workflowData)
+      if (!workflow.id) {
+        toast({
+          title: 'Save First',
+          description: 'Please save the workflow before executing',
+          variant: 'destructive'
+        })
+        return
       }
 
-      // Call execution API
-      const response = await fetch('/api/workflows/execute', {
+      const response = await fetch(`/api/workflows/${workflow.id}/execute`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          workflowId: workflowData.id,
-          triggerData: {},
-          debugMode: false
+          trigger_data: {}
         })
       })
 
-      if (!response.ok) {
-        throw new Error('Execution failed')
-      }
-
       const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Execution failed')
+      }
 
       toast({
         title: 'Workflow Executed',
-        description: `Completed with status: ${result.status}`
+        description: `Execution ID: ${result.execution_id}`
       })
+
+      // Optionally switch to testing tab to see results
+      setShowToolsPanel(true)
+      setActiveToolTab('testing')
+
     } catch (error: any) {
       console.error('Error executing workflow:', error)
       toast({
@@ -229,10 +221,33 @@ export default function WorkflowBuilderPage() {
     }
   }
 
+  // Handle version restore
+  const handleVersionRestore = async (version: any) => {
+    try {
+      setWorkflow({
+        ...workflow,
+        nodes: version.workflow.nodes,
+        edges: version.workflow.edges,
+        version: version.version
+      })
+
+      toast({
+        title: 'Version Restored',
+        description: `Restored to version ${version.version}`
+      })
+    } catch (error: any) {
+      toast({
+        title: 'Restore Failed',
+        description: error.message,
+        variant: 'destructive'
+      })
+    }
+  }
+
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -240,28 +255,21 @@ export default function WorkflowBuilderPage() {
   if (!workflow) {
     return (
       <div className="h-screen flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardHeader>
-            <CardTitle>Workflow Not Found</CardTitle>
-            <CardDescription>
-              The workflow you're looking for doesn't exist or you don't have access to it.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => router.push('/workflows')}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Workflows
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">Workflow not found</p>
+          <Button onClick={() => router.push('/workflows')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Workflows
+          </Button>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="h-screen flex flex-col">
-      {/* Top Bar */}
-      <div className="h-16 border-b bg-background flex items-center justify-between px-4">
+      {/* Top Header Bar */}
+      <div className="h-16 border-b bg-background flex items-center justify-between px-4 flex-shrink-0">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -276,9 +284,23 @@ export default function WorkflowBuilderPage() {
               <p className="text-sm text-muted-foreground">{workflow.description}</p>
             )}
           </div>
+          <span className="text-xs text-muted-foreground">v{workflow.version}</span>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Tools Panel Toggle */}
+          <Button
+            variant={showToolsPanel ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setShowToolsPanel(!showToolsPanel)}
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            Tools
+            {showToolsPanel ? (
+              <ChevronRight className="ml-2 h-4 w-4" />
+            ) : null}
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -322,18 +344,92 @@ export default function WorkflowBuilderPage() {
         </div>
       </div>
 
-      {/* Workflow Builder */}
-      <div className="flex-1 overflow-hidden">
-        <WorkflowCanvas
-          workflowId={workflow.id}
-          initialNodes={workflow.nodes}
-          initialEdges={workflow.edges}
-          onSave={handleSave}
-          onExecute={async (workflowId: string) => {
-            await handleExecute(workflow)
-          }}
-        />
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Workflow Builder Canvas */}
+        <div className={`flex-1 ${showToolsPanel ? 'mr-96' : ''} transition-all`}>
+          <WorkflowBuilder
+            workflowId={workflow.id}
+            initialWorkflow={workflow}
+            onSave={handleSave}
+            onExecute={handleExecute}
+          />
+        </div>
+
+        {/* Right Tools Panel */}
+        {showToolsPanel && (
+          <div className="w-96 border-l bg-background overflow-y-auto">
+            <Tabs value={activeToolTab} onValueChange={setActiveToolTab}>
+              <div className="border-b p-4">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="versions">
+                    <GitBranch className="mr-2 h-4 w-4" />
+                    Versions
+                  </TabsTrigger>
+                  <TabsTrigger value="testing">
+                    <Bug className="mr-2 h-4 w-4" />
+                    Testing
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="versions" className="m-0 p-4">
+                {workflow.id ? (
+                  <WorkflowVersionControl
+                    workflowId={workflow.id}
+                    workflowName={workflow.name}
+                    currentVersion={workflow.version}
+                    currentConfig={{ nodes: workflow.nodes, edges: workflow.edges }}
+                    onRestore={handleVersionRestore}
+                    onCompare={(v1: any, v2: any) => {
+                      toast({
+                        title: 'Compare Versions',
+                        description: `Comparing v${v1.version} with v${v2.version}`
+                      })
+                    }}
+                  />
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    Save workflow to enable version control
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="testing" className="m-0 p-4">
+                {workflow.id ? (
+                  <WorkflowTesting
+                    workflowId={workflow.id}
+                    workflowName={workflow.name}
+                    workflowConfig={{ nodes: workflow.nodes, edges: workflow.edges }}
+                    onExecutionComplete={(result: any) => {
+                      toast({
+                        title: 'Test Complete',
+                        description: `Status: ${result.status}`
+                      })
+                    }}
+                  />
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    Save workflow to enable testing
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+        )}
       </div>
     </div>
+  )
+}
+
+export default function WorkflowBuilderPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <WorkflowBuilderContent />
+    </Suspense>
   )
 }
