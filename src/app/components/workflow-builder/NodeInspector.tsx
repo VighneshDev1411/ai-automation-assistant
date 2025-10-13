@@ -1,7 +1,7 @@
 // File: src/app/components/workflow-builder/NodeInspector.tsx
 
 import React, { useState, useEffect } from 'react'
-import { Node } from 'reactflow'
+import { Node } from '@xyflow/react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,7 +22,7 @@ interface NodeInspectorProps {
 export function NodeInspector({ node, onUpdate, onDelete, onClose }: NodeInspectorProps) {
   console.log('🔵 NodeInspector RENDERED with node:', node)
 
-  const [config, setConfig] = useState(node?.data?.config || {})
+  const [config, setConfig] = useState<any>(node?.data?.config || {})
   const [selectedIntegration, setSelectedIntegration] = useState<string>('')
   const [selectedAction, setSelectedAction] = useState<string>('')
   const [availableActions, setAvailableActions] = useState<any[]>([])
@@ -41,12 +41,13 @@ export function NodeInspector({ node, onUpdate, onDelete, onClose }: NodeInspect
     console.log('Node data:', node?.data)
 
     if (node?.data?.config) {
-      setConfig(node.data.config)
-      if (node.data.config.integration) {
-        console.log('Found integration in config:', node.data.config.integration)
-        setSelectedIntegration(node.data.config.integration)
-        setSelectedAction(node.data.config.action || '')
-        loadIntegrationData(node.data.config.integration)
+      const nodeConfig = node.data.config as any
+      setConfig(nodeConfig)
+      if (nodeConfig.integration) {
+        console.log('Found integration in config:', nodeConfig.integration)
+        setSelectedIntegration(nodeConfig.integration)
+        setSelectedAction(nodeConfig.action || '')
+        loadIntegrationData(nodeConfig.integration)
       }
     }
 
@@ -405,7 +406,7 @@ export function NodeInspector({ node, onUpdate, onDelete, onClose }: NodeInspect
         <div>
           <Label>Label</Label>
           <Input
-            value={node.data?.label || ''}
+            value={(node.data?.label as string) || ''}
             onChange={(e) => onUpdate({
               data: { ...node.data, label: e.target.value }
             })}

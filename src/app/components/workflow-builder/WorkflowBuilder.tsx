@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useCallback, useRef, Suspense } from 'react'
-import ReactFlow, {
+import {
+  ReactFlow,
   addEdge,
   applyEdgeChanges,
   applyNodeChanges,
@@ -16,8 +17,8 @@ import ReactFlow, {
   ReactFlowProvider,
   useReactFlow,
   ReactFlowInstance,
-} from 'reactflow'
-import 'reactflow/dist/style.css'
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -28,10 +29,9 @@ import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/components/ui/use-toast'
 
 // Import custom node types
-import { TriggerNode } from './nodes/TriggerNode'
-import { ActionNode } from './nodes/ActionNode'
-import { ConditionNode } from './nodes/ConditionNode'
-import { TransformNode } from './nodes/TransformNode'
+import { TriggerNode } from '@/components/workflow-builder/nodes/TriggerNode'
+import { ActionNode } from '@/components/workflow-builder/nodes/ActionNode'
+import { ConditionNode } from '@/components/workflow-builder/nodes/ConditionNode'
 import { NodeInspector } from './NodeInspector'
 import { IntegrationRegistry } from '@/lib/integrations/IntegrationRegistry'
 
@@ -61,7 +61,6 @@ const nodeType = {
   trigger: TriggerNode,
   action: ActionNode,
   condition: ConditionNode,
-  transform: TransformNode,
 }
 
 const initialNodes: Node[] = [
@@ -259,15 +258,16 @@ export function WorkflowBuilder({
   }
   const validateNode = (node: Node): string[] => {
     const errors: string[] = []
+    const config = node.data.config as any
 
     switch (node.type) {
       case 'action':
-        if (node.data.config?.type === 'http') {
-          if (!node.data.config.url) {
+        if (config?.type === 'http') {
+          if (!config.url) {
             errors.push(`Action "${node.data.label}" is missing URL`)
           }
-        } else if (node.data.config?.type === 'email') {
-          if (!node.data.config.to) {
+        } else if (config?.type === 'email') {
+          if (!config.to) {
             errors.push(
               `Email action "${node.data.label}" is missing recipient`
             )
@@ -276,16 +276,16 @@ export function WorkflowBuilder({
         break
 
       case 'condition':
-        if (!node.data.config?.field) {
+        if (!config?.field) {
           errors.push(`Condition "${node.data.label}" is missing field`)
         }
-        if (!node.data.config?.operator) {
+        if (!config?.operator) {
           errors.push(`Condition "${node.data.label}" is missing operator`)
         }
         break
 
       case 'transform':
-        if (!node.data.config?.type) {
+        if (!config?.type) {
           errors.push(
             `Transform "${node.data.label}" is missing transformation type`
           )
@@ -373,25 +373,31 @@ export function WorkflowBuilder({
   const getActionsConfig = () => {
     return nodes
       .filter(n => n.type === 'action' || n.type === 'transform')
-      .map(node => ({
-        id: node.id,
-        type: node.data.config?.type || node.type,
-        name: node.data.label,
-        config: node.data.config || {},
-      }))
+      .map(node => {
+        const config = node.data.config as any
+        return {
+          id: node.id,
+          type: config?.type || node.type,
+          name: node.data.label,
+          config: config || {},
+        }
+      })
   }
 
   const getConditionsConfig = () => {
     return nodes
       .filter(n => n.type === 'condition')
-      .map(node => ({
-        id: node.id,
-        field: node.data.config?.field || '',
-        operator: node.data.config?.operator || 'equals',
-        value: node.data.config?.value || '',
-      }))
+      .map(node => {
+        const config = node.data.config as any
+        return {
+          id: node.id,
+          field: config?.field || '',
+          operator: config?.operator || 'equals',
+          value: config?.value || '',
+        }
+      })
   }
-  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+  const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     setSelectedNode(node.id)
   }, [])
 
