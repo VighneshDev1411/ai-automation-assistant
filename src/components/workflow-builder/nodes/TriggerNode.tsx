@@ -127,11 +127,15 @@ export const TriggerNode = memo(({ data, selected }: NodeProps) => {
   const nodeData = data as unknown as TriggerNodeData
   const [isConfigOpen, setIsConfigOpen] = useState(false)
   const [localConfig, setLocalConfig] = useState(nodeData.config || {})
-  const [localTriggerType, setLocalTriggerType] = useState<keyof typeof triggerTypes>(
-    nodeData.triggerType || 'webhook'
-  )
 
-  const currentTrigger = triggerTypes[localTriggerType]
+  // Ensure triggerType is valid, default to 'webhook' if not
+  const validTriggerType = (nodeData.triggerType && triggerTypes[nodeData.triggerType as keyof typeof triggerTypes])
+    ? (nodeData.triggerType as keyof typeof triggerTypes)
+    : 'webhook'
+
+  const [localTriggerType, setLocalTriggerType] = useState<keyof typeof triggerTypes>(validTriggerType)
+
+  const currentTrigger = triggerTypes[localTriggerType] || triggerTypes.webhook
   const isConfigured = nodeData.triggerType && Object.keys(nodeData.config || {}).length > 0
   const isActive = nodeData.isActive || false
 
