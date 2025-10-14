@@ -45,7 +45,14 @@ import {
   Loader2,
   TrendingUp,
   Zap,
+  Plus,
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useToast } from '@/components/ui/use-toast'
 
 interface ExecutionLog {
@@ -99,50 +106,53 @@ export function AIExecutionLogsViewer({
   const loadLogs = async () => {
     setLoading(true)
     try {
-      // In production, this would fetch from your API
-      // For now, generating mock data
-      const mockLogs: ExecutionLog[] = Array.from({ length: 20 }, (_, i) => {
-        const status = ['success', 'success', 'success', 'error'][Math.floor(Math.random() * 4)] as ExecutionLog['status']
-        const duration = Math.floor(Math.random() * 3000) + 500
-        const inputTokens = Math.floor(Math.random() * 500) + 100
-        const outputTokens = Math.floor(Math.random() * 800) + 200
-        const tokensUsed = inputTokens + outputTokens
-        const cost = (tokensUsed / 1000) * 0.002
+      // Build query parameters
+      const params = new URLSearchParams()
+      if (agentId) params.append('agentId', agentId)
+      if (statusFilter !== 'all') params.append('status', statusFilter)
+      params.append('limit', '100')
 
-        return {
-          id: `exec_${i + 1}`,
-          timestamp: new Date(Date.now() - i * 3600000),
-          agentId: agentId || `agent_${Math.floor(Math.random() * 5) + 1}`,
-          agentName: ['Customer Support Bot', 'Content Generator', 'Data Analyzer', 'Email Assistant'][Math.floor(Math.random() * 4)],
-          agentType: ['conversational', 'analytical', 'task'][Math.floor(Math.random() * 3)],
-          model: ['gpt-4', 'gpt-3.5-turbo', 'claude-3-sonnet'][Math.floor(Math.random() * 3)],
-          status,
-          duration,
-          tokensUsed,
-          cost,
-          inputTokens,
-          outputTokens,
-          prompt: 'Sample prompt for AI agent execution...',
-          response: status === 'success' ? 'Sample AI response generated successfully...' : '',
-          error: status === 'error' ? 'Model timeout or rate limit exceeded' : undefined,
-          metadata: {
-            temperature: 0.7,
-            maxTokens: 1000,
-          },
-        }
-      })
+      const response = await fetch(`/api/ai/executions?${params.toString()}`)
 
-      setLogs(mockLogs)
+      if (!response.ok) {
+        throw new Error('Failed to load logs')
+      }
+
+      const data = await response.json()
+
+      // Transform API response to match component interface
+      const transformedLogs: ExecutionLog[] = (data.logs || []).map((log: any) => ({
+        id: log.id,
+        timestamp: new Date(log.timestamp),
+        agentId: log.agent_id || log.agentId,
+        agentName: log.agent_name || log.agentName,
+        agentType: log.agent_type || log.agentType,
+        model: log.model,
+        status: log.status,
+        duration: log.duration,
+        tokensUsed: log.tokens_total || log.tokensUsed,
+        inputTokens: log.tokens_input || log.inputTokens,
+        outputTokens: log.tokens_output || log.outputTokens,
+        cost: parseFloat(log.cost || 0),
+        prompt: log.request_prompt || log.prompt || '',
+        response: log.response_content || log.response || '',
+        error: log.error_message || log.error,
+        metadata: log.response_metadata || log.metadata || {},
+      }))
+
+      setLogs(transformedLogs)
 
       // Calculate stats
-      const successCount = mockLogs.filter(l => l.status === 'success').length
-      const totalTokens = mockLogs.reduce((sum, l) => sum + l.tokensUsed, 0)
-      const totalCost = mockLogs.reduce((sum, l) => sum + l.cost, 0)
-      const avgDuration = mockLogs.reduce((sum, l) => sum + l.duration, 0) / mockLogs.length
+      const successCount = transformedLogs.filter(l => l.status === 'success').length
+      const totalTokens = transformedLogs.reduce((sum, l) => sum + l.tokensUsed, 0)
+      const totalCost = transformedLogs.reduce((sum, l) => sum + l.cost, 0)
+      const avgDuration = transformedLogs.length > 0
+        ? transformedLogs.reduce((sum, l) => sum + l.duration, 0) / transformedLogs.length
+        : 0
 
       setStats({
-        totalExecutions: mockLogs.length,
-        successRate: (successCount / mockLogs.length) * 100,
+        totalExecutions: transformedLogs.length,
+        successRate: transformedLogs.length > 0 ? (successCount / transformedLogs.length) * 100 : 0,
         totalTokens,
         totalCost,
         avgDuration,
@@ -156,6 +166,92 @@ export function AIExecutionLogsViewer({
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Function to manually log an execution (for testing)
+  const createTestLog = async () => {
+    try {
+      const testLog = {
+        agentId: 'test-agent-1',
+        agentName: 'Test AI Agent',
+        agentType: 'text_analysis',
+        model: 'gpt-4-turbo',
+        duration: 2500,
+        tokensUsed: {
+          input: 150,
+          output: 350,
+          total: 500,
+        },
+        cost: 0.025,
+        status: 'success',
+        request: {
+          prompt: 'Analyze this test text for sentiment',
+          parameters: { temperature: 0.7, maxTokens: 1000 },
+        },
+        response: {
+          content: 'This is a test response from the AI agent',
+          metadata: { processingTime: 2500 },
+        },
+        sessionId: `session_${Date.now()}`,
+      }
+
+      const response = await fetch('/api/ai/executions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testLog),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create test log')
+      }
+
+      toast({
+        title: 'Test Log Created',
+        description: 'Successfully created a test execution log',
+      })
+
+      // Reload logs
+      loadLogs()
+    } catch (error) {
+      console.error('Failed to create test log:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to create test log',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  // Function to clear old logs
+  const clearOldLogs = async (olderThan: string = '30d') => {
+    if (!confirm(`Are you sure you want to delete logs older than ${olderThan}?`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/ai/executions?olderThan=${olderThan}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to clear logs')
+      }
+
+      toast({
+        title: 'Logs Cleared',
+        description: `Successfully deleted logs older than ${olderThan}`,
+      })
+
+      // Reload logs
+      loadLogs()
+    } catch (error) {
+      console.error('Failed to clear logs:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to clear logs',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -261,14 +357,36 @@ export function AIExecutionLogsViewer({
               <CardDescription>View and analyze AI agent execution history</CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={loadLogs}>
-                <RefreshCw className="h-4 w-4 mr-2" />
+              {/* Add test button for development */}
+              {process.env.NODE_ENV === 'development' && (
+                <Button variant="outline" size="sm" onClick={createTestLog}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Test Log
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={loadLogs} disabled={loading}>
+                <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
-              <Button variant="outline" size="sm" onClick={exportLogs}>
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={exportLogs}>
+                    Export as CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => clearOldLogs('30d')}>
+                    Clear logs older than 30 days
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => clearOldLogs('90d')}>
+                    Clear logs older than 90 days
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </CardHeader>
