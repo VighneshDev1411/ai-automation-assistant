@@ -5,6 +5,7 @@ import { Handle, Position, NodeProps } from '@xyflow/react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { AIRealTimeStatusIndicator } from '@/components/workflow-builder/AIRealTimeStatusIndicator'
 import {
   Dialog,
   DialogContent,
@@ -155,6 +156,7 @@ interface AIAgentNodeData {
   temperature?: number
   maxTokens?: number
   isConfigured?: boolean
+  workflowExecutionId?: string
   lastExecution?: {
     timestamp: string
     tokensUsed: number
@@ -164,7 +166,7 @@ interface AIAgentNodeData {
   }
 }
 
-export const AIAgentNode = memo(({ data, selected }: NodeProps) => {
+export const AIAgentNode = memo(({ data, selected, id }: NodeProps) => {
   const { toast } = useToast()
   const nodeData = data as unknown as AIAgentNodeData
   const [isConfigOpen, setIsConfigOpen] = useState(false)
@@ -267,11 +269,20 @@ export const AIAgentNode = memo(({ data, selected }: NodeProps) => {
         }}
       />
 
-      <Card 
-        className={`w-80 transition-all duration-200 ${
+      <Card
+        className={`w-80 transition-all duration-200 relative ${
           selected ? 'ring-2 ring-primary shadow-lg' : 'hover:shadow-md'
         }`}
       >
+        {/* AI Real-Time Status Indicator */}
+        {nodeData.workflowExecutionId && (
+          <AIRealTimeStatusIndicator
+            nodeId={id}
+            workflowExecutionId={nodeData.workflowExecutionId}
+            position="overlay"
+          />
+        )}
+
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

@@ -5,17 +5,18 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/components/ui/use-toast'
-import { 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { 
-  Brain, 
-  Bot, 
-  Plus, 
-  Search, 
+import {
+  Brain,
+  Bot,
+  Plus,
+  Search,
   Filter,
   MoreVertical,
   Edit,
@@ -27,11 +28,13 @@ import {
   Loader2,
   RefreshCw,
   Settings,
-  DollarSign
+  DollarSign,
+  ScrollText
 } from 'lucide-react'
 import Link from 'next/link'
 import { Progress } from '@radix-ui/react-progress'
 import { AIAgent } from '@/lib/ai/AIAgentManager'
+import { AIExecutionLogsViewer } from '@/components/ai/AIExecutionLogsViewer'
 
 export default function AIAgentsPage() {
   const { toast } = useToast()
@@ -40,30 +43,80 @@ export default function AIAgentsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<string>('all')
   const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [activeTab, setActiveTab] = useState<'agents' | 'logs'>('agents')
+  const [organizationId, setOrganizationId] = useState<string>('')
 
   // Load agents from API
   useEffect(() => {
     loadAgents()
+    loadOrganizationId()
   }, [])
+
+  const loadOrganizationId = async () => {
+    try {
+      // Get organization ID from the first agent or from API
+      const response = await fetch('/api/ai-agents')
+      const result = await response.json()
+      if (result.data && result.data.length > 0) {
+        setOrganizationId(result.data[0].organizationId || '')
+      }
+    } catch (error) {
+      console.error('Failed to load organization ID:', error)
+    }
+  }
 
   const loadAgents = async () => {
     setLoading(true)
     try {
       const response = await fetch('/api/ai-agents')
       const result = await response.json()
-      
+
       if (!response.ok) {
+        // Handle specific errors
+        if (result.error === 'Failed to get user profile') {
+          console.warn('User profile not found, showing empty state')
+          setAgents([])
+          toast({
+            title: 'Setup Required',
+            description: 'Please complete your profile setup to use AI agents',
+            variant: 'default'
+          })
+          return
+        }
+
+        if (result.error === 'No organization found') {
+          console.warn('No organization found, showing empty state')
+          setAgents([])
+          toast({
+            title: 'Organization Required',
+            description: 'Please join or create an organization to use AI agents',
+            variant: 'default'
+          })
+          return
+        }
+
         throw new Error(result.error || 'Failed to load agents')
       }
-      
+
       setAgents(result.data || [])
+
+      // Show message if no organization but request succeeded
+      if (result.message && result.data.length === 0) {
+        toast({
+          title: 'Info',
+          description: result.message,
+          variant: 'default'
+        })
+      }
     } catch (error) {
       console.error('Failed to load agents:', error)
       toast({
         title: 'Error',
-        description: 'Failed to load AI agents',
+        description: error instanceof Error ? error.message : 'Failed to load AI agents',
         variant: 'destructive'
       })
+      // Set empty array on error to prevent infinite loading
+      setAgents([])
     } finally {
       setLoading(false)
     }
@@ -230,6 +283,22 @@ export default function AIAgentsPage() {
           </Link>
         </div>
       </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'agents' | 'logs')}>
+        <TabsList>
+          <TabsTrigger value="agents">
+            <Bot className="mr-2 h-4 w-4" />
+            Agents
+          </TabsTrigger>
+          <TabsTrigger value="logs">
+            <ScrollText className="mr-2 h-4 w-4" />
+            Execution Logs
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Agents Tab */}
+        <TabsContent value="agents" className="space-y-6">
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -481,6 +550,13 @@ export default function AIAgentsPage() {
           </CardContent>
         </Card>
       )}
+        </TabsContent>
+
+        {/* Execution Logs Tab */}
+        <TabsContent value="logs">
+          <AIExecutionLogsViewer organizationId={organizationId} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 
