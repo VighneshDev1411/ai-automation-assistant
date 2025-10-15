@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -48,6 +48,7 @@ import {
   Award,
   AlertCircle,
   Plus,
+  Eye,
 } from 'lucide-react'
 
 interface ModelConfig {
@@ -235,52 +236,137 @@ export function AIModelComparisonTool() {
     setIsComparing(true)
 
     try {
-      // Simulate comparison for each model
-      const results: ComparisonResult[] = []
-
-      for (const modelId of selectedModels) {
-        const model = MODELS.find(m => m.id === modelId)!
-        
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000))
-
-        const result: ComparisonResult = {
-          id: crypto.randomUUID(),
-          timestamp: new Date(),
-          model: model.name,
+      // Call real API
+      const response = await fetch('/api/ai/compare', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          models: selectedModels,
           prompt: testPrompt,
-          response: `This is a simulated response from ${model.name}. In a real implementation, this would be the actual AI response. The response demonstrates ${model.name}'s capabilities in handling the given prompt with varying levels of detail and accuracy.`,
-          metrics: {
-            duration: Math.floor(Math.random() * 3000) + (model.speed === 'fast' ? 500 : model.speed === 'medium' ? 1500 : 2500),
-            tokensUsed: Math.floor(Math.random() * 500) + 200,
-            cost: (Math.floor(Math.random() * 500) + 200) / 1000 * model.costPer1kTokens,
-            quality: Math.floor(Math.random() * 30) + 70,
-            relevance: Math.floor(Math.random() * 30) + 70,
-            coherence: Math.floor(Math.random() * 30) + 70,
-          },
-          status: Math.random() > 0.9 ? 'error' : 'success',
-          error: Math.random() > 0.9 ? 'Model timeout or rate limit exceeded' : undefined,
-        }
+          input: testInput || undefined,
+          temperature: 0.7,
+          maxTokens: 1000,
+        }),
+      })
 
-        results.push(result)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Comparison failed')
       }
 
-      setComparisonResults(results)
+      const data = await response.json()
 
-      toast({
-        title: 'Comparison Complete',
-        description: `Tested ${selectedModels.length} models successfully`,
-      })
-    } catch (error) {
+      // Transform results to match component interface
+      const transformedResults: ComparisonResult[] = data.results.map((result: any) => ({
+        id: result.id,
+        timestamp: new Date(result.timestamp),
+        model: result.model,
+        prompt: result.prompt,
+        response: result.response,
+        metrics: {
+          duration: result.metrics.duration,
+          tokensUsed: result.metrics.tokensUsed,
+          cost: result.metrics.cost,
+          quality: result.metrics.quality,
+          relevance: result.metrics.relevance,
+          coherence: result.metrics.coherence,
+        },
+        status: result.status,
+        error: result.error,
+      }))
+
+      setComparisonResults(transformedResults)
+
+      // Show success/partial success message
+      const successCount = transformedResults.filter(r => r.status === 'success').length
+      const errorCount = transformedResults.filter(r => r.status === 'error').length
+
+      if (errorCount === 0) {
+        toast({
+          title: 'Comparison Complete',
+          description: `Successfully tested ${successCount} models`,
+        })
+      } else if (successCount > 0) {
+        toast({
+          title: 'Comparison Partially Complete',
+          description: `${successCount} models succeeded, ${errorCount} failed`,
+          variant: 'default',
+        })
+      } else {
+        toast({
+          title: 'Comparison Failed',
+          description: 'All models failed to execute',
+          variant: 'destructive',
+        })
+      }
+    } catch (error: any) {
+      console.error('Comparison error:', error)
       toast({
         title: 'Comparison Failed',
-        description: 'An error occurred during model comparison',
+        description: error.message || 'An error occurred during model comparison',
         variant: 'destructive',
       })
     } finally {
       setIsComparing(false)
     }
   }
+
+  // Load comparison history
+  const [comparisonHistory, setComparisonHistory] = useState<ComparisonResult[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+
+  const loadComparisonHistory = async () => {
+    setLoadingHistory(true)
+    try {
+      const response = await fetch('/api/ai/compare/history?limit=50')
+
+      if (!response.ok) {
+        throw new Error('Failed to load history')
+      }
+
+      const data = await response.json()
+
+      // Transform API response
+      const transformedHistory: ComparisonResult[] = (data.comparisons || []).map((comp: any) => ({
+        id: comp.id,
+        timestamp: new Date(comp.created_at),
+        model: comp.model,
+        prompt: comp.test_prompt,
+        response: comp.response_content || '',
+        metrics: {
+          duration: comp.duration || 0,
+          tokensUsed: comp.tokens_used || 0,
+          cost: parseFloat(comp.cost || '0'),
+          quality: comp.quality_score || 0,
+          relevance: comp.relevance_score || 0,
+          coherence: comp.coherence_score || 0,
+        },
+        userRating: comp.user_rating,
+        status: comp.status as 'success' | 'error',
+        error: comp.error_message,
+      }))
+
+      setComparisonHistory(transformedHistory)
+    } catch (error) {
+      console.error('Failed to load comparison history:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to load comparison history',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  // Load history when switching to history tab
+  useEffect(() => {
+    if (activeTab === 'history') {
+      loadComparisonHistory()
+    }
+  }, [activeTab])
 
   const getBestModel = () => {
     if (comparisonResults.length === 0) return null
@@ -863,21 +949,188 @@ export function AIModelComparisonTool() {
 
         {/* History Tab */}
         <TabsContent value="history" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Comparison History</CardTitle>
-              <CardDescription>
-                View past model comparisons and A/B test results
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-sm">No historical comparisons yet</p>
-                <p className="text-xs mt-1">Run model comparisons to see history here</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-muted-foreground">
+              View past model comparisons and performance trends
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadComparisonHistory}
+              disabled={loadingHistory}
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${loadingHistory ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+
+          {loadingHistory ? (
+            <Card>
+              <CardContent className="p-12">
+                <div className="flex flex-col items-center justify-center gap-4">
+                  <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Loading comparison history...</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : comparisonHistory.length === 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Comparison History</CardTitle>
+                <CardDescription>
+                  View past model comparisons and results
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-12 text-muted-foreground">
+                  <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-sm">No historical comparisons yet</p>
+                  <p className="text-xs mt-1">Run model comparisons to see history here</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {/* Group by date */}
+              {Object.entries(
+                comparisonHistory.reduce((groups, comparison) => {
+                  const date = new Date(comparison.timestamp).toLocaleDateString()
+                  if (!groups[date]) groups[date] = []
+                  groups[date].push(comparison)
+                  return groups
+                }, {} as Record<string, ComparisonResult[]>)
+              ).map(([date, comparisons]) => (
+                <div key={date}>
+                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground">{date}</h3>
+                  <div className="space-y-2">
+                    {comparisons.map((comparison) => (
+                      <Card key={comparison.id} className="hover:border-primary/50 transition-colors">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="outline">{comparison.model}</Badge>
+                                {comparison.status === 'success' ? (
+                                  <Badge variant="default" className="text-xs">Success</Badge>
+                                ) : (
+                                  <Badge variant="destructive" className="text-xs">Failed</Badge>
+                                )}
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(comparison.timestamp).toLocaleTimeString()}
+                                </span>
+                              </div>
+
+                              <p className="text-sm mb-2 line-clamp-2">{comparison.prompt}</p>
+
+                              {comparison.status === 'success' && (
+                                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <Target className="h-3 w-3" />
+                                    Quality: {comparison.metrics.quality}%
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {comparison.metrics.duration}ms
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Zap className="h-3 w-3" />
+                                    {comparison.metrics.tokensUsed} tokens
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <DollarSign className="h-3 w-3" />
+                                    ${comparison.metrics.cost.toFixed(4)}
+                                  </span>
+                                </div>
+                              )}
+
+                              {comparison.error && (
+                                <p className="text-xs text-red-600 mt-2">
+                                  Error: {comparison.error}
+                                </p>
+                              )}
+                            </div>
+
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                                <DialogHeader>
+                                  <DialogTitle>{comparison.model} Result</DialogTitle>
+                                  <DialogDescription>
+                                    {new Date(comparison.timestamp).toLocaleString()}
+                                  </DialogDescription>
+                                </DialogHeader>
+
+                                <div className="space-y-4">
+                                  <div>
+                                    <Label className="text-sm font-medium">Prompt</Label>
+                                    <pre className="mt-2 p-3 bg-muted rounded-lg text-xs whitespace-pre-wrap">
+                                      {comparison.prompt}
+                                    </pre>
+                                  </div>
+
+                                  {comparison.status === 'success' && (
+                                    <>
+                                      <div>
+                                        <Label className="text-sm font-medium">Response</Label>
+                                        <pre className="mt-2 p-3 bg-muted rounded-lg text-xs whitespace-pre-wrap">
+                                          {comparison.response}
+                                        </pre>
+                                      </div>
+
+                                      <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                                        <div>
+                                          <p className="text-sm font-medium">Quality</p>
+                                          <p className="text-2xl font-bold">{comparison.metrics.quality}%</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-medium">Relevance</p>
+                                          <p className="text-2xl font-bold">{comparison.metrics.relevance}%</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-medium">Coherence</p>
+                                          <p className="text-2xl font-bold">{comparison.metrics.coherence}%</p>
+                                        </div>
+                                      </div>
+
+                                      <div className="grid grid-cols-3 gap-4">
+                                        <div>
+                                          <p className="text-sm font-medium">Duration</p>
+                                          <p className="text-lg font-bold">{comparison.metrics.duration}ms</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-medium">Tokens</p>
+                                          <p className="text-lg font-bold">{comparison.metrics.tokensUsed}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-medium">Cost</p>
+                                          <p className="text-lg font-bold">${comparison.metrics.cost.toFixed(4)}</p>
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+
+                                  {comparison.error && (
+                                    <Alert variant="destructive">
+                                      <AlertCircle className="h-4 w-4" />
+                                      <AlertDescription>{comparison.error}</AlertDescription>
+                                    </Alert>
+                                  )}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
