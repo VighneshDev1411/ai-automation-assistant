@@ -275,6 +275,12 @@ export default function AIAgentsPage() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
+          <Link href="/ai-agents/compare">
+            <Button variant="outline" className="gap-2">
+              <Brain className="h-4 w-4" />
+              Compare Models
+            </Button>
+          </Link>
           <Link href="/ai-agents/configure">
             <Button className="gap-2">
               <Plus className="h-4 w-4" />

@@ -2,13 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { WorkflowService } from '@/lib/supabase/services'
 import { executeWorkflowSchema } from '@/lib/validations/workflow.schema'
+import {
+  workflowErrorHandler,
+  NodeExecutionError,
+  IntegrationError,
+  AIAgentError,
+  DEFAULT_RECOVERY_STRATEGIES,
+  WorkflowExecutionError,
+} from '@/lib/workflow/error-handler'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> } // ✅ Fixed for Next.js 15
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params // ✅ Await the params promise
+    const { id } = await params
     const supabase = await createClient()
     const {
       data: { user },
@@ -29,16 +37,13 @@ export async function POST(
 
     // Handle case where findById returns an error object
     if (!workflow || (workflow as any).status === undefined) {
-      return NextResponse.json({ error: 'Workflow not found' }, { status: 404 }) // ✅ Fixed missing return
+      return NextResponse.json({ error: 'Workflow not found' }, { status: 404 })
     }
-    
-    const { data: hasAccess } = await supabase.rpc(
-      'check_organization_membership',
-      {
-        org_id: (workflow as any).organization_id,
-        user_id: user.id,
-      }
-    )
+
+    const { data: hasAccess } = await supabase.rpc('check_organization_membership', {
+      org_id: (workflow as any).organization_id,
+      user_id: user.id,
+    })
 
     if (!hasAccess) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
@@ -53,22 +58,81 @@ export async function POST(
       )
     }
 
-    const executionId = await service.executeWorkflow(
-      validatedData.workflow_id,
-      validatedData.trigger_data
-    )
+    const executionId = crypto.randomUUID()
 
-    await supabase.rpc('track_api_usage', {
-      service_name: 'workflow_execution',
-      endpoint_name: `/workflows/${id}/execute`,
-      tokens: 0,
-      cost_in_cents: 10, // Example cost
-      usage_metadata: { workflow_id: id },
-    })
+    try {
+      // Execute workflow with error handling
+      const result = await executeWorkflowWithErrorHandling(workflow, executionId, supabase)
 
-    return NextResponse.json({ execution_id: executionId }, { status: 202 })
+      // Track successful execution
+      await supabase.rpc('track_api_usage', {
+        service_name: 'workflow_execution',
+        endpoint_name: `/workflows/${id}/execute`,
+        tokens: 0,
+        cost_in_cents: 10,
+        usage_metadata: { workflow_id: id, execution_id: executionId },
+      })
+
+      return NextResponse.json(
+        {
+          success: true,
+          execution_id: executionId,
+          result,
+        },
+        { status: 202 }
+      )
+    } catch (error: any) {
+      // Handle workflow execution errors
+      const handlingResult = await workflowErrorHandler.handleError(
+        error,
+        id,
+        executionId,
+        DEFAULT_RECOVERY_STRATEGIES.integration
+      )
+
+      if (handlingResult.recovered) {
+        // Log recovered execution to database
+        await supabase.from('workflow_executions').insert({
+          id: executionId,
+          workflow_id: id,
+          status: 'completed_with_warnings',
+          result: handlingResult.result,
+          completed_at: new Date().toISOString(),
+        })
+
+        return NextResponse.json(
+          {
+            success: true,
+            execution_id: executionId,
+            result: handlingResult.result,
+            recovered: true,
+            warning: 'Workflow completed with recovery from errors',
+          },
+          { status: 202 }
+        )
+      }
+
+      // Log failed execution to database
+      await supabase.from('workflow_executions').insert({
+        id: executionId,
+        workflow_id: id,
+        status: 'failed',
+        error: handlingResult.finalError?.message,
+        completed_at: new Date().toISOString(),
+      })
+
+      return NextResponse.json(
+        {
+          error: handlingResult.finalError?.message || 'Workflow execution failed',
+          execution_id: executionId,
+          recoverable:
+            error instanceof WorkflowExecutionError ? error.recoverable : false,
+        },
+        { status: 500 }
+      )
+    }
   } catch (error: any) {
-    console.error('Error executing workflow:', error)
+    console.error('Workflow execution error:', error)
 
     if (error.name === 'ZodError') {
       return NextResponse.json(
@@ -80,6 +144,190 @@ export async function POST(
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
+    )
+  }
+}
+
+async function executeWorkflowWithErrorHandling(
+  workflow: any,
+  executionId: string,
+  supabase: any
+) {
+  const nodes = workflow.trigger_config?.nodes || []
+  const edges = workflow.trigger_config?.edges || []
+
+  const results: Record<string, any> = {}
+
+  // Execute nodes in order
+  for (const node of nodes) {
+    try {
+      console.log(`Executing node: ${node.id} (${node.type})`)
+
+      // Execute based on node type
+      switch (node.type) {
+        case 'trigger':
+          results[node.id] = { triggered: true }
+          break
+
+        case 'action':
+          results[node.id] = await executeActionNode(node, results)
+          break
+
+        case 'aiAgent':
+          results[node.id] = await executeAIAgentNode(node, results, workflow, executionId, supabase)
+          break
+
+        case 'condition':
+          results[node.id] = await executeConditionNode(node, results)
+          break
+
+        default:
+          throw new NodeExecutionError(
+            `Unknown node type: ${node.type}`,
+            node.id,
+            node.type
+          )
+      }
+
+      console.log(`Node ${node.id} completed successfully`)
+    } catch (error: any) {
+      console.error(`Node ${node.id} failed:`, error)
+
+      // Wrap in appropriate error type
+      if (!(error instanceof NodeExecutionError)) {
+        throw new NodeExecutionError(
+          error.message,
+          node.id,
+          node.type,
+          true, // Most node errors are recoverable
+          { originalError: error }
+        )
+      }
+      throw error
+    }
+  }
+
+  return results
+}
+
+async function executeActionNode(node: any, previousResults: Record<string, any>) {
+  // Simulate action execution
+  await new Promise(resolve => setTimeout(resolve, 500))
+
+  // Example: might throw IntegrationError (5% chance for testing)
+  if (Math.random() > 0.95) {
+    throw new IntegrationError(
+      'Failed to connect to integration service',
+      node.data?.integration || 'unknown',
+      true,
+      { nodeId: node.id }
+    )
+  }
+
+  return { success: true, data: { message: 'Action completed' } }
+}
+
+async function executeAIAgentNode(
+  node: any,
+  previousResults: Record<string, any>,
+  workflow: any,
+  workflowExecutionId: string,
+  supabase: any
+) {
+  const startTime = Date.now()
+  let status: 'success' | 'error' = 'success'
+  let errorMessage: string | undefined
+  let responseContent = ''
+  let inputTokens = 0
+  let outputTokens = 0
+  let totalTokens = 0
+  let cost = 0
+
+  try {
+    // Simulate AI agent execution
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    // Example: might throw AIAgentError (3% chance for testing)
+    if (Math.random() > 0.97) {
+      throw new AIAgentError(
+        'AI agent timeout or rate limit exceeded',
+        node.data?.agentId || 'unknown',
+        true,
+        { nodeId: node.id }
+      )
+    }
+
+    // Simulate token usage
+    inputTokens = Math.floor(Math.random() * 100) + 50
+    outputTokens = Math.floor(Math.random() * 150) + 100
+    totalTokens = inputTokens + outputTokens
+    cost = (totalTokens / 1000) * 0.002 // Simulated cost
+
+    responseContent = `AI agent response from ${node.data?.name || 'AI Agent'}. This is a simulated response for workflow execution.`
+
+    return {
+      success: true,
+      response: responseContent,
+      tokensUsed: totalTokens,
+      cost,
+    }
+  } catch (error: any) {
+    status = 'error'
+    errorMessage = error.message
+    throw error
+  } finally {
+    const duration = Date.now() - startTime
+
+    // Log execution to database
+    try {
+      await supabase.from('ai_execution_logs').insert({
+        organization_id: workflow.organization_id,
+        agent_id: node.data?.agentId || null,
+        agent_name: node.data?.name || 'Unknown AI Agent',
+        agent_type: node.data?.type || 'general',
+        model: node.data?.model || 'gpt-4',
+        status,
+        duration,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        total_tokens: totalTokens,
+        cost: cost.toString(),
+        request_prompt: node.data?.prompt || 'Workflow execution prompt',
+        request_parameters: node.data?.parameters || {},
+        response_content: responseContent,
+        response_metadata: {
+          nodeId: node.id,
+          workflowId: workflow.id,
+          workflowExecutionId,
+        },
+        error_message: errorMessage,
+      })
+
+      console.log(`AI execution logged for node: ${node.id}`)
+    } catch (logError) {
+      console.error('Failed to log AI execution:', logError)
+      // Don't throw - logging failure shouldn't break workflow
+    }
+  }
+}
+
+async function executeConditionNode(node: any, previousResults: Record<string, any>) {
+  // Evaluate condition
+  const condition = node.data?.condition || 'true'
+
+  try {
+    // In production, use safe eval or a proper expression evaluator
+    // For now, basic condition evaluation
+    const result = condition === 'true' || condition === true
+
+    return { result, branch: result ? 'true' : 'false' }
+  } catch (error: any) {
+    throw new NodeExecutionError(
+      `Failed to evaluate condition: ${error.message}`,
+      node.id,
+      'condition',
+      false,
+      { condition, error: error.message }
     )
   }
 }
