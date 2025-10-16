@@ -477,10 +477,12 @@ export const WorkflowTemplates: React.FC<WorkflowTemplatesProps> = ({
         .from('workflows')
         .select('*')
         .eq('is_template', true)
-        .eq('is_public', true)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase error:', error)
+        throw error
+      }
 
       // Transform database templates to match interface
       const dbTemplates: WorkflowTemplate[] = (data || []).map(workflow => ({
