@@ -47,13 +47,6 @@ export class OpenAIEmbeddingService {
       return embedding
     } catch (error) {
       console.error('Error generating embedding:', error)
-      
-      // Return mock embedding for development/testing
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Using mock embedding for development')
-        return Array.from({ length: 1536 }, () => Math.random() - 0.5)
-      }
-      
       throw error
     }
   }
@@ -85,15 +78,6 @@ export class OpenAIEmbeddingService {
       return embeddings
     } catch (error) {
       console.error('Error generating batch embeddings:', error)
-      
-      // Return mock embeddings for development/testing
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Using mock embeddings for development')
-        return texts.map(() => 
-          Array.from({ length: 1536 }, () => Math.random() - 0.5)
-        )
-      }
-      
       throw error
     }
   }

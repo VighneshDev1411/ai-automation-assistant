@@ -46,6 +46,12 @@ export default function DashboardPage() {
   const router = useRouter()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [forceShowContent, setForceShowContent] = useState(false)
+  const [stats, setStats] = useState({
+    totalWorkflows: 0,
+    activeWorkflows: 0,
+    executionsToday: 0,
+    successRate: 0,
+  })
 
   // Keep hooks always at the top
   useEffect(() => {
@@ -58,6 +64,29 @@ export default function DashboardPage() {
 
     return () => clearTimeout(timer)
   }, [loading])
+
+  // Fetch dashboard stats
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/analytics/dashboard')
+        const data = await response.json()
+
+        setStats({
+          totalWorkflows: data.totalWorkflows || 0,
+          activeWorkflows: data.activeWorkflows || 0,
+          executionsToday: data.executionsToday || 0,
+          successRate: data.successRate || 0,
+        })
+      } catch (error) {
+        console.error('Error fetching dashboard stats:', error)
+      }
+    }
+
+    if (user) {
+      fetchStats()
+    }
+  }, [user])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -108,40 +137,32 @@ export default function DashboardPage() {
     )
   }
 
-  // Mock stats data
-  const stats = [
+  // Dashboard stats cards configuration
+  const statsCards = [
     {
       title: 'Total Workflows',
-      value: '12',
-      change: '+2 this week',
-      trend: 'up',
+      value: stats.totalWorkflows.toString(),
       icon: Workflow,
       color: 'text-blue-600',
       bgColor: 'bg-blue-100 dark:bg-blue-900/20',
     },
     {
       title: 'Active Automations',
-      value: '8',
-      change: '+1 today',
-      trend: 'up',
+      value: stats.activeWorkflows.toString(),
       icon: Zap,
       color: 'text-green-600',
       bgColor: 'bg-green-100 dark:bg-green-900/20',
     },
     {
       title: 'Executions Today',
-      value: '247',
-      change: '+15%',
-      trend: 'up',
+      value: stats.executionsToday.toString(),
       icon: Activity,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100 dark:bg-purple-900/20',
     },
     {
       title: 'Success Rate',
-      value: '98.5%',
-      change: '+0.2%',
-      trend: 'up',
+      value: `${stats.successRate}%`,
       icon: TrendingUp,
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-100 dark:bg-emerald-900/20',
@@ -411,7 +432,7 @@ export default function DashboardPage() {
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {stats.map((stat, index) => {
+          {statsCards.map((stat, index) => {
             const Icon = stat.icon
             return (
               <Card
@@ -424,19 +445,7 @@ export default function DashboardPage() {
                       <p className="text-sm font-medium text-muted-foreground">
                         {stat.title}
                       </p>
-                      <div>
-                        <div className="text-3xl font-bold">{stat.value}</div>
-                        <p
-                          className={`text-xs flex items-center gap-1 mt-1 ${
-                            stat.trend === 'up'
-                              ? 'text-green-600'
-                              : 'text-red-600'
-                          }`}
-                        >
-                          <TrendingUp className="h-3 w-3" />
-                          {stat.change}
-                        </p>
-                      </div>
+                      <div className="text-3xl font-bold">{stat.value}</div>
                     </div>
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
                       <Icon className="h-6 w-6 text-white" />
@@ -628,62 +637,6 @@ export default function DashboardPage() {
                   )}
                 </Button>
               )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Debug Information - Development Only */}
-        {process.env.NODE_ENV === 'development' && (
-          <Card className="mt-8 border-dashed">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Debug Information (Development Only)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <details className="text-xs">
-                <summary className="cursor-pointer hover:text-foreground text-muted-foreground mb-2">
-                  Click to view debug data
-                </summary>
-                <pre className="bg-muted p-4 rounded-lg overflow-auto max-h-64 text-xs">
-                  {JSON.stringify(
-                    {
-                      user: user
-                        ? {
-                            id: user.id,
-                            email: user.email,
-                            metadata: user.user_metadata,
-                          }
-                        : null,
-                      profile: profile
-                        ? {
-                            id: profile.id,
-                            full_name: profile.full_name,
-                            onboarded: profile.onboarded,
-                          }
-                        : null,
-                      organizations: organizations.map(org => ({
-                        id: org.id,
-                        name: org.name,
-                        role: org.role,
-                      })),
-                      currentOrganization: currentOrganization
-                        ? {
-                            id: currentOrganization.id,
-                            name: currentOrganization.name,
-                          }
-                        : null,
-                      loadingStatus: {
-                        authLoading: loading,
-                        profileLoaded,
-                        organizationsLoaded,
-                      },
-                    },
-                    null,
-                    2
-                  )}
-                </pre>
-              </details>
             </CardContent>
           </Card>
         )}

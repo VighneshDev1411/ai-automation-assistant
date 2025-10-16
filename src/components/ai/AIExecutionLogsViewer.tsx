@@ -45,7 +45,6 @@ import {
   Loader2,
   TrendingUp,
   Zap,
-  Plus,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -166,60 +165,6 @@ export function AIExecutionLogsViewer({
       })
     } finally {
       setLoading(false)
-    }
-  }
-
-  // Function to manually log an execution (for testing)
-  const createTestLog = async () => {
-    try {
-      const testLog = {
-        agentId: 'test-agent-1',
-        agentName: 'Test AI Agent',
-        agentType: 'text_analysis',
-        model: 'gpt-4-turbo',
-        duration: 2500,
-        tokensUsed: {
-          input: 150,
-          output: 350,
-          total: 500,
-        },
-        cost: 0.025,
-        status: 'success',
-        request: {
-          prompt: 'Analyze this test text for sentiment',
-          parameters: { temperature: 0.7, maxTokens: 1000 },
-        },
-        response: {
-          content: 'This is a test response from the AI agent',
-          metadata: { processingTime: 2500 },
-        },
-        sessionId: `session_${Date.now()}`,
-      }
-
-      const response = await fetch('/api/ai/executions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(testLog),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create test log')
-      }
-
-      toast({
-        title: 'Test Log Created',
-        description: 'Successfully created a test execution log',
-      })
-
-      // Reload logs
-      loadLogs()
-    } catch (error) {
-      console.error('Failed to create test log:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to create test log',
-        variant: 'destructive',
-      })
     }
   }
 
@@ -357,13 +302,6 @@ export function AIExecutionLogsViewer({
               <CardDescription>View and analyze AI agent execution history</CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              {/* Add test button for development */}
-              {process.env.NODE_ENV === 'development' && (
-                <Button variant="outline" size="sm" onClick={createTestLog}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Test Log
-                </Button>
-              )}
               <Button variant="outline" size="sm" onClick={loadLogs} disabled={loading}>
                 <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
