@@ -24,15 +24,34 @@ export async function GET(request: NextRequest) {
 
     const organizationId = profile?.organization_id
 
-    if (!organizationId) {
-      return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+    // Fetch workflows - try by organization_id first, then by created_by as fallback
+    let workflows = null
+    let workflowsError = null
+
+    if (organizationId) {
+      const result = await supabase
+        .from('workflows')
+        .select('id, status')
+        .eq('organization_id', organizationId)
+
+      workflows = result.data
+      workflowsError = result.error
     }
 
-    // Fetch total workflows
-    const { data: workflows, error: workflowsError } = await supabase
-      .from('workflows')
-      .select('id, status')
-      .eq('organization_id', organizationId)
+    // Fallback: if no workflows found by org, try fetching by user
+    if (!workflows || workflows.length === 0) {
+      const result = await supabase
+        .from('workflows')
+        .select('id, status')
+        .eq('created_by', user.id)
+
+      workflows = result.data
+      workflowsError = result.error
+    }
+
+    if (workflowsError) {
+      console.error('Error fetching workflows:', workflowsError)
+    }
 
     const totalWorkflows = workflows?.length || 0
     const activeWorkflows = workflows?.filter(w => w.status === 'active').length || 0
@@ -41,11 +60,35 @@ export async function GET(request: NextRequest) {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    const { data: executions, error: executionsError } = await supabase
-      .from('workflow_executions')
-      .select('id, status')
-      .eq('organization_id', organizationId)
-      .gte('created_at', today.toISOString())
+    let executions = null
+    let executionsError = null
+
+    if (organizationId) {
+      const result = await supabase
+        .from('workflow_executions')
+        .select('id, status')
+        .eq('organization_id', organizationId)
+        .gte('created_at', today.toISOString())
+
+      executions = result.data
+      executionsError = result.error
+    }
+
+    // Fallback: try fetching by user_id if available
+    if (!executions || executions.length === 0) {
+      const result = await supabase
+        .from('workflow_executions')
+        .select('id, status')
+        .eq('user_id', user.id)
+        .gte('created_at', today.toISOString())
+
+      executions = result.data
+      executionsError = result.error
+    }
+
+    if (executionsError) {
+      console.error('Error fetching executions:', executionsError)
+    }
 
     const executionsToday = executions?.length || 0
     const successfulToday = executions?.filter(e => e.status === 'success').length || 0
