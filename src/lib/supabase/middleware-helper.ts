@@ -8,6 +8,21 @@ export async function updateSession(request: NextRequest) {
     },
   })
 
+  // Define public routes that don't require authentication
+  const publicRoutes = [
+    '/login',
+    '/register',
+    '/signup',
+    '/forgot-password',
+    '/verify-email',
+    '/auth/callback',
+    '/',
+  ]
+
+  const isPublicRoute = publicRoutes.some(route =>
+    request.nextUrl.pathname === route || request.nextUrl.pathname.startsWith('/auth/')
+  )
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -54,21 +69,26 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Refresh session if expired
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
+  // Skip auth check for public routes
+  let user = null
+  let error = null
 
-  // Handle authentication errors
-  if (error) {
-    console.error('Auth error in middleware:', error)
-    
-    // Clear invalid session
-    const clearResponse = NextResponse.redirect(new URL('/login', request.url))
-    clearResponse.cookies.delete('sb-access-token')
-    clearResponse.cookies.delete('sb-refresh-token')
-    return clearResponse
+  if (!isPublicRoute) {
+    // Only check auth for protected routes
+    const result = await supabase.auth.getUser()
+    user = result.data.user
+    error = result.error
+
+    // Handle authentication errors on protected routes
+    if (error) {
+      console.error('Auth error in middleware:', error)
+
+      // Clear invalid session and redirect to login
+      const clearResponse = NextResponse.redirect(new URL('/login', request.url))
+      clearResponse.cookies.delete('sb-access-token')
+      clearResponse.cookies.delete('sb-refresh-token')
+      return clearResponse
+    }
   }
 
   // Protect dashboard routes

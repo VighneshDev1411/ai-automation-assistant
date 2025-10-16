@@ -1,9 +1,9 @@
-import { IntegrationRegistry } from './registry'
+import { IntegrationRegistry } from './IntegrationRegistry'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/auth/auth-context'
 
 export class IntegrationManager {
-  private registry = IntegrationRegistry.getInstance()
+  private registry = IntegrationRegistry
   private supabase = createClient()
 
   async connectIntegration(
@@ -11,14 +11,18 @@ export class IntegrationManager {
     organizationId: string,
     authParams: any
   ): Promise<void> {
-    const integration = this.registry.get(providerId)
+    const integration = this.registry.getIntegration(providerId)
     if (!integration) {
       throw new Error(`Integration ${providerId} not found`)
     }
 
     try {
       // Authenticate with the provider
-      const credentials = await integration.authenticate(authParams)
+      if (!integration.instance) {
+        throw new Error(`Integration ${providerId} is not initialized`)
+      }
+
+      const credentials = await integration.instance.authenticate(authParams)
 
       // Store the credentials in Supabase
       const { data, error } = await this.supabase.functions.invoke('integrations', {
@@ -36,7 +40,7 @@ export class IntegrationManager {
       if (error) throw error
 
       // Set credentials on the integration instance
-      integration.setCredentials(credentials)
+      integration.instance.setCredentials(credentials)
 
       console.log(`Successfully connected ${providerId}`)
     } catch (error) {
@@ -117,9 +121,9 @@ export class IntegrationManager {
     providerId: string,
     organizationId: string
   ): Promise<any> {
-    const integration = this.registry.get(providerId)
+    const integration = this.registry.getIntegration(providerId)
     if (!integration) return null
 
-    return integration.healthCheck()
+    return integration.instance?.healthCheck?.() || null
   }
 }
