@@ -164,64 +164,53 @@ export function AIModelComparisonTool() {
   const [isComparing, setIsComparing] = useState(false)
 
   // A/B Testing State
-  const [abTests, setAbTests] = useState<ABTestResult[]>([
-    {
-      testId: 'test_1',
-      name: 'Customer Support Response Quality',
-      startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-      status: 'running',
-      variantA: {
-        name: 'GPT-4 Friendly',
-        model: 'gpt-4-turbo',
-        prompt: 'You are a friendly customer support agent...',
-        executions: 145,
-        avgQuality: 87,
-        avgCost: 0.032,
-        avgDuration: 2100,
-        winRate: 52,
-      },
-      variantB: {
-        name: 'Claude Professional',
-        model: 'claude-3-sonnet',
-        prompt: 'You are a professional customer support specialist...',
-        executions: 143,
-        avgQuality: 85,
-        avgCost: 0.018,
-        avgDuration: 1800,
-        winRate: 48,
-      },
-      statisticalSignificance: 68,
-    },
-    {
-      testId: 'test_2',
-      name: 'Content Generation Speed vs Quality',
-      startDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-      endDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      status: 'completed',
-      variantA: {
-        name: 'GPT-3.5 Fast',
-        model: 'gpt-3.5-turbo',
-        prompt: 'Generate concise marketing copy...',
-        executions: 500,
-        avgQuality: 78,
-        avgCost: 0.008,
-        avgDuration: 850,
-        winRate: 35,
-      },
-      variantB: {
-        name: 'GPT-4 Quality',
-        model: 'gpt-4-turbo',
-        prompt: 'Generate compelling marketing copy...',
-        executions: 500,
-        avgQuality: 92,
-        avgCost: 0.035,
-        avgDuration: 2200,
-        winRate: 65,
-      },
-      statisticalSignificance: 95,
-      winner: 'B',
-    },
-  ])
+  const [abTests, setAbTests] = useState<ABTestResult[]>([])
+  const [loadingABTests, setLoadingABTests] = useState(false)
+
+  // Load A/B tests from API
+  const loadABTests = async () => {
+    setLoadingABTests(true)
+    try {
+      const response = await fetch('/api/ai/ab-tests')
+
+      if (!response.ok) {
+        throw new Error('Failed to load A/B tests')
+      }
+
+      const data = await response.json()
+
+      // Transform API response to match component interface
+      const transformedTests: ABTestResult[] = (data.tests || []).map((test: any) => ({
+        testId: test.id,
+        name: test.name,
+        startDate: new Date(test.start_date),
+        endDate: test.end_date ? new Date(test.end_date) : undefined,
+        status: test.status as 'running' | 'completed' | 'paused',
+        variantA: test.variant_a,
+        variantB: test.variant_b,
+        statisticalSignificance: test.statistical_significance,
+        winner: test.winner,
+      }))
+
+      setAbTests(transformedTests)
+    } catch (error) {
+      console.error('Failed to load A/B tests:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to load A/B tests',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoadingABTests(false)
+    }
+  }
+
+  // Load A/B tests when switching to ab-test tab
+  useEffect(() => {
+    if (activeTab === 'ab-test') {
+      loadABTests()
+    }
+  }, [activeTab])
 
   const handleRunComparison = async () => {
     if (!testPrompt || selectedModels.length === 0) {

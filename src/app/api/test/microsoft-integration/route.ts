@@ -69,8 +69,18 @@ export async function GET() {
     )
 
     // Test: Send a test email
+    if (!user.email) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'User email not found. Cannot send test email.',
+        },
+        { status: 400 }
+      )
+    }
+
     const testResult = await microsoftIntegration.sendEmail({
-      to: user.email || 'test@example.com',
+      to: user.email,
       subject: 'Test Email from Workflow Engine',
       body: 'This is a test email to verify Microsoft 365 integration is working correctly.',
     })

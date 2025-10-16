@@ -32,6 +32,7 @@ export default function AnalyticsPage() {
   })
 
   const [recentExecutions, setRecentExecutions] = useState<WorkflowExecution[]>([])
+  const [performanceData, setPerformanceData] = useState<Array<{ name: string; executions: number; successRate: number }>>([])
 
   useEffect(() => {
     // Fetch analytics data
@@ -40,57 +41,19 @@ export default function AnalyticsPage() {
         const response = await fetch('/api/analytics/executions')
         const data = await response.json()
 
-        // Set stats
+        // Set stats from API response
         setStats({
-          totalExecutions: data.totalExecutions || 156,
-          successRate: data.successRate || 94.2,
-          avgDuration: data.avgDuration || '2.3s',
-          activeWorkflows: data.activeWorkflows || 8
+          totalExecutions: data.totalExecutions || 0,
+          successRate: data.successRate || 0,
+          avgDuration: data.avgDuration || '0s',
+          activeWorkflows: data.activeWorkflows || 0
         })
 
-        // Set recent executions with mock data
-        setRecentExecutions([
-          {
-            id: '1',
-            workflowName: 'Form Submission to Slack',
-            status: 'success',
-            startTime: '2 minutes ago',
-            duration: '1.2s',
-            trigger: 'Webhook'
-          },
-          {
-            id: '2',
-            workflowName: 'Email Digest Generator',
-            status: 'success',
-            startTime: '15 minutes ago',
-            duration: '3.4s',
-            trigger: 'Schedule'
-          },
-          {
-            id: '3',
-            workflowName: 'Slack to Email Bridge',
-            status: 'failed',
-            startTime: '1 hour ago',
-            duration: '0.8s',
-            trigger: 'Slack Event'
-          },
-          {
-            id: '4',
-            workflowName: 'Data Sync to Airtable',
-            status: 'success',
-            startTime: '2 hours ago',
-            duration: '5.1s',
-            trigger: 'Schedule'
-          },
-          {
-            id: '5',
-            workflowName: 'Customer Onboarding Flow',
-            status: 'running',
-            startTime: '30 seconds ago',
-            duration: '-',
-            trigger: 'API'
-          }
-        ])
+        // Set recent executions from API response
+        setRecentExecutions(data.recentExecutions || [])
+
+        // Set performance data from API response
+        setPerformanceData(data.performanceByWorkflow || [])
       } catch (error) {
         console.error('Error fetching analytics:', error)
       }
@@ -255,13 +218,7 @@ export default function AnalyticsPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {[
-              { name: 'Form Submission to Slack', executions: 45, successRate: 100 },
-              { name: 'Email Digest Generator', executions: 38, successRate: 97.4 },
-              { name: 'Data Sync to Airtable', executions: 32, successRate: 93.8 },
-              { name: 'Slack to Email Bridge', executions: 24, successRate: 87.5 },
-              { name: 'Customer Onboarding Flow', executions: 17, successRate: 94.1 }
-            ].map((workflow, index) => (
+            {performanceData.length > 0 ? performanceData.map((workflow, index) => (
               <div key={index} className="flex items-center justify-between">
                 <div className="flex-1">
                   <p className="font-medium text-sm">{workflow.name}</p>
@@ -282,7 +239,11 @@ export default function AnalyticsPage() {
                   <p className="text-xs text-muted-foreground">executions</p>
                 </div>
               </div>
-            ))}
+            )) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No workflow performance data available yet
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>

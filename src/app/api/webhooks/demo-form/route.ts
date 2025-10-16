@@ -11,22 +11,26 @@ export async function POST(request: NextRequest) {
     const formData = await request.json()
     console.log('📝 Form data received:', formData)
 
-    // Configure Slack integration
+    // Configure Slack integration with actual credentials
+    if (!process.env.SLACK_BOT_TOKEN) {
+      throw new Error('SLACK_BOT_TOKEN is not configured')
+    }
+
     const slackConfig = {
-      clientId: process.env.SLACK_CLIENT_ID || 'dummy-client-id',
-      clientSecret: process.env.SLACK_CLIENT_SECRET || 'dummy-secret',
-      signingSecret: process.env.SLACK_SIGNING_SECRET || 'dummy-signing',
-      redirectUri: 'http://localhost:3000/auth/slack/callback',
+      clientId: process.env.SLACK_CLIENT_ID || '',
+      clientSecret: process.env.SLACK_CLIENT_SECRET || '',
+      signingSecret: process.env.SLACK_SIGNING_SECRET || '',
+      redirectUri: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/slack/callback`,
       scopes: ['chat:write', 'channels:read', 'im:write', 'groups:write']
     }
 
     const slackCredentials = {
-      access_token: process.env.SLACK_BOT_TOKEN!,
-      team_id: process.env.NEXT_PUBLIC_SLACK_CLIENT_ID || 'demo-team',
-      team_name: 'Your Workspace',
-      user_id: 'demo-user',
+      access_token: process.env.SLACK_BOT_TOKEN,
+      team_id: process.env.SLACK_TEAM_ID || '',
+      team_name: process.env.SLACK_TEAM_NAME || 'Your Workspace',
+      user_id: process.env.SLACK_USER_ID || '',
       scope: 'chat:write,channels:read,im:write,groups:write',
-      bot_user_id: 'demo-bot'
+      bot_user_id: process.env.SLACK_BOT_USER_ID || ''
     }
 
     console.log('🔑 Using Slack token:', process.env.SLACK_BOT_TOKEN?.substring(0, 20) + '...')
@@ -37,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     // Try to list available channels to auto-detect
     console.log('📋 Attempting to fetch available channels...')
-    let targetChannel = 'demo-workflow' // Your default channel name
+    let targetChannel = process.env.SLACK_DEFAULT_CHANNEL || 'general' // Use configured default channel
 
     try {
       const channelData = await slack.executeAction('list_channels', {})

@@ -33,29 +33,31 @@ class IntegrationRegistryClass {
       scopes: ['chat:write', 'channels:read', 'users:read']
     }
 
-    // For demo purposes, create a mock workspace
-    const slackCredentials = {
-      access_token: process.env.SLACK_BOT_TOKEN || 'xoxb-demo-token',
-      team_id: 'T1234567890',
-      team_name: 'Demo Workspace',
-      user_id: 'U1234567890',
+    // Use actual Slack credentials from environment
+    const slackCredentials = process.env.SLACK_BOT_TOKEN ? {
+      access_token: process.env.SLACK_BOT_TOKEN,
+      team_id: process.env.SLACK_TEAM_ID || '',
+      team_name: process.env.SLACK_TEAM_NAME || 'Your Workspace',
+      user_id: process.env.SLACK_USER_ID || '',
       scope: 'chat:write,channels:read',
-      bot_user_id: 'B1234567890'
-    }
+      bot_user_id: process.env.SLACK_BOT_USER_ID || ''
+    } : null
 
-    const slackIntegration = new SlackIntegration(slackConfig, slackCredentials)
+    const slackIntegration = slackCredentials
+      ? new SlackIntegration(slackConfig, slackCredentials)
+      : null
 
     this.integrations.set('slack', {
       id: 'slack',
       name: 'Slack',
       icon: '💬',
       instance: slackIntegration,
-      isConfigured: !!process.env.SLACK_BOT_TOKEN,
-      workspaces: [{
-        id: 'T1234567890',
-        name: 'Demo Workspace',
+      isConfigured: !!process.env.SLACK_BOT_TOKEN && !!slackCredentials,
+      workspaces: slackCredentials ? [{
+        id: slackCredentials.team_id,
+        name: slackCredentials.team_name,
         status: 'connected'
-      }]
+      }] : []
     })
 
     // Initialize Microsoft 365
@@ -75,11 +77,11 @@ class IntegrationRegistryClass {
       icon: '🏢',
       instance: microsoftIntegration,
       isConfigured: !!process.env.MICROSOFT_CLIENT_ID,
-      workspaces: [{
-        id: 'demo-tenant',
-        name: 'Demo Organization',
+      workspaces: process.env.MICROSOFT_TENANT_ID ? [{
+        id: process.env.MICROSOFT_TENANT_ID,
+        name: process.env.MICROSOFT_TENANT_NAME || 'Your Organization',
         status: 'connected'
-      }]
+      }] : []
     })
   }
 
@@ -105,14 +107,23 @@ class IntegrationRegistryClass {
     return integration.workspaces || []
   }
 
-  // For demo: Get Slack channels
-  getSlackChannels(): Array<{id: string, name: string}> {
-    return [
-      { id: 'C1234567890', name: '#general' },
-      { id: 'C1234567891', name: '#random' },
-      { id: 'C1234567892', name: '#demo-workflow' },
-      { id: 'C1234567893', name: '#notifications' }
-    ]
+  // Get Slack channels dynamically from API
+  async getSlackChannels(): Promise<Array<{id: string, name: string}>> {
+    const integration = this.integrations.get('slack')
+    if (!integration || !integration.instance) {
+      return []
+    }
+
+    try {
+      const result = await integration.instance.executeAction('list_channels', {})
+      return result?.channels?.map((ch: any) => ({
+        id: ch.id,
+        name: ch.name.startsWith('#') ? ch.name : `#${ch.name}`
+      })) || []
+    } catch (error) {
+      console.error('Failed to fetch Slack channels:', error)
+      return []
+    }
   }
 
   // Execute action through integration

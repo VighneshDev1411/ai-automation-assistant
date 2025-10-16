@@ -71,8 +71,18 @@ export async function GET() {
     )
 
     // Test: Send a test email (you can customize this)
+    if (!user.email) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'User email not found. Cannot send test email.',
+        },
+        { status: 400 }
+      )
+    }
+
     const testResult = await gmailIntegration.sendEmail({
-      to: user.email || 'test@example.com',
+      to: user.email,
       subject: 'Test Email from Workflow Engine',
       body: 'This is a test email to verify Gmail integration is working correctly.',
     })

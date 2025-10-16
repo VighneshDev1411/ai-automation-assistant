@@ -4,6 +4,7 @@ import { SupabaseClient } from '@supabase/supabase-js'
 import { GmailIntegration } from '@/lib/integrations/providers/google/GmailIntegration'
 import { SlackIntegration } from '@/lib/integrations/providers/slack/SlackIntegration'
 import { MicrosoftIntegration } from '@/lib/integrations/providers/microsoft/MicrosoftIntegration'
+import { AIAgentManager, AI_MODELS } from '@/lib/ai/AIAgentManager'
 
 export interface WorkflowExecutionContext {
   executionId: string
@@ -20,9 +21,17 @@ export interface WorkflowExecutionContext {
 export class ActionExecutor {
   private supabase: SupabaseClient<any>  // ✅ FIXED: Use any instead of Database
   private integrations = new Map<string, any>()
+  private aiAgentManager: AIAgentManager
+
+  // Configurable defaults from environment variables
+  private readonly DEFAULT_HTTP_TIMEOUT = parseInt(process.env.DEFAULT_HTTP_TIMEOUT || '30000')
+  private readonly DEFAULT_DB_LIMIT = parseInt(process.env.DEFAULT_DB_LIMIT || '100')
+  private readonly MAX_DELAY_MS = parseInt(process.env.MAX_DELAY_MS || '300000')
+  private readonly DEFAULT_ACTION_TIMEOUT = parseInt(process.env.DEFAULT_ACTION_TIMEOUT || '300000')
 
   constructor(supabase: SupabaseClient<any>) {  // ✅ FIXED: Use any instead of Database
     this.supabase = supabase
+    this.aiAgentManager = new AIAgentManager()
   }
 
   async executeAction(actionConfig: any, context: WorkflowExecutionContext): Promise<any> {
@@ -78,7 +87,7 @@ export class ActionExecutor {
     const method = config.method || 'GET'
     const headers = this.resolveTemplate(config.headers || {}, context)
     const body = config.body ? this.resolveTemplate(config.body, context) : undefined
-    const timeout = config.timeout || 30000
+    const timeout = config.timeout || this.DEFAULT_HTTP_TIMEOUT
 
     // Validate URL
     try {
@@ -212,7 +221,7 @@ export class ActionExecutor {
           .from(table)
           .select(columns || '*')
           .match((resolvedFilter || {}) as any)  // ✅ FIXED: Type assertion
-          .limit(config.limit || 100)
+          .limit(config.limit || this.DEFAULT_DB_LIMIT)
         
         if (selectError) throw new Error(`Database select failed: ${selectError.message}`)
         return {
@@ -248,24 +257,110 @@ export class ActionExecutor {
 
   private async executeAIAction(config: any, context: WorkflowExecutionContext): Promise<any> {
     const prompt = this.resolveTemplate(config.prompt, context)
-    const model = config.model || 'gpt-4'
+    const modelId = config.model || 'gpt-4-turbo'
     const maxTokens = config.maxTokens || 1000
     const temperature = config.temperature || 0.7
 
-    // This would integrate with actual AI service
-    // For now, return a mock response
-    const mockResponse = {
-      response: `AI response for prompt: ${prompt.substring(0, 50)}...`,
-      model,
-      tokensUsed: Math.floor(Math.random() * maxTokens),
-      finishReason: 'completed',
-      executedAt: new Date().toISOString()
+    // Get or create a default AI agent for this workflow
+    const agentId = config.agentId || await this.getOrCreateDefaultAgent(context.orgId, modelId, temperature, maxTokens)
+
+    try {
+      // Execute using real AI Agent Manager
+      const response = await this.aiAgentManager.executeAgent(
+        agentId,
+        prompt,
+        {
+          userId: context.userId,
+          organizationId: context.orgId,
+          workflowId: context.workflowId,
+          sessionId: context.executionId,
+          variables: context.variables,
+          metadata: {
+            triggerData: context.triggerData,
+            executionId: context.executionId
+          }
+        },
+        {
+          stream: false,
+          maxRetries: 2
+        }
+      )
+
+      // Calculate actual cost
+      const modelConfig = AI_MODELS[modelId]
+      const costUsd = modelConfig
+        ? this.aiAgentManager.calculateCost(modelId, response.usage.inputTokens, response.usage.outputTokens)
+        : 0
+
+      // Track AI usage with actual token counts
+      await this.trackAIUsage(
+        context.orgId,
+        context.userId,
+        modelId,
+        response.usage.totalTokens,
+        Math.ceil(costUsd * 100) // Convert to cents
+      )
+
+      return {
+        response: response.content,
+        model: modelId,
+        tokensUsed: response.usage.totalTokens,
+        inputTokens: response.usage.inputTokens,
+        outputTokens: response.usage.outputTokens,
+        cost: costUsd,
+        finishReason: response.finishReason,
+        executedAt: new Date().toISOString()
+      }
+    } catch (error) {
+      console.error('AI execution error:', error)
+      throw new Error(`AI execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  private async getOrCreateDefaultAgent(orgId: string, model: string, temperature: number, maxTokens: number): Promise<string> {
+    // Try to get existing default agent for this org
+    const agents = await this.aiAgentManager.listAgents(orgId)
+    const defaultAgent = agents.find(a => a.name === 'Workflow Default Agent')
+
+    if (defaultAgent) {
+      return defaultAgent.id
     }
 
-    // Track AI usage
-    await this.trackAIUsage(context.orgId, context.userId, model, mockResponse.tokensUsed)
+    // Create a new default agent
+    const newAgent = await this.aiAgentManager.createAgent(
+      {
+        name: 'Workflow Default Agent',
+        description: 'Default AI agent for workflow executions',
+        type: 'task',
+        model,
+        systemPrompt: 'You are a helpful AI assistant that processes workflow tasks efficiently and accurately.',
+        parameters: {
+          temperature,
+          maxTokens,
+          topP: 1,
+          frequencyPenalty: 0,
+          presencePenalty: 0
+        },
+        tools: [],
+        knowledgeBaseIds: [],
+        isActive: true,
+        tags: ['workflow', 'default'],
+        usageStats: {
+          totalRequests: 0,
+          totalTokens: 0,
+          totalCost: 0,
+          averageLatency: 0
+        },
+        performance: {
+          responseQuality: 0,
+          userSatisfaction: 0
+        },
+        lastUsed: new Date().toISOString()
+      },
+      orgId
+    )
 
-    return mockResponse
+    return newAgent.id
   }
 
   private async executeTransformAction(config: any, context: WorkflowExecutionContext): Promise<any> {
@@ -320,8 +415,8 @@ export class ActionExecutor {
     const delay = this.resolveTemplate(config.delay, context)
     const delayMs = typeof delay === 'number' ? delay : parseInt(delay) || 1000
 
-    if (delayMs < 0 || delayMs > 300000) { // Max 5 minutes
-      throw new Error('Delay must be between 0 and 300000 milliseconds')
+    if (delayMs < 0 || delayMs > this.MAX_DELAY_MS) {
+      throw new Error(`Delay must be between 0 and ${this.MAX_DELAY_MS} milliseconds`)
     }
 
     await new Promise(resolve => setTimeout(resolve, delayMs))
@@ -697,21 +792,35 @@ export class ActionExecutor {
   }
 
   private async trackAIUsage(
-    orgId: string, 
-    userId: string, 
-    model: string, 
-    tokensUsed: number
+    orgId: string,
+    userId: string,
+    model: string,
+    tokensUsed: number,
+    costCents?: number
   ): Promise<void> {
     try {
+      // Use actual cost if provided, otherwise calculate based on model
+      let finalCostCents = costCents
+      if (!finalCostCents) {
+        const modelConfig = AI_MODELS[model]
+        if (modelConfig) {
+          // Rough estimation: assume 50/50 split for input/output tokens
+          const costUsd = this.aiAgentManager.calculateCost(model, tokensUsed / 2, tokensUsed / 2)
+          finalCostCents = Math.ceil(costUsd * 100)
+        } else {
+          finalCostCents = Math.ceil(tokensUsed * 0.002) // Fallback rough calculation
+        }
+      }
+
       await this.supabase
         .from('api_usage')
         .insert([{
           organization_id: orgId,
           user_id: userId,
-          service: 'openai',
+          service: model.startsWith('gpt') ? 'openai' : model.startsWith('claude') ? 'anthropic' : 'ai',
           endpoint: model,
           tokens_used: tokensUsed,
-          cost_cents: Math.ceil(tokensUsed * 0.002), // Rough cost calculation
+          cost_cents: finalCostCents,
           metadata: {
             model,
             timestamp: new Date().toISOString()
@@ -724,14 +833,15 @@ export class ActionExecutor {
 
   // Action execution with timeout
   async executeActionWithTimeout(
-    actionConfig: any, 
-    context: WorkflowExecutionContext, 
-    timeoutMs: number = 300000 // 5 minutes default
+    actionConfig: any,
+    context: WorkflowExecutionContext,
+    timeoutMs?: number
   ): Promise<any> {
+    const timeout = timeoutMs || this.DEFAULT_ACTION_TIMEOUT
     return Promise.race([
       this.executeAction(actionConfig, context),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error(`Action timeout after ${timeoutMs}ms`)), timeoutMs)
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`Action timeout after ${timeout}ms`)), timeout)
       )
     ])
   }
