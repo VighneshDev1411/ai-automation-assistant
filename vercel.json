@@ -64,12 +64,6 @@
     "app/api/cron/execute-schedules/route.ts": {
       "maxDuration": 60
     }
-  },
-  "crons": [
-    {
-      "path": "/api/cron/execute-schedules",
-      "schedule": "* * * * *"
-    }
-  ]
+  }
 }
 

@@ -7,10 +7,18 @@ import { TriggerSystem } from '@/lib/workflow-engine/core/TriggerSystem'
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify the request is from Vercel Cron (optional security)
+    // Verify the request is from authorized cron service
     const authHeader = request.headers.get('authorization')
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const cronSecret = process.env.CRON_SECRET
+
+    // If CRON_SECRET is set, require authorization
+    if (cronSecret) {
+      if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+        console.error('[CRON] Unauthorized access attempt')
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+    } else {
+      console.warn('[CRON] Warning: CRON_SECRET not set - endpoint is not secured')
     }
 
     const supabase = await createClient()
