@@ -72,28 +72,42 @@ function WorkflowBuilderContent() {
         .from('workflows')
         .select('*')
         .eq('id', workflowId)
-        .single()
+        .maybeSingle()
 
-      if (error) throw error
-
-      if (data) {
-        setWorkflow({
-          id: data.id,
-          name: data.name,
-          description: data.description,
-          nodes: data.nodes || [],
-          edges: data.edges || [],
-          status: data.status,
-          version: data.version || 1
-        })
+      if (error) {
+        console.error('Database error loading workflow:', error)
+        throw new Error(error.message || 'Database error')
       }
+
+      if (!data) {
+        console.error('Workflow not found:', workflowId)
+        toast({
+          title: 'Workflow Not Found',
+          description: 'This workflow does not exist or you do not have access to it',
+          variant: 'destructive'
+        })
+        router.push('/workflows')
+        return
+      }
+
+      setWorkflow({
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        nodes: data.nodes || [],
+        edges: data.edges || [],
+        status: data.status,
+        version: data.version || 1
+      })
     } catch (error: any) {
       console.error('Error loading workflow:', error)
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to load workflow',
+        title: 'Error Loading Workflow',
+        description: error.message || 'Failed to load workflow. Please try again.',
         variant: 'destructive'
       })
+      // Redirect to workflows page on error
+      setTimeout(() => router.push('/workflows'), 2000)
     } finally {
       setLoading(false)
     }
