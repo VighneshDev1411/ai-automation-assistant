@@ -1,0 +1,525 @@
+================================================================================
+MULTI-ORGANIZATION SUPPORT - 2 DAY ROADMAP
+================================================================================
+
+Project: AI Automation Platform
+Feature: Complete Multi-Organization Support with Organization Switcher
+Timeline: 2 Days
+Created: 2025-10-17
+
+================================================================================
+CURRENT STATE
+================================================================================
+
+✅ Database Schema: organization_members table supports multiple orgs per user
+✅ Auth Context: Fetches all organizations and stores them in state
+✅ localStorage: Saves currentOrganizationId for persistence
+❌ UI: No organization switcher visible to users
+❌ Filtering: All pages use "first org found" instead of selected org
+❌ Visual Feedback: Users can't see which org they're currently in
+❌ Org Management: No way to create/leave organizations from UI
+
+Current User Organizations:
+- Organization 1 (d4aafffe-d968-4180-a87a-f6a8aa532f73) - Role: owner
+- Organization 2 (f61cb775-4023-4b31-8853-a4d90f1149f3) - Role: member
+
+================================================================================
+DAY 1: ORGANIZATION SWITCHER & UI COMPONENTS
+================================================================================
+
+Phase 1.1: Organization Switcher Component (3-4 hours)
+--------------------------------------------------------
+Location: /src/components/layout/OrganizationSwitcher.tsx
+
+Features to Implement:
+□ Dropdown/Select component to switch between organizations
+□ Show organization name and user's role (Owner, Admin, Member, Viewer)
+□ Display current organization with checkmark/highlight
+□ Show organization count badge
+□ Keyboard navigation support (arrow keys)
+
+Design Requirements:
+- Place in top navigation bar (next to user profile)
+- Mobile responsive (collapse to icon on small screens)
+- Visual indicator for current org (e.g., green dot, checkmark)
+- Show role badge (Owner = purple, Admin = blue, Member = gray)
+
+Code Structure:
+```typescript
+interface OrganizationSwitcherProps {
+  organizations: SimpleOrganization[]
+  currentOrganization: SimpleOrganization | null
+  onSwitch: (orgId: string) => void
+}
+
+Features:
+- Search/filter orgs if > 5 organizations
+- Show "Create Organization" option at bottom
+- Smooth transition animation when switching
+```
+
+Files to Create/Modify:
+□ /src/components/layout/OrganizationSwitcher.tsx (NEW)
+□ /src/app/components/AppLayout.tsx (ADD switcher to header)
+□ /src/lib/auth/auth-context.tsx (Already has switchOrganization function ✅)
+
+
+Phase 1.2: Update AppLayout Header (1-2 hours)
+-----------------------------------------------
+Location: /src/app/components/AppLayout.tsx
+
+Changes Needed:
+□ Import OrganizationSwitcher component
+□ Add switcher between logo and user profile dropdown
+□ Ensure it uses auth context: useOrganization() hook
+□ Style to match existing header design
+□ Test on mobile/tablet layouts
+
+Layout Structure:
+[Logo] [Nav Links] [Org Switcher] [Notifications] [User Profile]
+
+
+Phase 1.3: Organization Context Filtering (2-3 hours)
+------------------------------------------------------
+Update all pages to use currentOrganization instead of "first org found":
+
+Files to Update:
+□ /src/app/(dashboard)/workflows/page.tsx
+  - loadWorkflows(): Use currentOrganization.id instead of membership[0]
+  - handleCreateFromTemplate(): Use currentOrganization.id
+  - handleDuplicateWorkflow(): Use currentOrganization.id
+
+□ /src/app/(dashboard)/workflow-builder/page.tsx
+  - handleSave(): Use currentOrganization.id
+
+□ /src/app/(dashboard)/team/page.tsx
+  - loadTeamMembers(): Use currentOrganization.id
+  - handleInvite(): Use currentOrganization.id
+
+□ /src/app/(dashboard)/ai-agents/page.tsx
+  - loadAgents(): Use currentOrganization.id
+
+□ /src/app/(dashboard)/dashboard/page.tsx
+  - Load analytics for currentOrganization.id
+
+Pattern to Use:
+```typescript
+import { useOrganization } from '@/lib/auth/auth-context'
+
+function MyPage() {
+  const { currentOrganization } = useOrganization()
+
+  useEffect(() => {
+    if (!currentOrganization) return
+    loadData(currentOrganization.id)
+  }, [currentOrganization?.id]) // Re-load when org changes
+}
+```
+
+
+Phase 1.4: Visual Feedback & Loading States (1 hour)
+-----------------------------------------------------
+□ Add loading spinner when switching organizations
+□ Show toast notification: "Switched to [Organization Name]"
+□ Reload page data when organization changes
+□ Add skeleton loaders for data fetching
+□ Handle edge case: User removed from organization while viewing it
+
+
+Phase 1.5: Testing & Bug Fixes (1-2 hours)
+-------------------------------------------
+Test Cases:
+□ Switch between 2 organizations - workflows should change
+□ Create workflow in Org A, switch to Org B - workflow not visible in B ✓
+□ Invite team member in Org A, switch to Org B - different team list ✓
+□ Refresh page - should remember selected organization
+□ Clear localStorage - should default to first organization
+□ Mobile responsive - switcher works on small screens
+
+
+================================================================================
+DAY 2: ORGANIZATION MANAGEMENT & ADVANCED FEATURES
+================================================================================
+
+Phase 2.1: Create Organization Flow (2-3 hours)
+------------------------------------------------
+Location: /src/app/(dashboard)/organizations/new/page.tsx
+
+Features to Implement:
+□ Create new organization form
+  - Organization name (required)
+  - Organization slug (auto-generate from name, editable)
+  - Description (optional)
+  - Logo upload (optional)
+
+□ Validation
+  - Slug must be unique (check via API)
+  - Slug format: lowercase, alphanumeric, hyphens only
+  - Name: 3-50 characters
+
+□ API Endpoint: POST /api/organizations
+  - Create organization
+  - Automatically add creator as "owner"
+  - Set joined_at to current timestamp
+  - Return created organization
+
+Files to Create:
+□ /src/app/(dashboard)/organizations/new/page.tsx (NEW)
+□ /src/app/api/organizations/route.ts (NEW - POST endpoint)
+□ Add "Create Organization" button in OrganizationSwitcher dropdown
+
+
+Phase 2.2: Organization Settings Page (2-3 hours)
+--------------------------------------------------
+Location: /src/app/(dashboard)/settings/organization/page.tsx
+
+Features to Implement:
+□ General Settings
+  - Update organization name
+  - Update description
+  - Update logo
+  - Change slug (with warning about breaking links)
+
+□ Danger Zone
+  - Leave organization (if not owner)
+  - Delete organization (if owner, with confirmation)
+  - Transfer ownership (if owner)
+
+□ Organization Details
+  - Created date
+  - Member count
+  - Subscription tier
+  - Usage statistics
+
+Files to Create:
+□ /src/app/(dashboard)/settings/organization/page.tsx (NEW)
+□ /src/app/api/organizations/[id]/route.ts (NEW - PUT, DELETE)
+
+
+Phase 2.3: Leave/Delete Organization (1-2 hours)
+-------------------------------------------------
+Features:
+□ Leave Organization
+  - Remove user from organization_members
+  - Redirect to another org or onboarding
+  - Show confirmation dialog
+  - Cannot leave if you're the only owner
+
+□ Delete Organization
+  - Only owners can delete
+  - Show danger warning
+  - Require typing organization name to confirm
+  - Cascade delete: workflows, team members, etc.
+  - Move to onboarding if no other orgs
+
+API Endpoints:
+□ POST /api/organizations/[id]/leave
+□ DELETE /api/organizations/[id]
+
+
+Phase 2.4: Organization Invitation Flow (2 hours)
+--------------------------------------------------
+Improve the existing team invitation:
+□ Send email with organization context
+  - "John invited you to join [Org Name]"
+  - Include organization description
+  - Show organization logo
+
+□ Accept Invitation Page: /accept-invite
+  - Show organization details
+  - "Accept" or "Decline" buttons
+  - Set joined_at when accepting
+  - Redirect to organization after accepting
+
+Files to Create/Modify:
+□ /src/app/accept-invite/page.tsx (NEW)
+□ /src/app/api/team/invite/route.ts (MODIFY - improve email)
+□ /src/app/api/team/accept/route.ts (NEW)
+
+
+Phase 2.5: Organization Switcher Advanced Features (1-2 hours)
+---------------------------------------------------------------
+□ Show organization icon/logo in switcher
+□ Show member count per organization
+□ Show "You're the owner" badge for owned orgs
+□ Show "Pending invites" count badge
+□ Quick actions in dropdown:
+  - "Invite team member"
+  - "Organization settings"
+  - "Create new organization"
+
+□ Search functionality for orgs (if > 5)
+  - Filter by organization name
+  - Show "No results found" state
+
+
+Phase 2.6: Data Isolation & Security (1-2 hours)
+-------------------------------------------------
+Ensure data is properly isolated between organizations:
+
+Security Checks:
+□ Row Level Security (RLS) Policies in Supabase
+  - Users can only see workflows from their organizations
+  - Users can only see team members from their organizations
+  - API routes check organization membership before returning data
+
+Files to Update:
+□ All API routes in /src/app/api/
+  - Add organization_id check in queries
+  - Verify user belongs to organization before operations
+  - Use withOrganization() helper from utils.ts
+
+RLS Policies (Run in Supabase SQL Editor):
+```sql
+-- Workflows: Users can only see workflows from their organizations
+CREATE POLICY "Users can view workflows from their organizations"
+ON workflows FOR SELECT
+USING (
+  organization_id IN (
+    SELECT organization_id
+    FROM organization_members
+    WHERE user_id = auth.uid()
+    AND joined_at IS NOT NULL
+  )
+);
+
+-- Similar policies for other tables: execution_logs, integrations, etc.
+```
+
+
+Phase 2.7: Testing & Edge Cases (2 hours)
+------------------------------------------
+Test Scenarios:
+□ User with 0 organizations - redirect to onboarding
+□ User with 1 organization - hide switcher, auto-select
+□ User with 10+ organizations - search works, performance OK
+□ User removed from org while viewing it - handle gracefully
+□ User accepts invite - org appears in switcher immediately
+□ User creates org - switches to new org automatically
+□ Concurrent sessions - org switch in tab A affects tab B
+
+Performance Testing:
+□ Switching orgs should be instant (< 500ms)
+□ Lazy load data after org switch (don't block UI)
+□ Cache organization list (don't refetch every render)
+
+
+================================================================================
+POLISH & DEPLOYMENT
+================================================================================
+
+Phase 3: Polish & User Experience (2 hours)
+--------------------------------------------
+□ Add animations/transitions when switching orgs
+□ Add keyboard shortcuts (Cmd+K to open org switcher)
+□ Add empty states:
+  - "No organizations yet - create your first one"
+  - "No team members - invite your first teammate"
+
+□ Add tooltips explaining features
+□ Add onboarding tutorial for new users
+□ Add help documentation
+
+□ Analytics & Tracking
+  - Track org switches
+  - Track org creations
+  - Track invitation acceptance rate
+
+
+Phase 4: Documentation (1 hour)
+--------------------------------
+Create documentation:
+□ USER_GUIDE.md - How to use multi-org features
+□ API_DOCS.md - API endpoints for organization management
+□ Update README.md - Add multi-org feature description
+□ MIGRATION_GUIDE.md - For existing single-org users
+
+
+================================================================================
+IMPLEMENTATION CHECKLIST
+================================================================================
+
+Day 1:
+□ Create OrganizationSwitcher component
+□ Add switcher to AppLayout header
+□ Update all pages to use currentOrganization
+□ Add loading states and visual feedback
+□ Test switching between organizations
+
+Day 2:
+□ Create organization creation flow
+□ Build organization settings page
+□ Implement leave/delete organization
+□ Improve invitation flow with accept page
+□ Add RLS policies for data isolation
+□ Comprehensive testing
+
+Polish:
+□ Add animations and UX improvements
+□ Write documentation
+□ Deploy to production
+
+
+================================================================================
+DATABASE CHANGES NEEDED
+================================================================================
+
+1. Add logo_url to organizations table (if not exists):
+```sql
+ALTER TABLE organizations
+ADD COLUMN IF NOT EXISTS logo_url TEXT;
+```
+
+2. Add indexes for performance:
+```sql
+CREATE INDEX IF NOT EXISTS idx_org_members_user_org
+ON organization_members(user_id, organization_id);
+
+CREATE INDEX IF NOT EXISTS idx_workflows_org
+ON workflows(organization_id);
+```
+
+3. Add RLS policies (see Phase 2.6 above)
+
+
+================================================================================
+API ENDPOINTS TO CREATE
+================================================================================
+
+Organizations:
+□ GET    /api/organizations - List user's organizations
+□ POST   /api/organizations - Create new organization
+□ GET    /api/organizations/[id] - Get organization details
+□ PUT    /api/organizations/[id] - Update organization
+□ DELETE /api/organizations/[id] - Delete organization
+□ POST   /api/organizations/[id]/leave - Leave organization
+□ POST   /api/organizations/[id]/transfer - Transfer ownership
+
+Invitations:
+□ POST   /api/team/invite (EXISTS - needs improvement)
+□ POST   /api/team/accept - Accept invitation
+□ POST   /api/team/decline - Decline invitation
+
+
+================================================================================
+COMPONENTS TO CREATE
+================================================================================
+
+/src/components/layout/
+□ OrganizationSwitcher.tsx - Main switcher dropdown
+
+/src/components/organizations/
+□ CreateOrganizationDialog.tsx - Create org modal
+□ OrganizationSettings.tsx - Settings form
+□ LeaveOrganizationDialog.tsx - Confirmation dialog
+□ DeleteOrganizationDialog.tsx - Danger zone confirmation
+
+/src/app/(dashboard)/organizations/
+□ new/page.tsx - Create organization page
+□ [id]/page.tsx - Organization details page
+
+/src/app/(dashboard)/settings/organization/
+□ page.tsx - Organization settings page
+
+/src/app/accept-invite/
+□ page.tsx - Accept invitation page
+
+
+================================================================================
+TESTING CHECKLIST
+================================================================================
+
+Unit Tests:
+□ OrganizationSwitcher component renders correctly
+□ Switching organizations updates localStorage
+□ Auth context switchOrganization() works
+
+Integration Tests:
+□ Create organization API endpoint
+□ Update organization API endpoint
+□ Delete organization API endpoint
+□ Leave organization API endpoint
+□ Accept invitation flow end-to-end
+
+E2E Tests:
+□ User creates organization
+□ User switches between organizations
+□ User invites team member
+□ Team member accepts invitation
+□ User leaves organization
+□ Owner deletes organization
+
+
+================================================================================
+KNOWN ISSUES TO FIX
+================================================================================
+
+Current Issues:
+✅ FIXED: 406 error when querying organization_members
+✅ FIXED: .maybeSingle() returning NULL with multiple orgs
+✅ FIXED: "No organization found" toasts
+
+Remaining:
+□ No way to switch organizations in UI
+□ All pages use first org found instead of selected
+□ No organization creation flow
+□ No organization settings page
+□ Team invitation email doesn't include org context
+
+
+================================================================================
+FUTURE ENHANCEMENTS (BEYOND 2 DAYS)
+================================================================================
+
+□ Organization billing per org
+□ Organization-specific integrations
+□ Organization templates/presets
+□ Organization activity log/audit trail
+□ Organization analytics dashboard
+□ Organization webhooks
+□ Organization API keys
+□ Organization SSO/SAML
+□ Organization white-labeling
+□ Organization subdomain (org-slug.yourapp.com)
+
+
+================================================================================
+RESOURCES & REFERENCES
+================================================================================
+
+Current Implementation:
+- Auth Context: /src/lib/auth/auth-context.tsx (lines 192-276)
+- Database Types: /src/types/database.ts
+- API Utils: /src/app/api/utils.ts (withOrganization helper)
+
+Documentation:
+- Supabase RLS: https://supabase.com/docs/guides/auth/row-level-security
+- Next.js App Router: https://nextjs.org/docs/app
+- shadcn/ui Components: https://ui.shadcn.com
+
+Design Inspiration:
+- Slack: Organization switcher (top-left)
+- GitHub: Organization dropdown (top-right)
+- Notion: Workspace switcher (sidebar)
+
+
+================================================================================
+CONTACT & NOTES
+================================================================================
+
+Developer: Vignesh
+Email: vigneshpathakdev@gmail.com
+Project: AI Automation Platform
+Start Date: TBD
+Target Completion: 2 Days
+
+Notes:
+- This roadmap assumes 2 full working days (16 hours total)
+- Some phases may take longer depending on complexity
+- Prioritize Day 1 tasks for MVP functionality
+- Day 2 tasks can be split into multiple days if needed
+- Testing should not be skipped - critical for multi-org apps
+
+================================================================================
+END OF ROADMAP
+================================================================================

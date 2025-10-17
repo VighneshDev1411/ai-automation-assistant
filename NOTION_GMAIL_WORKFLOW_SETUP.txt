@@ -1,0 +1,555 @@
+================================================================================
+SETUP GUIDE: Notion Ticket Summarizer + Gmail Weekly Report Workflow
+================================================================================
+
+Current Status: ❌ CANNOT RUN - Missing Integrations
+Required Work: ~4-6 hours of implementation
+Last Updated: 2025-10-17
+
+================================================================================
+WHAT'S MISSING
+================================================================================
+
+1. ❌ Notion Integration (CRITICAL)
+2. ❌ Gmail Integration (CRITICAL)
+3. ❌ Conditional Branching in Workflow Engine (PARTIAL - needs enhancement)
+4. ✅ AI Summarization (WORKING)
+5. ✅ Scheduled Triggers (WORKING)
+
+================================================================================
+STEP 1: NOTION INTEGRATION SETUP (2-3 hours)
+================================================================================
+
+A. Get Notion API Credentials
+------------------------------
+1. Go to: https://www.notion.so/my-integrations
+2. Click "+ New integration"
+3. Name: "AI Automation Platform"
+4. Select workspace
+5. Copy these values:
+
+   - Internal Integration Token: secret_xxxxx (for .env)
+   - OAuth Client ID: xxxxx
+   - OAuth Client Secret: xxxxx
+   - Redirect URI: http://localhost:3000/api/integrations/notion/callback
+
+6. Add to .env:
+```bash
+NOTION_CLIENT_ID=your_oauth_client_id
+NOTION_CLIENT_SECRET=your_oauth_client_secret
+NOTION_INTEGRATION_TOKEN=secret_xxxxx
+NOTION_REDIRECT_URI=http://localhost:3000/api/integrations/notion/callback
+```
+
+B. Enable Permissions
+---------------------
+In Notion integration settings, enable:
+- ✅ Read content
+- ✅ Update content
+- ✅ Insert content
+- ✅ Read user information
+
+C. Create Notion Integration Class
+-----------------------------------
+File: /src/lib/integrations/notion/NotionIntegration.ts
+
+```typescript
+import { Client } from '@notionhq/client'
+
+export class NotionIntegration {
+  private client: Client
+
+  constructor(accessToken: string) {
+    this.client = new Client({ auth: accessToken })
+  }
+
+  // Query database for open tickets
+  async queryDatabase(databaseId: string, filters?: any) {
+    const response = await this.client.databases.query({
+      database_id: databaseId,
+      filter: filters || {
+        property: 'Status',
+        select: {
+          equals: 'Open'
+        }
+      }
+    })
+
+    return response.results.map(page => ({
+      id: page.id,
+      properties: (page as any).properties,
+      created_time: (page as any).created_time,
+      last_edited_time: (page as any).last_edited_time
+    }))
+  }
+
+  // Get database list for UI
+  async listDatabases() {
+    const response = await this.client.search({
+      filter: { property: 'object', value: 'database' }
+    })
+    return response.results
+  }
+}
+```
+
+D. Create OAuth Callback Route
+-------------------------------
+File: /src/app/api/integrations/notion/callback/route.ts
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams
+  const code = searchParams.get('code')
+
+  if (!code) {
+    return NextResponse.json({ error: 'No code provided' }, { status: 400 })
+  }
+
+  // Exchange code for access token
+  const response = await fetch('https://api.notion.com/v1/oauth/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Basic ${Buffer.from(
+        `${process.env.NOTION_CLIENT_ID}:${process.env.NOTION_CLIENT_SECRET}`
+      ).toString('base64')}`
+    },
+    body: JSON.stringify({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: process.env.NOTION_REDIRECT_URI
+    })
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    return NextResponse.json({ error: data }, { status: 500 })
+  }
+
+  // Save to database
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Get user's organization
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('organization_id')
+    .eq('user_id', user.id)
+    .limit(1)
+    .single()
+
+  await supabase.from('integrations').insert({
+    organization_id: membership?.organization_id,
+    user_id: user.id,
+    provider: 'notion',
+    status: 'connected',
+    credentials: {
+      access_token: data.access_token,
+      workspace_id: data.workspace_id,
+      workspace_name: data.workspace_name,
+      bot_id: data.bot_id
+    }
+  })
+
+  return NextResponse.redirect(new URL('/integrations', request.url))
+}
+```
+
+E. Add Notion Action Handler
+-----------------------------
+File: /src/app/api/workflows/[id]/execute/route.ts
+
+Add to executeActionNode() function:
+
+```typescript
+if (actionType === 'queryNotionDatabase') {
+  try {
+    // Get Notion credentials
+    const { data: integration } = await supabase
+      .from('integrations')
+      .select('credentials')
+      .eq('provider', 'notion')
+      .eq('organization_id', workflow.organization_id)
+      .single()
+
+    if (!integration) {
+      throw new Error('Notion integration not connected')
+    }
+
+    const notion = new NotionIntegration(integration.credentials.access_token)
+
+    const tickets = await notion.queryDatabase(
+      config.databaseId,
+      {
+        property: 'Status',
+        select: { equals: 'Open' }
+      }
+    )
+
+    return {
+      success: true,
+      data: { tickets, count: tickets.length },
+      integration: 'notion',
+      action: 'query_database'
+    }
+  } catch (error: any) {
+    throw new IntegrationError(
+      `Failed to query Notion database: ${error.message}`,
+      'notion',
+      true,
+      { nodeId: node.id, error: error.message }
+    )
+  }
+}
+```
+
+================================================================================
+STEP 2: GMAIL INTEGRATION SETUP (2-3 hours)
+================================================================================
+
+A. Get Google OAuth Credentials
+--------------------------------
+1. Go to: https://console.cloud.google.com/apis/credentials
+2. Create OAuth 2.0 Client ID:
+   - Application type: Web application
+   - Name: "AI Automation Platform"
+   - Authorized redirect URIs:
+     http://localhost:3000/api/integrations/google/callback
+     http://localhost:3000/api/integrations/gmail/callback
+
+3. Enable Gmail API:
+   - Go to: https://console.cloud.google.com/apis/library
+   - Search "Gmail API"
+   - Click Enable
+
+4. Add to .env:
+```bash
+GOOGLE_CLIENT_ID=your_actual_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_actual_client_secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/integrations/google/callback
+```
+
+B. Create Gmail Integration Class
+----------------------------------
+File: /src/lib/integrations/gmail/GmailIntegration.ts
+
+```typescript
+import { google } from 'googleapis'
+
+export class GmailIntegration {
+  private gmail: any
+  private auth: any
+
+  constructor(accessToken: string, refreshToken: string) {
+    this.auth = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    )
+
+    this.auth.setCredentials({
+      access_token: accessToken,
+      refresh_token: refreshToken
+    })
+
+    this.gmail = google.gmail({ version: 'v1', auth: this.auth })
+  }
+
+  async sendEmail(to: string, subject: string, body: string) {
+    const message = [
+      `To: ${to}`,
+      'Content-Type: text/html; charset=utf-8',
+      'MIME-Version: 1.0',
+      `Subject: ${subject}`,
+      '',
+      body
+    ].join('\n')
+
+    const encodedMessage = Buffer.from(message)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '')
+
+    const response = await this.gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: encodedMessage
+      }
+    })
+
+    return response.data
+  }
+}
+```
+
+C. Update Google OAuth Callback
+--------------------------------
+File: /src/app/api/integrations/google/callback/route.ts
+
+Make sure it saves:
+- access_token
+- refresh_token
+- scope (should include 'https://www.googleapis.com/auth/gmail.send')
+
+D. Add Gmail Action Handler
+----------------------------
+In /src/app/api/workflows/[id]/execute/route.ts
+
+```typescript
+if (actionType === 'sendGmail') {
+  try {
+    // Get Gmail credentials
+    const { data: integration } = await supabase
+      .from('integrations')
+      .select('credentials')
+      .eq('provider', 'google')
+      .eq('organization_id', workflow.organization_id)
+      .single()
+
+    if (!integration) {
+      throw new Error('Gmail integration not connected')
+    }
+
+    const gmail = new GmailIntegration(
+      integration.credentials.access_token,
+      integration.credentials.refresh_token
+    )
+
+    // Replace template variables in body
+    const emailBody = replaceTemplateVariables(config.body || '')
+
+    const result = await gmail.sendEmail(
+      config.to,
+      config.subject,
+      emailBody
+    )
+
+    return {
+      success: true,
+      data: result,
+      integration: 'gmail',
+      action: 'send_email'
+    }
+  } catch (error: any) {
+    throw new IntegrationError(
+      `Failed to send Gmail: ${error.message}`,
+      'gmail',
+      true,
+      { nodeId: node.id, error: error.message }
+    )
+  }
+}
+```
+
+================================================================================
+STEP 3: ENHANCE CONDITIONAL BRANCHING (1 hour)
+================================================================================
+
+Current Issue: Conditional node exists but needs enhancement for "if tickets found"
+
+Update executeConditionNode() function:
+
+```typescript
+async function executeConditionNode(node: any, previousResults: Record<string, any>) {
+  const conditionType = node.data?.conditionType || 'simple'
+  const config = node.data?.config || {}
+
+  try {
+    let result = false
+
+    switch (conditionType) {
+      case 'checkExists':
+        // Check if a previous result has data
+        const sourceNodeId = config.sourceNode
+        const sourceResult = previousResults[sourceNodeId]
+
+        if (config.property === 'tickets.count') {
+          result = (sourceResult?.data?.count || 0) > 0
+        } else if (config.property === 'data.length') {
+          result = (sourceResult?.data?.length || 0) > 0
+        }
+        break
+
+      case 'compare':
+        // Compare values
+        const value1 = config.value1
+        const value2 = config.value2
+        const operator = config.operator // >, <, ==, !=, >=, <=
+
+        result = evaluateComparison(value1, value2, operator)
+        break
+
+      case 'simple':
+      default:
+        result = config.condition === 'true' || config.condition === true
+    }
+
+    return {
+      result,
+      branch: result ? 'true' : 'false',
+      metadata: { conditionType, config }
+    }
+  } catch (error: any) {
+    throw new NodeExecutionError(
+      `Failed to evaluate condition: ${error.message}`,
+      node.id,
+      'condition',
+      false,
+      { conditionType, config, error: error.message }
+    )
+  }
+}
+
+function evaluateComparison(value1: any, value2: any, operator: string): boolean {
+  switch (operator) {
+    case '>': return value1 > value2
+    case '<': return value1 < value2
+    case '==': return value1 == value2
+    case '!=': return value1 != value2
+    case '>=': return value1 >= value2
+    case '<=': return value1 <= value2
+    default: return false
+  }
+}
+```
+
+================================================================================
+STEP 4: NPM PACKAGES TO INSTALL
+================================================================================
+
+Install required dependencies:
+
+```bash
+npm install @notionhq/client
+npm install googleapis
+npm install @types/node
+```
+
+================================================================================
+STEP 5: CREATE THE WORKFLOW IN UI
+================================================================================
+
+Once integrations are implemented:
+
+1. Go to /workflow-builder
+2. Create new workflow: "Notion Ticket Summarizer"
+3. Add nodes in this order:
+
+   Node 1: Scheduled Trigger
+   - Type: Scheduled
+   - Cron: 0 17 * * 5 (Friday 5 PM)
+
+   Node 2: Query Notion Database
+   - Type: Action
+   - Action: queryNotionDatabase
+   - Database ID: [Your Notion database ID]
+   - Filter: Status = Open
+
+   Node 3: Conditional Branch
+   - Type: Condition
+   - Condition Type: checkExists
+   - Source Node: Node 2
+   - Property: data.count
+
+   Node 4: AI Summarization (True branch)
+   - Type: AI Agent
+   - Model: GPT-4
+   - Prompt: "Summarize these support tickets..."
+   - Input: {{$prev.node-2.data.tickets}}
+
+   Node 5a: Send Gmail (After AI - True branch)
+   - Type: Action
+   - Action: sendGmail
+   - To: manager@company.com
+   - Subject: "Weekly Support Ticket Report"
+   - Body: {{$prev.node-4.response}}
+
+   Node 5b: Send Gmail (False branch - no tickets)
+   - Type: Action
+   - Action: sendGmail
+   - To: manager@company.com
+   - Subject: "Weekly Support Ticket Report"
+   - Body: "No open tickets this week! 🎉"
+
+4. Connect edges:
+   - Trigger → Query Notion
+   - Query Notion → Conditional
+   - Conditional (true) → AI Summarization
+   - AI Summarization → Send Gmail (with summary)
+   - Conditional (false) → Send Gmail (no tickets)
+
+5. Save workflow
+6. Activate workflow (status = 'active')
+
+================================================================================
+STEP 6: TESTING CHECKLIST
+================================================================================
+
+Before Production:
+□ Test Notion OAuth connection
+□ Test querying Notion database manually
+□ Test Gmail OAuth connection
+□ Test sending test email
+□ Test conditional branching (create workflow with mock data)
+□ Test AI summarization with sample tickets
+□ Test full workflow end-to-end
+□ Test error handling (what if Notion is down?)
+□ Test recovery strategies
+□ Verify cron schedule works (maybe test with */5 * * * * first)
+
+================================================================================
+CURRENT STATUS SUMMARY
+================================================================================
+
+Infrastructure Ready:
+✅ Database schema (integrations table exists)
+✅ Workflow execution engine
+✅ Error handling & recovery
+✅ AI Agent support (OpenAI configured)
+✅ Scheduled trigger support
+✅ Conditional node structure
+
+Missing Implementations:
+❌ Notion OAuth flow
+❌ Notion database query functionality
+❌ Gmail OAuth flow (credentials are placeholders)
+❌ Gmail send functionality
+❌ Enhanced conditional branching logic
+❌ UI components for Notion/Gmail configuration
+
+Estimated Work: 4-6 hours
+Priority: HIGH if you want to demo this workflow
+
+================================================================================
+QUICK START OPTION: SIMPLIFIED VERSION
+================================================================================
+
+If you want to test the workflow concept without full OAuth:
+
+1. Use Notion Integration Token (simpler than OAuth)
+   - Get token from https://www.notion.so/my-integrations
+   - Hardcode in integration for testing
+   - Skip OAuth flow
+
+2. Use Gmail SMTP instead of API (simpler)
+   - Use nodemailer package
+   - App password from Google
+   - No OAuth needed
+
+This gets you 80% functionality in 2 hours instead of 6 hours.
+
+Want me to create the simplified version first?
+
+================================================================================
+END OF SETUP GUIDE
+================================================================================

@@ -11,6 +11,8 @@ import {
   WorkflowExecutionError,
 } from '@/lib/workflow/error-handler'
 import { IntegrationRegistry } from '@/lib/integrations/IntegrationRegistry'
+import NotionIntegration from '@/lib/integrations/notion/NotionIntegration'
+import GmailIntegration from '@/lib/integrations/gmail/GmailIntegration'
 
 export async function POST(
   request: NextRequest,
