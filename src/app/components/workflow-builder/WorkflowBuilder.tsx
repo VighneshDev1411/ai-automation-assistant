@@ -378,7 +378,11 @@ export function WorkflowBuilder({
 
   const getTriggerConfig = () => {
     const triggerNode = nodes.find(n => n.type === 'trigger')
-    return triggerNode?.data.config || { type: 'manual', config: {} }
+    return {
+      ...(triggerNode?.data.config || { type: 'manual', config: {} }),
+      nodes: nodes,  // Include nodes array for execution
+      edges: edges   // Include edges array for execution
+    }
   }
 
   const getActionsConfig = () => {
@@ -409,6 +413,11 @@ export function WorkflowBuilder({
       })
   }
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
+    // Don't open NodeInspector for nodes that have their own Settings dialog
+    // Action and AI Agent nodes have detailed Settings buttons
+    if (node.type === 'action' || node.type === 'aiAgent') {
+      return
+    }
     setSelectedNode(node.id)
   }, [])
 

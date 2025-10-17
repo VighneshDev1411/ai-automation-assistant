@@ -1,7 +1,7 @@
 'use client'
 
 import React, { memo, useState, useEffect } from 'react'
-import { Handle, Position, NodeProps } from '@xyflow/react'
+import { Handle, Position, NodeProps, useReactFlow } from '@xyflow/react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -212,8 +212,9 @@ interface ActionNodeData {
   status?: 'success' | 'error' | 'pending'
 }
 
-export const ActionNode = memo(({ data, selected }: NodeProps) => {
+export const ActionNode = memo(({ data, selected, id }: NodeProps) => {
   const { toast } = useToast()
+  const { setNodes } = useReactFlow()
   const nodeData = data as unknown as ActionNodeData
   const [isConfigOpen, setIsConfigOpen] = useState(false)
   const [localConfig, setLocalConfig] = useState(nodeData.config || {})
@@ -226,6 +227,16 @@ export const ActionNode = memo(({ data, selected }: NodeProps) => {
 
   const currentAction = actionTypes[localActionType]
   const isConfigured = nodeData.actionType && Object.keys(nodeData.config || {}).length > 0
+
+  // Sync local state with node data when it changes
+  useEffect(() => {
+    if (nodeData.actionType) {
+      setLocalActionType(nodeData.actionType)
+    }
+    if (nodeData.config) {
+      setLocalConfig(nodeData.config)
+    }
+  }, [nodeData.actionType, nodeData.config])
 
   // Fetch Slack channels when dialog opens and action is Slack
   useEffect(() => {
@@ -284,14 +295,27 @@ export const ActionNode = memo(({ data, selected }: NodeProps) => {
       return
     }
 
-    // Update node data
-    nodeData.actionType = localActionType
-    nodeData.config = localConfig
-    nodeData.label = currentAction.label
-    nodeData.isConfigured = true
+    // Update the node in React Flow state
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === id) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              actionType: localActionType,
+              config: localConfig,
+              label: currentAction.label,
+              isConfigured: true,
+            },
+          }
+        }
+        return node
+      })
+    )
 
     setIsConfigOpen(false)
-    
+
     toast({
       title: "Configuration Saved",
       description: `${currentAction.label} action configured successfully`,

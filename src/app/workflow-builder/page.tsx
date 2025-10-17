@@ -112,22 +112,21 @@ function WorkflowBuilderContent() {
         .from('organization_members')
         .select('organization_id')
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
 
-      // Get user's profile to get organization_id as fallback
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('organization_id')
-        .eq('id', user.id)
-        .single()
-
-      const organizationId = membership?.organization_id || profile?.organization_id || null
+      const organizationId = membership?.organization_id || null
 
       const workflowPayload = {
         name: workflowData.name || workflow.name,
         description: workflowData.description || workflow.description,
         nodes: workflowData.nodes || workflow.nodes,
         edges: workflowData.edges || workflow.edges,
+        trigger_config: workflowData.trigger_config || {
+          type: 'manual',
+          config: {},
+          nodes: workflowData.nodes || workflow.nodes,
+          edges: workflowData.edges || workflow.edges
+        },
         organization_id: organizationId,
         created_by: user.id,
         status: 'draft',

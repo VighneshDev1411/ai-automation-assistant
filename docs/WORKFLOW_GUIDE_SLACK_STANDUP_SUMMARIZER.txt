@@ -60,7 +60,10 @@ In the workflow builder left sidebar:
 1. Click on the workflow name field (default: "Untitled Workflow")
 2. Enter: "Slack Daily Standup Summarizer"
 3. Add description: "Automatically summarizes daily standup messages from
-   #engineering-daily and posts to #daily-summary every weekday at 9 AM"
+   a Slack channel and posts to #daily-summary every weekday at 9 AM"
+
+NOTE: For testing, you can use any Slack channel. Create a test channel like
+#workflow-test and post some mock standup messages, or use #general.
 
 STEP 3: Add Trigger Node
 -------------------------------------------
@@ -87,20 +90,43 @@ From the left sidebar:
 2. An action node appears on the canvas
 3. Connect the trigger to this action node (drag from trigger's output handle
    to action's input handle)
-4. Click on the action node to configure it:
 
-   Configuration (in right panel):
-   - Node Name: Fetch Standup Messages
-   - Integration: Slack
-   - Action: get_channel_history
-   - Channel: #engineering-daily
-   - Limit: 100
-   - Oldest: (timestamp for 24 hours ago)
+4. Configure the action node:
+   a) Click the SETTINGS ICON (⚙️) in the top-right of the Action node card
+      (NOT the node body itself - click the gear icon!)
+
+   b) A dialog opens - you'll see the "Configuration" tab
+
+   c) IMPORTANT: Change "Action Type" dropdown from "Send Email" to:
+      >>> "Fetch Slack History" <<<
+
+   d) Once you select "Fetch Slack History", the fields change to:
+      - Workspace: Your Slack Workspace (auto-detected from your bot token)
+      - Channel: Your channels will load here (#general, #random, etc.)
+      - Message Limit: 100 (how many messages to fetch)
+      - From (Hours Ago): 24 (how far back to look)
+
+   e) Select your values:
+      - Workspace: Select your workspace from dropdown
+      - Channel: #workflow-test (or #general for testing)
+      - Message Limit: 100
+      - From (Hours Ago): 1 (if testing with recent messages) or 24 (for full day)
+
+   f) Click "Save Configuration" at the bottom
+
+   IMPORTANT NOTE:
+   You MUST click the Settings icon (⚙️) to open the configuration dialog.
+   Clicking on the node body itself won't open the correct configuration panel.
 
    Explanation:
-   - channel: The Slack channel to fetch from
-   - limit: Max number of messages (100 should cover 24h)
-   - oldest: Fetch messages from last 24 hours
+   - Action Type: Determines which Slack action to perform
+   - Channel: The Slack channel to fetch messages from
+   - Message Limit: Max number of messages to retrieve (100 should cover 24h)
+   - From (Hours Ago): How far back to look (24 = last 24 hours)
+
+   TESTING TIP:
+   If you created a test channel and just posted messages, set "From (Hours Ago)"
+   to 1 or 2 instead of 24, so it only fetches your recent test messages.
 
 Your canvas now shows:
 [Schedule Trigger]
@@ -360,13 +386,54 @@ Solution:
 - Verify message formatting is valid
 
 ================================================================================
+TESTING WITHOUT A STANDUP CHANNEL
+================================================================================
+
+Don't have a #engineering-daily channel with standup messages? No problem!
+Here are 3 ways to test the workflow:
+
+OPTION 1: Create Test Channel with Mock Messages (RECOMMENDED)
+-------------------------------------------
+1. In Slack, create a new channel: #workflow-test
+2. Invite your bot: /invite @YourBotName
+3. Post these mock standup messages:
+
+   @john: Yesterday I completed the login page redesign.
+   Today working on the dashboard. No blockers.
+
+   @sarah: Finished the API integration for payments.
+   Starting on notification system today.
+   Blocked: Need API keys from DevOps.
+
+   @mike: Deployed v2.0 to staging.
+   Today reviewing PRs and fixing bugs. No blockers.
+
+4. In your workflow, configure:
+   - Channel: #workflow-test
+   - From (Hours Ago): 1 (to fetch only recent messages)
+5. Execute the workflow and check #daily-summary for the AI summary!
+
+OPTION 2: Use Existing Channel
+-------------------------------------------
+1. Pick any channel with recent messages (#general, #random, etc.)
+2. In your workflow, configure:
+   - Channel: #general (or your chosen channel)
+   - From (Hours Ago): 24
+3. Execute - the AI will summarize whatever messages it finds
+
+OPTION 3: Test with Simulated Data (Coming Soon)
+-------------------------------------------
+A future update will add a "Use Sample Data" option in the testing panel
+that provides pre-populated standup messages for testing.
+
+================================================================================
 TESTING CHECKLIST
 ================================================================================
 
 Before going live, verify:
 
 [ ] Slack integration is connected
-[ ] Bot has access to #engineering-daily (source)
+[ ] Bot has access to source channel (#workflow-test or #engineering-daily)
 [ ] Bot has access to #daily-summary (target)
 [ ] OpenAI API key is configured
 [ ] Cron schedule is correct (0 9 * * 1-5)

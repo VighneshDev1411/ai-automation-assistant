@@ -633,8 +633,11 @@ export class SlackIntegration extends BaseIntegration {
 
   // Send message to channel
   public async sendMessage(channel: string, text: string, options: any = {}): Promise<any> {
+    // Resolve channel name to ID
+    const channelId = await this.resolveChannelId(channel)
+
     const body: any = {
-      channel,
+      channel: channelId,
       text,
     }
 
@@ -860,12 +863,38 @@ export class SlackIntegration extends BaseIntegration {
     }
   }
 
+  // Helper method to resolve channel name to ID
+  private async resolveChannelId(channelNameOrId: string): Promise<string> {
+    // If it's already a channel ID (starts with C or D), return as-is
+    if (/^[CD][A-Z0-9]+$/.test(channelNameOrId)) {
+      return channelNameOrId
+    }
+
+    // Remove # if present
+    const channelName = channelNameOrId.replace(/^#/, '')
+
+    // Fetch channels list and find matching channel
+    const channelsResponse = await this.listChannels({ types: 'public_channel,private_channel' })
+    const matchingChannel = channelsResponse.channels.find(
+      (ch: any) => ch.name === channelName || ch.name === channelNameOrId
+    )
+
+    if (!matchingChannel) {
+      throw new Error(`Channel not found: ${channelNameOrId}. Make sure the bot is invited to the channel.`)
+    }
+
+    return matchingChannel.id
+  }
+
   // Get channel history
   private async getChannelHistory(channel: string, options: any = {}): Promise<any> {
+    // Resolve channel name to ID
+    const channelId = await this.resolveChannelId(channel)
+
     const params = new URLSearchParams()
 
     // Add channel parameter
-    params.append('channel', channel)
+    params.append('channel', channelId)
 
     // Add optional parameters
     if (options.limit) {

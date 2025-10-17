@@ -18,12 +18,17 @@ export async function POST(
 ) {
   try {
     const { id } = await params
+    console.log('🚀 EXECUTE ROUTE CALLED - Workflow ID:', id)
+
     const supabase = await createClient()
     const {
       data: { user },
     } = await supabase.auth.getUser()
 
+    console.log('👤 User authenticated:', user?.id)
+
     if (!user) {
+      console.log('❌ No user - returning 401')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -36,8 +41,17 @@ export async function POST(
     const service = new WorkflowService(supabase)
     const workflow = await service.findById(id)
 
+    console.log('📋 Workflow loaded:', {
+      id: workflow?.id,
+      name: workflow?.name,
+      status: (workflow as any)?.status,
+      hasNodes: !!(workflow as any)?.trigger_config?.nodes,
+      nodesCount: (workflow as any)?.trigger_config?.nodes?.length || 0
+    })
+
     // Handle case where findById returns an error object
     if (!workflow || (workflow as any).status === undefined) {
+      console.log('❌ Workflow not found or invalid')
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404 })
     }
 
@@ -171,6 +185,12 @@ async function executeWorkflowWithErrorHandling(
   const nodes = workflow.trigger_config?.nodes || []
   const edges = workflow.trigger_config?.edges || []
 
+  console.log('=== WORKFLOW EXECUTION START ===')
+  console.log('Workflow ID:', workflow.id)
+  console.log('Nodes count:', nodes.length)
+  console.log('Nodes:', JSON.stringify(nodes, null, 2))
+  console.log('Edges:', JSON.stringify(edges, null, 2))
+
   const results: Record<string, any> = {}
 
   // Execute nodes in order
@@ -231,12 +251,60 @@ async function executeActionNode(node: any, previousResults: Record<string, any>
 
   console.log(`Executing action node:`, { actionType, config, nodeData: node.data })
 
+  // Helper function to replace template variables
+  const replaceTemplateVariables = (text: string): string => {
+    if (!text) return text
+
+    let result = text
+
+    // Replace with actual results from previous nodes
+    for (const [nodeId, nodeResult] of Object.entries(previousResults)) {
+      // Escape special regex characters in node ID
+      const escapedNodeId = nodeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+      // Match patterns like {{$actions.nodeId.result.response}} or {{$prev.nodeId.response}}
+      const patterns = [
+        new RegExp(`\\{\\{\\$actions\\.${escapedNodeId}\\.result\\.response\\}\\}`, 'g'),
+        new RegExp(`\\{\\{\\$actions\\.${escapedNodeId}\\.response\\}\\}`, 'g'),
+        new RegExp(`\\{\\{\\$prev\\.${escapedNodeId}\\.response\\}\\}`, 'g'),
+      ]
+
+      const replacement = (nodeResult as any)?.response ||
+                        (nodeResult as any)?.data?.response ||
+                        JSON.stringify(nodeResult)
+
+      patterns.forEach(pattern => {
+        result = result.replace(pattern, replacement)
+      })
+    }
+
+    // Also support generic {{$prev.response}} - gets the most recent AI agent response
+    const aiAgentResults = Object.entries(previousResults)
+      .filter(([_, result]) => (result as any)?.response)
+      .reverse()
+
+    if (aiAgentResults.length > 0) {
+      const latestAiResponse = (aiAgentResults[0][1] as any)?.response
+      result = result.replace(/\{\{\$prev\.response\}\}/g, latestAiResponse || '')
+    }
+
+    return result
+  }
+
   // Map ActionNode types to integration actions
   if (actionType === 'sendSlack') {
     try {
+      console.log('📝 Original message template:', config.message)
+      console.log('📋 Available results:', Object.keys(previousResults))
+      console.log('🔍 Previous results data:', JSON.stringify(previousResults, null, 2))
+
+      const messageText = replaceTemplateVariables(config.message || 'Test message')
+
+      console.log('✅ Replaced message:', messageText)
+
       const inputs = {
         channel: config.channel || '#general',
-        text: config.message || 'Test message',
+        text: messageText,
         username: config.asBot ? 'Workflow Bot' : undefined,
         thread_ts: config.threadReply || undefined
       }
@@ -323,26 +391,77 @@ async function executeAIAgentNode(
   let cost = 0
 
   try {
-    // Simulate AI agent execution
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Get OpenAI API key from environment
+    const openaiApiKey = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY
 
-    // Example: might throw AIAgentError (3% chance for testing)
-    if (Math.random() > 0.97) {
+    if (!openaiApiKey) {
       throw new AIAgentError(
-        'AI agent timeout or rate limit exceeded',
+        'OpenAI API key not configured',
         node.data?.agentId || 'unknown',
-        true,
+        false,
         { nodeId: node.id }
       )
     }
 
-    // Simulate token usage
-    inputTokens = Math.floor(Math.random() * 100) + 50
-    outputTokens = Math.floor(Math.random() * 150) + 100
-    totalTokens = inputTokens + outputTokens
-    cost = (totalTokens / 1000) * 0.002 // Simulated cost
+    // Get the messages from previous Slack fetch action
+    const slackMessages = Object.values(previousResults)
+      .find((result: any) => result?.data?.messages)
 
-    responseContent = `AI agent response from ${node.data?.name || 'AI Agent'}. This is a simulated response for workflow execution.`
+    const messagesText = slackMessages?.data?.messages
+      ?.map((msg: any) => msg.text)
+      ?.join('\n\n') || 'No messages found'
+
+    console.log('🤖 AI Agent - Messages to summarize:', messagesText)
+
+    // Build the prompt
+    const systemPrompt = 'You are a helpful assistant that summarizes team standup messages.'
+    const userPrompt = `Summarize the following standup updates in bullet points grouped by person.
+
+Messages:
+${messagesText}
+
+Instructions:
+- Group by person (use @username)
+- Extract key points: what they did, what they're working on, blockers
+- Keep it concise (max 3 bullets per person)
+- Format as markdown`
+
+    // Call OpenAI API
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: node.data?.model || 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: node.data?.temperature || 0.7,
+        max_tokens: node.data?.maxTokens || 1000
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`)
+    }
+
+    const data = await response.json()
+
+    // Extract response and token usage
+    responseContent = data.choices[0]?.message?.content || 'No response generated'
+    inputTokens = data.usage?.prompt_tokens || 0
+    outputTokens = data.usage?.completion_tokens || 0
+    totalTokens = data.usage?.total_tokens || 0
+
+    // Calculate cost (GPT-3.5-turbo pricing: $0.0015/1K input, $0.002/1K output)
+    cost = (inputTokens / 1000) * 0.0015 + (outputTokens / 1000) * 0.002
+
+    console.log('✅ AI Agent response:', responseContent)
+    console.log('📊 Token usage:', { inputTokens, outputTokens, totalTokens, cost })
 
     return {
       success: true,
@@ -353,6 +472,7 @@ async function executeAIAgentNode(
   } catch (error: any) {
     status = 'error'
     errorMessage = error.message
+    console.error('❌ AI Agent failed:', error)
     throw error
   } finally {
     const duration = Date.now() - startTime
