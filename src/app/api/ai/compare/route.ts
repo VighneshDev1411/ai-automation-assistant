@@ -3,18 +3,36 @@ import { createClient } from '@/lib/supabase/server'
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-// import GoogleGene
 
-// Initialize AI clients
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy initialize AI clients to avoid build-time errors
+let openaiClient: OpenAI | null = null
+let anthropicClient: Anthropic | null = null
+let googleAIClient: GoogleGenerativeAI | null = null
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
+function getOpenAIClient() {
+  if (!openaiClient) {
+    openaiClient = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY || '',
+    })
+  }
+  return openaiClient
+}
 
-const googleAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || '')
+function getAnthropicClient() {
+  if (!anthropicClient) {
+    anthropicClient = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY || '',
+    })
+  }
+  return anthropicClient
+}
+
+function getGoogleAIClient() {
+  if (!googleAIClient) {
+    googleAIClient = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || '')
+  }
+  return googleAIClient
+}
 
 // Model configuration
 const MODEL_CONFIGS = {
@@ -263,6 +281,7 @@ async function runModelComparison(
 
 // OpenAI API call
 async function callOpenAI(model: string, prompt: string, temperature: number, maxTokens: number) {
+  const openai = getOpenAIClient()
   const completion = await openai.chat.completions.create({
     model,
     messages: [{ role: 'user', content: prompt }],
@@ -282,6 +301,7 @@ async function callOpenAI(model: string, prompt: string, temperature: number, ma
 
 // Anthropic API call
 async function callAnthropic(model: string, prompt: string, temperature: number, maxTokens: number) {
+  const anthropic = getAnthropicClient()
   const message = await anthropic.messages.create({
     model,
     max_tokens: maxTokens,
@@ -304,6 +324,7 @@ async function callAnthropic(model: string, prompt: string, temperature: number,
 
 // Google Gemini API call
 async function callGoogle(model: string, prompt: string, temperature: number, maxTokens: number) {
+  const googleAI = getGoogleAIClient()
   const genModel = googleAI.getGenerativeModel({ model: 'gemini-pro' })
 
   const result = await genModel.generateContent({
