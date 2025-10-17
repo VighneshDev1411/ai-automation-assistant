@@ -183,7 +183,8 @@ export const TriggerNode = memo(({ data, selected, id }: NodeProps) => {
 
   const currentTrigger = triggerTypes[localTriggerType] || triggerTypes.webhook
   const isConfigured = nodeData.triggerType && Object.keys(nodeData.config || {}).length > 0
-  const isActive = nodeData.isActive || false
+  // Check if trigger is active based on enabled field in config
+  const isActive = nodeData.config?.enabled !== false
 
   // Handle configuration save
   const handleSave = () => {

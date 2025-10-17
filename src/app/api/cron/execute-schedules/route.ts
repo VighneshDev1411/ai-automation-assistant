@@ -60,13 +60,13 @@ export async function GET(request: NextRequest) {
     for (const schedule of schedules) {
       try {
         const workflowName = (schedule as any).workflows?.name || 'Unknown'
-        console.log(`Executing scheduled workflow: ${workflowName} (${schedule.workflow_id})`)
+        console.log(`[CRON] Executing scheduled workflow: ${workflowName} (${schedule.workflow_id})`)
+
+        // Calculate next run time BEFORE executing
+        const nextRun = calculateNextRun(schedule.cron_expression, schedule.timezone || 'UTC')
 
         // Execute the workflow
-        await triggerSystem.handleScheduled(schedule.workflow_id)
-
-        // Calculate next run time
-        const nextRun = calculateNextRun(schedule.cron_expression, schedule.timezone || 'UTC')
+        await triggerSystem.handleScheduled(schedule.workflow_id, schedule.id)
 
         // Update schedule with last run and next run
         await supabase
@@ -78,10 +78,11 @@ export async function GET(request: NextRequest) {
           })
           .eq('id', schedule.id)
 
+        console.log(`[CRON] Successfully executed ${workflowName}. Next run: ${nextRun}`)
         executedSchedules.push(schedule.id)
 
       } catch (error) {
-        console.error(`Failed to execute schedule ${schedule.id}:`, error)
+        console.error(`[CRON] Failed to execute schedule ${schedule.id}:`, error)
         failedSchedules.push({
           id: schedule.id,
           error: error instanceof Error ? error.message : 'Unknown error'

@@ -498,7 +498,7 @@ scheduleId: string, enabled: boolean  ): Promise<{ status: string; message: stri
     }
   }
 
-  async handleScheduled(workflowId: string): Promise<string> {
+  async handleScheduled(workflowId: string, scheduleId?: string): Promise<string> {
     const { data: workflow, error } = await this.supabase
       .from('workflows')
       .select('*')
@@ -515,13 +515,14 @@ scheduleId: string, enabled: boolean  ): Promise<{ status: string; message: stri
     // Log scheduled execution
     await this.logTriggerEvent(
       'schedule',
-      workflowId,
-      { scheduledAt: new Date().toISOString() },
+      scheduleId || workflowId,
+      {
+        scheduledAt: new Date().toISOString(),
+        scheduleId,
+        workflowId
+      },
       workflowId
     )
-
-    // Update last run time
-    await this.updateScheduleLastRun(workflowId)
 
     const { WorkflowEngine } = await import('./WorkflowEngine')
     const workflowEngine = new WorkflowEngine(this.supabase)
@@ -530,7 +531,8 @@ scheduleId: string, enabled: boolean  ): Promise<{ status: string; message: stri
       workflowId,
       {
         scheduledAt: new Date().toISOString(),
-        trigger: 'schedule',
+        trigger: 'scheduled',
+        scheduleId,
       },
       workflow.created_by
     )
@@ -557,16 +559,17 @@ scheduleId: string, enabled: boolean  ): Promise<{ status: string; message: stri
     })
   }
 
-  private async updateScheduleLastRun(workflowId: string): Promise<void> {
+  private async updateScheduleLastRun(scheduleId: string, nextRunAt: string): Promise<void> {
     const now = new Date().toISOString()
 
     const { error } = await this.supabase
       .from('workflow_schedules')
       .update({
         last_run_at: now,
-        next_run_at: null, // Would calculate next run time
+        next_run_at: nextRunAt,
+        updated_at: now
       })
-      .eq('workflow_id', workflowId)
+      .eq('id', scheduleId)
 
     if (error) {
       console.error('Failed to update schedule last run:', error)

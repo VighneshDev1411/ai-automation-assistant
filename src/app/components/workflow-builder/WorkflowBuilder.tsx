@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useRef, Suspense } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import {
   ReactFlow,
   addEdge,
@@ -88,6 +88,55 @@ interface WorkflowBuilderProps {
   onExecute?: (workflow: any) => void
 }
 
+// Clean trigger nodes to ensure proper data structure
+const cleanTriggerNodes = (nodes: Node[]): Node[] => {
+  return nodes.map((node) => {
+    if (node.type !== 'trigger') return node
+
+    const data = node.data as any
+    let config = { ...(data.config || {}) }
+
+    // FIX NESTED CONFIG ISSUE: If config.config exists, flatten it
+    if (config.config) {
+      // Keep fields at the parent config level if they exist
+      const schedule = config.schedule
+      const timezone = config.timezone
+      const enabled = config.enabled
+
+      // Remove nested config
+      delete config.config
+
+      // Restore parent level values
+      if (schedule) config.schedule = schedule
+      if (timezone) config.timezone = timezone
+      if (enabled !== undefined) config.enabled = enabled
+    }
+
+    // Move root-level fields into config
+    if (data.schedule && !config.schedule) config.schedule = data.schedule
+    if (data.timezone && !config.timezone) config.timezone = data.timezone
+    if (data.enabled !== undefined && config.enabled === undefined) config.enabled = data.enabled
+    if (data.cron && !config.schedule) config.schedule = data.cron
+
+    // Ensure defaults for schedule triggers
+    if (data.triggerType === 'schedule' || data.type === 'schedule') {
+      if (!config.timezone) config.timezone = 'America/Chicago'
+      if (config.enabled === undefined) config.enabled = true
+    }
+
+    // Create clean data with proper structure
+    return {
+      ...node,
+      data: {
+        triggerType: data.triggerType || data.type,
+        config: config,
+        label: data.label || 'Trigger',
+        ...(data.webhookUrl && { webhookUrl: data.webhookUrl }),
+      },
+    }
+  })
+}
+
 export function WorkflowBuilder({
   workflowId,
   initialWorkflow,
@@ -95,7 +144,9 @@ export function WorkflowBuilder({
   onExecute,
 }: WorkflowBuilderProps) {
   const { toast } = useToast()
-  const [nodes, setNodes] = useState<Node[]>(initialWorkflow?.nodes || initialNodes)
+  const [nodes, setNodes] = useState<Node[]>(
+    cleanTriggerNodes(initialWorkflow?.nodes || initialNodes)
+  )
   const [edges, setEdges] = useState<Edge[]>(initialWorkflow?.edges || initialEdges)
   const [workflowName, setWorkflowName] = useState(
     initialWorkflow?.name || 'Untitled Workflow'
@@ -320,13 +371,16 @@ export function WorkflowBuilder({
       return
     }
 
+    // Clean trigger nodes before saving
+    const cleanedNodes = cleanTriggerNodes(nodes)
+
     const workflow = {
       name: workflowName,
       description: workflowDescription,
       trigger_config: getTriggerConfig(),
       actions: getActionsConfig(),
       conditions: getConditionsConfig(),
-      nodes: nodes,
+      nodes: cleanedNodes,
       edges: edges,
       layout: {
         version: '1.0',
