@@ -128,11 +128,15 @@ export async function withOrganization<T>(
   return withAuth(async user => {
     const { data: membership, error } = await supabase
       .from('organization_members')
-      .select('organization_id')
+      .select('organization_id, joined_at')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (error || !membership) {
+    if (error) {
+      throw new ApiError('Failed to fetch organization', 500)
+    }
+
+    if (!membership || !membership.joined_at) {
       throw new ApiError('No organization found', 404)
     }
 
@@ -148,11 +152,15 @@ export async function withPermission<T>(
   return withAuth(async user => {
     const { data: membership, error } = await supabase
       .from('organization_members')
-      .select('organization_id, role')
+      .select('organization_id, role, joined_at')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (error || !membership) {
+    if (error) {
+      throw new ApiError('Failed to fetch organization', 500)
+    }
+
+    if (!membership || !membership.joined_at) {
       throw new ApiError('No organization found', 404)
     }
 

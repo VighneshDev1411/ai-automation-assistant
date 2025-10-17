@@ -62,11 +62,13 @@ function WorkflowsContent() {
       }
 
       // Get user's organization
-      const { data: membership } = await supabase
+      const { data: memberships } = await supabase
         .from('organization_members')
-        .select('organization_id')
+        .select('organization_id, joined_at')
         .eq('user_id', user.id)
-        .single()
+
+      // Filter for joined organizations and get the first one
+      const membership = (memberships || []).find(m => m.joined_at !== null)
 
       if (!membership) {
         setWorkflows([])
@@ -105,11 +107,13 @@ function WorkflowsContent() {
       }
 
       // Get user's organization
-      const { data: membership } = await supabase
+      const { data: memberships } = await supabase
         .from('organization_members')
-        .select('organization_id')
+        .select('organization_id, joined_at')
         .eq('user_id', user.id)
-        .single()
+
+      // Filter for joined organizations and get the first one
+      const membership = (memberships || []).find(m => m.joined_at !== null)
 
       if (!membership) throw new Error('No organization found')
 
@@ -188,11 +192,13 @@ function WorkflowsContent() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: membership } = await supabase
+      const { data: memberships } = await supabase
         .from('organization_members')
-        .select('organization_id')
+        .select('organization_id, joined_at')
         .eq('user_id', user.id)
-        .single()
+
+      // Filter for joined organizations and get the first one
+      const membership = (memberships || []).find(m => m.joined_at !== null)
 
       if (!membership) throw new Error('No organization found')
 

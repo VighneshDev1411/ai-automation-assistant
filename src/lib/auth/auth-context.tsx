@@ -203,9 +203,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // First get organization memberships
         const { data: memberships, error: membershipError } = await supabase
           .from('organization_members')
-          .select('role, organization_id')
+          .select('role, organization_id, joined_at')
           .eq('user_id', userId)
-          .not('joined_at', 'is', null)
 
         if (membershipError) {
           console.error(
@@ -224,8 +223,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return []
         }
 
+        // Filter only joined memberships (client-side filtering)
+        const joinedMemberships = memberships.filter((m: any) => m.joined_at !== null)
+
+        if (joinedMemberships.length === 0) {
+          console.log('No joined organization memberships found')
+          return []
+        }
+
         // Get organization details
-        const orgIds = memberships.map(item => item.organization_id)
+        const orgIds = joinedMemberships.map(item => item.organization_id)
         const { data: orgsData, error: orgsError } = await supabase
           .from('organizations')
           .select('id, name, slug, description')
@@ -242,7 +249,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Combine data
         const result = (orgsData || []).map(org => {
-          const membership = memberships.find(
+          const membership = joinedMemberships.find(
             item => item.organization_id === org.id
           )
           return {

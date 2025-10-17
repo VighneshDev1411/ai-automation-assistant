@@ -124,11 +124,11 @@ function WorkflowBuilderContent() {
       // Get user's organization (optional - fallback to null if not found)
       const { data: membership } = await supabase
         .from('organization_members')
-        .select('organization_id')
+        .select('organization_id, joined_at')
         .eq('user_id', user.id)
         .maybeSingle()
 
-      const organizationId = membership?.organization_id || null
+      const organizationId = (membership?.organization_id && membership?.joined_at) ? membership.organization_id : null
 
       const workflowPayload = {
         name: workflowData.name || workflow.name,

@@ -90,11 +90,13 @@ export default function TeamPage() {
       setCurrentUserId(user.id)
 
       // Get user's organization
-      const { data: membership } = await supabase
+      const { data: memberships } = await supabase
         .from('organization_members')
-        .select('organization_id')
+        .select('organization_id, joined_at')
         .eq('user_id', user.id)
-        .single()
+
+      // Filter for joined organizations and get the first one
+      const membership = (memberships || []).find(m => m.joined_at !== null)
 
       if (!membership) {
         toast({

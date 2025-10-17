@@ -25,14 +25,17 @@ export function useOrganizations() {
           organizations (*)
         `)
         .eq('user_id', user.id)
-        .not('joined_at', 'is', null)
 
       if (error) throw error
-      return data.map(item => ({
-        ...item.organizations,
-        role: item.role,
-        joined_at: item.joined_at,
-      }))
+
+      // Filter only joined memberships (where joined_at is not null)
+      return data
+        .filter(item => item.joined_at !== null)
+        .map(item => ({
+          ...item.organizations,
+          role: item.role,
+          joined_at: item.joined_at,
+        }))
     },
     enabled: !!user,
   })

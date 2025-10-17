@@ -22,9 +22,8 @@ export async function GET(request: NextRequest) {
     // Get user's organizations with better error handling
     const { data: memberships, error: membershipError } = await supabase
       .from('organization_members')
-      .select('organization_id, role')
+      .select('organization_id, role, joined_at')
       .eq('user_id', user.id)
-      .not('joined_at', 'is', null)
 
     if (membershipError) {
       console.error('Membership error:', membershipError)
@@ -34,7 +33,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    if (!memberships || memberships.length === 0) {
+    // Filter only joined memberships
+    const joinedMemberships = (memberships || []).filter(m => m.joined_at !== null)
+
+    if (joinedMemberships.length === 0) {
       return NextResponse.json(
         { error: 'No organization found' },
         { status: 404 }
@@ -42,7 +44,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Use the first organization (or could use a query param to specify)
-    const organizationId = memberships[0].organization_id
+    const organizationId = joinedMemberships[0].organization_id
 
     const searchParams = request.nextUrl.searchParams
     const params = {
@@ -96,18 +98,27 @@ export async function POST(request: NextRequest) {
     // Get user's organizations
     const { data: memberships, error: membershipError } = await supabase
       .from('organization_members')
-      .select('organization_id, role')
+      .select('organization_id, role, joined_at')
       .eq('user_id', user.id)
-      .not('joined_at', 'is', null)
 
-    if (membershipError || !memberships || memberships.length === 0) {
+    if (membershipError) {
+      return NextResponse.json(
+        { error: 'Failed to fetch organizations' },
+        { status: 500 }
+      )
+    }
+
+    // Filter only joined memberships
+    const joinedMemberships = (memberships || []).filter(m => m.joined_at !== null)
+
+    if (joinedMemberships.length === 0) {
       return NextResponse.json(
         { error: 'No organization found' },
         { status: 404 }
       )
     }
 
-    const membership = memberships[0]
+    const membership = joinedMemberships[0]
 
     // Check if user has permission to create workflows
     if (membership.role === 'viewer') {

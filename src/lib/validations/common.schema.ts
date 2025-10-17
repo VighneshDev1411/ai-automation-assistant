@@ -55,11 +55,11 @@ export async function GET(request: NextRequest) {
     // Get user's current organization
     const { data: membership } = await supabase
       .from('organization_members')
-      .select('organization_id')
+      .select('organization_id, joined_at')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (!membership) {
+    if (!membership || !membership.joined_at) {
       return NextResponse.json({ error: 'No organization found' }, { status: 404 })
     }
 
