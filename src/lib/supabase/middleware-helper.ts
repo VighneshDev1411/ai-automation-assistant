@@ -17,10 +17,13 @@ export async function updateSession(request: NextRequest) {
     '/verify-email',
     '/auth/callback',
     '/',
+    '/api/cron/execute-schedules', // Allow cron endpoint without auth
   ]
 
   const isPublicRoute = publicRoutes.some(route =>
-    request.nextUrl.pathname === route || request.nextUrl.pathname.startsWith('/auth/')
+    request.nextUrl.pathname === route ||
+    request.nextUrl.pathname.startsWith('/auth/') ||
+    request.nextUrl.pathname.startsWith('/api/cron/')
   )
 
   const supabase = createServerClient(
