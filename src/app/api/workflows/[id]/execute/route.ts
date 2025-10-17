@@ -44,8 +44,8 @@ export async function POST(
     const workflow = await service.findById(id)
 
     console.log('📋 Workflow loaded:', {
-      id: workflow?.id,
-      name: workflow?.name,
+      id: (workflow as any)?.id,
+      name: (workflow as any)?.name,
       status: (workflow as any)?.status,
       hasNodes: !!(workflow as any)?.trigger_config?.nodes,
       nodesCount: (workflow as any)?.trigger_config?.nodes?.length || 0
@@ -207,7 +207,7 @@ async function executeWorkflowWithErrorHandling(
           break
 
         case 'action':
-          results[node.id] = await executeActionNode(node, results)
+          results[node.id] = await executeActionNode(node, results, workflow, supabase)
           break
 
         case 'aiAgent':
@@ -247,7 +247,12 @@ async function executeWorkflowWithErrorHandling(
   return results
 }
 
-async function executeActionNode(node: any, previousResults: Record<string, any>) {
+async function executeActionNode(
+  node: any,
+  previousResults: Record<string, any>,
+  workflow: any,
+  supabase: any
+) {
   const config = node.data?.config || {}
   const actionType = node.data?.actionType
 
@@ -359,6 +364,101 @@ async function executeActionNode(node: any, previousResults: Record<string, any>
       throw new IntegrationError(
         `Failed to fetch Slack history: ${error.message}`,
         'slack',
+        true,
+        { nodeId: node.id, error: error.message }
+      )
+    }
+  }
+
+  if (actionType === 'queryNotionDatabase') {
+    try {
+      const { data: integration, error: integrationError } = await supabase
+        .from('integrations')
+        .select('credentials')
+        .eq('provider', 'notion')
+        .eq('organization_id', workflow.organization_id)
+        .eq('status', 'connected')
+        .maybeSingle()
+
+      if (integrationError || !integration) {
+        throw new Error('Notion integration not connected. Please connect Notion in integrations page.')
+      }
+
+      const notion = new NotionIntegration(integration.credentials)
+
+      // Build filter based on config
+      const filter = config.filter || {
+        property: config.filterProperty || 'Status',
+        select: { equals: config.filterValue || 'Open' }
+      }
+
+      const tickets = await notion.queryDatabase({
+        databaseId: config.databaseId,
+        filter,
+        pageSize: config.pageSize || 100
+      })
+
+      console.log('Notion database queried successfully:', { ticketCount: tickets.length })
+
+      return {
+        success: true,
+        data: { tickets, count: tickets.length },
+        integration: 'notion',
+        action: 'query_database'
+      }
+    } catch (error: any) {
+      console.error('Notion query failed:', error)
+      throw new IntegrationError(
+        `Failed to query Notion database: ${error.message}`,
+        'notion',
+        true,
+        { nodeId: node.id, error: error.message }
+      )
+    }
+  }
+
+  if (actionType === 'sendGmail') {
+    try {
+      const { data: integration, error: integrationError } = await supabase
+        .from('integrations')
+        .select('credentials')
+        .eq('provider', 'google')
+        .eq('organization_id', workflow.organization_id)
+        .eq('status', 'connected')
+        .maybeSingle()
+
+      if (integrationError || !integration) {
+        throw new Error('Gmail integration not connected. Please connect Gmail in integrations page.')
+      }
+
+      const gmail = new GmailIntegration(integration.credentials)
+
+      // Replace template variables in email body
+      const emailBody = replaceTemplateVariables(config.body || '')
+      const emailSubject = replaceTemplateVariables(config.subject || '')
+
+      const result = await gmail.sendEmail({
+        to: config.to,
+        subject: emailSubject,
+        body: emailBody,
+        cc: config.cc,
+        bcc: config.bcc,
+        isHtml: config.isHtml !== false
+      })
+
+      console.log('Gmail sent successfully:', { messageId: result.id })
+
+      return {
+        success: true,
+        data: result,
+        integration: 'gmail',
+        action: 'send_email'
+      }
+    } catch (error: any) {
+      console.error('Gmail send failed:', error)
+      throw new IntegrationError(
+        `Failed to send Gmail: ${error.message}`,
+        'gmail',
         true,
         { nodeId: node.id, error: error.message }
       )
@@ -513,22 +613,146 @@ Instructions:
 }
 
 async function executeConditionNode(node: any, previousResults: Record<string, any>) {
-  // Evaluate condition
+  const conditionType = node.data?.conditionType || 'simple'
   const condition = node.data?.condition || 'true'
 
-  try {
-    // In production, use safe eval or a proper expression evaluator
-    // For now, basic condition evaluation
-    const result = condition === 'true' || condition === true
+  console.log('Evaluating condition:', { conditionType, condition, nodeId: node.id })
 
-    return { result, branch: result ? 'true' : 'false' }
+  try {
+    let result = false
+
+    switch (conditionType) {
+      case 'checkExists':
+      case 'dataExists': {
+        // Check if data exists from a specific previous node
+        const sourceNodeId = node.data?.sourceNodeId
+
+        if (sourceNodeId && previousResults[sourceNodeId]) {
+          const nodeResult = previousResults[sourceNodeId]
+
+          // Check different data structures
+          if (nodeResult.data) {
+            // Check for arrays with data
+            if (Array.isArray(nodeResult.data)) {
+              result = nodeResult.data.length > 0
+            }
+            // Check for objects with count property
+            else if (typeof nodeResult.data === 'object' && 'count' in nodeResult.data) {
+              result = nodeResult.data.count > 0
+            }
+            // Check for objects with tickets/items/results arrays
+            else if (typeof nodeResult.data === 'object') {
+              const dataKeys = ['tickets', 'items', 'results', 'messages', 'records']
+              for (const key of dataKeys) {
+                if (Array.isArray(nodeResult.data[key])) {
+                  result = nodeResult.data[key].length > 0
+                  break
+                }
+              }
+              // If no array found, just check if data object exists and is not empty
+              if (!result) {
+                result = Object.keys(nodeResult.data).length > 0
+              }
+            }
+            // Fallback: check if data is truthy
+            else {
+              result = !!nodeResult.data
+            }
+          }
+          // Check if result has success flag
+          else if ('success' in nodeResult) {
+            result = nodeResult.success === true
+          }
+          // Fallback: check if any result exists
+          else {
+            result = !!nodeResult
+          }
+        }
+
+        console.log('Data existence check result:', {
+          sourceNodeId,
+          hasSource: !!sourceNodeId,
+          hasResult: !!(sourceNodeId && previousResults[sourceNodeId]),
+          result
+        })
+        break
+      }
+
+      case 'comparison': {
+        // Support simple comparisons like "count > 0", "status == 'active'"
+        const sourceNodeId = node.data?.sourceNodeId
+        const field = node.data?.field || 'count'
+        const operator = node.data?.operator || '>'
+        const value = node.data?.value || 0
+
+        if (sourceNodeId && previousResults[sourceNodeId]) {
+          const nodeResult = previousResults[sourceNodeId]
+          let fieldValue
+
+          // Extract field value from result
+          if (nodeResult.data && field in nodeResult.data) {
+            fieldValue = nodeResult.data[field]
+          } else if (field in nodeResult) {
+            fieldValue = nodeResult[field]
+          }
+
+          // Perform comparison
+          switch (operator) {
+            case '>':
+              result = fieldValue > value
+              break
+            case '>=':
+              result = fieldValue >= value
+              break
+            case '<':
+              result = fieldValue < value
+              break
+            case '<=':
+              result = fieldValue <= value
+              break
+            case '==':
+            case '===':
+              result = fieldValue === value
+              break
+            case '!=':
+            case '!==':
+              result = fieldValue !== value
+              break
+            default:
+              result = false
+          }
+        }
+
+        console.log('Comparison check result:', { sourceNodeId, field, operator, value, result })
+        break
+      }
+
+      case 'simple':
+      default: {
+        // Basic true/false evaluation
+        result = condition === 'true' || condition === true
+        console.log('Simple condition result:', result)
+        break
+      }
+    }
+
+    return {
+      result,
+      branch: result ? 'true' : 'false',
+      conditionType,
+      metadata: {
+        evaluatedAt: new Date().toISOString(),
+        sourceNodeId: node.data?.sourceNodeId
+      }
+    }
   } catch (error: any) {
+    console.error('Condition evaluation error:', error)
     throw new NodeExecutionError(
       `Failed to evaluate condition: ${error.message}`,
       node.id,
       'condition',
       false,
-      { condition, error: error.message }
+      { condition, conditionType, error: error.message }
     )
   }
 }
