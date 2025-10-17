@@ -107,21 +107,28 @@ function WorkflowBuilderContent() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('User not authenticated')
 
-      // Get user's organization
+      // Get user's organization (optional - fallback to null if not found)
       const { data: membership } = await supabase
         .from('organization_members')
         .select('organization_id')
         .eq('user_id', user.id)
         .single()
 
-      if (!membership) throw new Error('No organization found')
+      // Get user's profile to get organization_id as fallback
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single()
+
+      const organizationId = membership?.organization_id || profile?.organization_id || null
 
       const workflowPayload = {
         name: workflowData.name || workflow.name,
         description: workflowData.description || workflow.description,
         nodes: workflowData.nodes || workflow.nodes,
         edges: workflowData.edges || workflow.edges,
-        organization_id: membership.organization_id,
+        organization_id: organizationId,
         created_by: user.id,
         status: 'draft',
         version: (workflow.version || 0) + 1,

@@ -29,21 +29,34 @@ export async function GET(
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404 })
     }
 
-    // Check if user has access to this workflow's organization
-    const { data: membership, error: membershipError } = await supabase
-      .from('organization_members')
-      .select('role')
-      .eq('organization_id', (workflow as any).organization_id)
-      .eq('user_id', user.id)
-      .single()
+    // Check if user has access to this workflow
+    let hasAccess = false
 
-    if (membershipError) {
-      console.error('Membership check error:', membershipError)
+    // Check if user created the workflow
+    if ((workflow as any).created_by === user.id) {
+      hasAccess = true
     }
 
-    if (!membership) {
-      console.error('User has no membership in organization:', (workflow as any).organization_id)
-      return NextResponse.json({ error: 'Access denied - not a member of this organization' }, { status: 403 })
+    // If workflow has an organization, check membership
+    if (!hasAccess && (workflow as any).organization_id) {
+      const { data: membership, error: membershipError } = await supabase
+        .from('organization_members')
+        .select('role')
+        .eq('organization_id', (workflow as any).organization_id)
+        .eq('user_id', user.id)
+        .single()
+
+      if (membershipError) {
+        console.error('Membership check error:', membershipError)
+      }
+
+      if (membership) {
+        hasAccess = true
+      }
+    }
+
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
     return NextResponse.json(workflow)
@@ -87,14 +100,28 @@ export async function PATCH(
     }
 
     // Check if user has permission to update this workflow
-    const { data: membership } = await supabase
-      .from('organization_members')
-      .select('role')
-      .eq('organization_id', (workflow as any).organization_id)
-      .eq('user_id', user.id)
-      .single()
+    let canUpdate = false
 
-    if (!membership || membership.role === 'viewer') {
+    // Check if user created the workflow
+    if ((workflow as any).created_by === user.id) {
+      canUpdate = true
+    }
+
+    // If workflow has an organization, check membership and role
+    if (!canUpdate && (workflow as any).organization_id) {
+      const { data: membership } = await supabase
+        .from('organization_members')
+        .select('role')
+        .eq('organization_id', (workflow as any).organization_id)
+        .eq('user_id', user.id)
+        .single()
+
+      if (membership && membership.role !== 'viewer') {
+        canUpdate = true
+      }
+    }
+
+    if (!canUpdate) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
@@ -147,14 +174,28 @@ export async function DELETE(
     }
 
     // Check if user has permission to delete this workflow
-    const { data: membership } = await supabase
-      .from('organization_members')
-      .select('role')
-      .eq('organization_id', (workflow as any).organization_id)
-      .eq('user_id', user.id)
-      .single()
+    let canDelete = false
 
-    if (!membership || membership.role === 'viewer') {
+    // Check if user created the workflow
+    if ((workflow as any).created_by === user.id) {
+      canDelete = true
+    }
+
+    // If workflow has an organization, check membership and role
+    if (!canDelete && (workflow as any).organization_id) {
+      const { data: membership } = await supabase
+        .from('organization_members')
+        .select('role')
+        .eq('organization_id', (workflow as any).organization_id)
+        .eq('user_id', user.id)
+        .single()
+
+      if (membership && membership.role !== 'viewer') {
+        canDelete = true
+      }
+    }
+
+    if (!canDelete) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 

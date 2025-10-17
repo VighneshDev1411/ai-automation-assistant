@@ -1,0 +1,413 @@
+================================================================================
+            WORKFLOW GUIDE: Slack Daily Standup Summarizer
+================================================================================
+
+This guide walks you through creating an automated workflow that:
+- Fetches daily standup messages from a Slack channel
+- Uses AI to summarize the updates
+- Posts the summary to another channel
+- Runs every weekday at 9 AM
+
+================================================================================
+PREREQUISITES (Setup First)
+================================================================================
+
+Before creating the workflow, ensure you have:
+
+1. SLACK INTEGRATION SETUP
+   -------------------------------------------
+   Navigate to: /integrations page
+
+   Steps:
+   a) Click on "Slack" integration card
+   b) Click "Connect" button
+   c) Authorize Slack OAuth with these scopes:
+      - channels:read (to fetch messages)
+      - channels:history (to read channel history)
+      - chat:write (to post messages)
+   d) Select your workspace
+   e) Verify connection shows "Connected" status
+
+   Environment Variables Needed:
+   SLACK_BOT_TOKEN=xoxb-your-token
+   SLACK_CLIENT_ID=your-client-id
+   SLACK_CLIENT_SECRET=your-secret
+   SLACK_TEAM_ID=your-team-id
+   SLACK_USER_ID=your-user-id
+
+2. OPENAI API KEY SETUP
+   -------------------------------------------
+   Navigate to: /settings or /ai-agents
+
+   Steps:
+   a) Add your OpenAI API key to environment variables:
+      OPENAI_API_KEY=sk-your-openai-key
+   b) Verify AI agents page shows available models
+
+================================================================================
+STEP-BY-STEP: Creating the Workflow
+================================================================================
+
+STEP 1: Navigate to Workflow Builder
+-------------------------------------------
+1. Go to Dashboard (/dashboard)
+2. Click "Create Workflow" button OR
+3. Navigate directly to Workflow Builder (/workflow-builder)
+
+STEP 2: Set Workflow Name & Description
+-------------------------------------------
+In the workflow builder left sidebar:
+1. Click on the workflow name field (default: "Untitled Workflow")
+2. Enter: "Slack Daily Standup Summarizer"
+3. Add description: "Automatically summarizes daily standup messages from
+   #engineering-daily and posts to #daily-summary every weekday at 9 AM"
+
+STEP 3: Add Trigger Node
+-------------------------------------------
+From the left sidebar:
+1. Click the "Trigger" button
+2. A trigger node will appear on the canvas
+3. Click on the trigger node to configure it:
+
+   Configuration (in right panel):
+   - Trigger Type: Schedule (Cron)
+   - Cron Expression: 0 9 * * 1-5
+   - Description: Every weekday at 9 AM (Mon-Fri)
+   - Timezone: Your timezone (e.g., America/New_York)
+
+Your canvas now shows:
+[Schedule Trigger]
+    |
+    v
+
+STEP 4: Add Action Node (Slack Fetch Messages)
+-------------------------------------------
+From the left sidebar:
+1. Click the "Action" button
+2. An action node appears on the canvas
+3. Connect the trigger to this action node (drag from trigger's output handle
+   to action's input handle)
+4. Click on the action node to configure it:
+
+   Configuration (in right panel):
+   - Node Name: Fetch Standup Messages
+   - Integration: Slack
+   - Action: get_channel_history
+   - Channel: #engineering-daily
+   - Limit: 100
+   - Oldest: (timestamp for 24 hours ago)
+
+   Explanation:
+   - channel: The Slack channel to fetch from
+   - limit: Max number of messages (100 should cover 24h)
+   - oldest: Fetch messages from last 24 hours
+
+Your canvas now shows:
+[Schedule Trigger]
+    |
+    v
+[Fetch Standup Messages]
+    |
+    v
+
+STEP 5: Add AI Agent Node (Summarizer)
+-------------------------------------------
+From the left sidebar:
+1. Click the "AI Agent" button
+2. An AI Agent node appears on the canvas
+3. Connect the Slack action to this AI node
+4. Click on the AI Agent node to configure it:
+
+   Configuration (in right panel):
+   - Node Name: Summarize Standup
+   - Agent Type: Content Generation
+   - Model: GPT-4 (gpt-4)
+
+   Prompt Configuration:
+   ====================
+   Summarize the following standup updates in bullet points grouped by person.
+
+   Messages:
+   {{$prev.messages}}
+
+   Instructions:
+   - Group by person (use @username)
+   - Extract key points: what they did, what they're working on, blockers
+   - Keep it concise (max 3 bullets per person)
+   - Format as markdown
+   ====================
+
+   Advanced Settings:
+   - Temperature: 0.3 (for consistent summaries)
+   - Max Tokens: 1000
+
+Your canvas now shows:
+[Schedule Trigger]
+    |
+    v
+[Fetch Standup Messages]
+    |
+    v
+[Summarize Standup (AI)]
+    |
+    v
+
+STEP 6: Add Action Node (Post Summary to Slack)
+-------------------------------------------
+From the left sidebar:
+1. Click the "Action" button
+2. An action node appears
+3. Connect the AI Agent to this action node
+4. Click on the action node to configure it:
+
+   Configuration (in right panel):
+   - Node Name: Post Summary to Slack
+   - Integration: Slack
+   - Action: send_message
+   - Channel: #daily-summary
+   - Text: "Daily Standup Summary - {{$trigger.date}}"
+   - Message: {{$actions.summarize_standup.result.response}}
+
+   Explanation:
+   - channel: Target channel for posting
+   - text: Fallback text (shown in notifications)
+   - message: The AI-generated summary from previous step
+
+Your final canvas shows:
+[Schedule Trigger (Cron: 0 9 * * 1-5)]
+    |
+    v
+[Fetch Standup Messages (Slack)]
+    |
+    v
+[Summarize Standup (GPT-4)]
+    |
+    v
+[Post Summary to Slack (#daily-summary)]
+
+STEP 7: Save the Workflow
+-------------------------------------------
+1. Click the "Save" button in the left sidebar
+2. Workflow is saved to database with status: "draft"
+3. You'll see a success toast notification
+
+STEP 8: Test the Workflow
+-------------------------------------------
+Before activating, test manually:
+
+1. Click "Tools" button (top right)
+2. Go to "Testing" tab
+3. Enter test input (JSON):
+   {
+     "test_mode": true,
+     "timestamp": "2025-01-16T09:00:00Z",
+     "channel": "#engineering-daily"
+   }
+
+4. Click "Execute Workflow"
+5. Watch the execution:
+   - Each node will execute in sequence
+   - Check the output panel for results
+   - Verify the summary appears in #daily-summary
+
+6. Review execution logs:
+   - Check History tab
+   - Verify: Messages fetched, AI summary generated, Posted to Slack
+   - Check execution time and token usage
+
+STEP 9: Test Execution Immediately (Optional)
+-------------------------------------------
+You don't need to wait for the scheduled time! Test your workflow right now:
+
+OPTION 1: Quick Execute from Workflow Builder
+1. While in the workflow builder, click the "Execute" button (left sidebar)
+2. Workflow runs immediately with current data
+3. Check #daily-summary channel for the posted summary
+4. Results appear in real-time
+
+OPTION 2: Execute from Workflows Page
+1. Navigate to /workflows page
+2. Find "Slack Daily Standup Summarizer" in the list
+3. Click the "Run" or "Execute" button
+4. Workflow executes immediately
+
+OPTION 3: Use Testing Panel (Best for Debugging)
+1. In workflow builder, click "Tools" button (top right)
+2. Go to "Testing" tab
+3. Enter test input:
+   {
+     "test_mode": true,
+     "timestamp": "2025-10-16T14:30:00Z",
+     "channel": "#engineering-daily"
+   }
+4. Click "Execute Workflow"
+5. Watch each node execute step-by-step
+6. View detailed logs and outputs for each node
+
+OPTION 4: API Execution (Advanced)
+Use this curl command:
+curl -X POST http://localhost:3000/api/workflows/{workflow-id}/execute \
+  -H "Content-Type: application/json" \
+  -d '{"trigger_data": {"manual_trigger": true}}'
+
+VERIFY IMMEDIATE EXECUTION:
+After running, check:
+- #daily-summary channel in Slack for the new summary
+- Execution History tab in workflow details
+- /analytics page for execution logs and metrics
+- AI Execution Logs for token usage and costs
+
+Note: Manual execution works anytime, regardless of the cron schedule.
+The schedule only applies when the workflow is activated for automatic runs.
+
+STEP 10: Activate the Workflow (Future Enhancement)
+-------------------------------------------
+Note: The "Activate" toggle is not yet implemented in the current build.
+For now, workflows remain in "draft" status but can still be executed manually
+or via API.
+
+When activation is implemented:
+1. Click "Activate Workflow" toggle (top right)
+2. Confirm activation
+3. Status changes to: "Active - Scheduled"
+
+The workflow will then run automatically:
+- Every weekday (Monday-Friday) at 9:00 AM
+- In your configured timezone
+- You'll receive execution notifications (if configured)
+
+================================================================================
+EXPECTED BEHAVIOR & OUTPUT
+================================================================================
+
+EXECUTION TIMELINE:
+-------------------------------------------
+Monday-Friday at 9:00 AM:
+9:00:00 - Cron trigger fires
+9:00:01 - Fetch Slack messages (2-3 seconds)
+9:00:04 - AI summarization (5-8 seconds)
+9:00:12 - Post to Slack (1-2 seconds)
+9:00:14 - Execution complete
+
+SAMPLE OUTPUT IN #daily-summary:
+-------------------------------------------
+Daily Standup Summary - January 16, 2025
+
+@john_doe
+• Completed API authentication refactor
+• Working on user dashboard redesign
+• Blocker: Waiting for design assets from UI team
+
+@jane_smith
+• Fixed critical bug in payment processing
+• Starting work on notification system
+• No blockers
+
+@mike_johnson
+• Deployed new feature to staging
+• Reviewing pull requests from team
+• Need clarification on database migration strategy
+
+---
+Generated by CogniFlow AI
+
+================================================================================
+MONITORING & TROUBLESHOOTING
+================================================================================
+
+CHECK EXECUTION STATUS:
+-------------------------------------------
+1. Navigate to: /workflows
+2. Find "Slack Daily Standup Summarizer"
+3. Click to view details
+4. Check "Execution History" tab
+
+VIEW DETAILED LOGS:
+-------------------------------------------
+1. Navigate to: /analytics
+2. Filter by workflow name
+3. Check:
+   - Success rate
+   - Average execution time
+   - Token usage
+   - Error logs (if any)
+
+COMMON ISSUES & SOLUTIONS:
+-------------------------------------------
+
+Issue 1: "Slack authentication failed"
+Solution:
+- Go to /integrations
+- Reconnect Slack
+- Verify bot token scopes
+
+Issue 2: "No messages fetched"
+Solution:
+- Verify channel name is correct (#engineering-daily)
+- Check bot is invited to the channel
+- Verify time range (last 24h) is correct
+
+Issue 3: "AI summary failed"
+Solution:
+- Check OpenAI API key is valid
+- Verify API quota hasn't been exceeded
+- Check if messages JSON is properly formatted
+
+Issue 4: "Post to Slack failed"
+Solution:
+- Verify bot has write permissions to #daily-summary
+- Check bot is invited to target channel
+- Verify message formatting is valid
+
+================================================================================
+TESTING CHECKLIST
+================================================================================
+
+Before going live, verify:
+
+[ ] Slack integration is connected
+[ ] Bot has access to #engineering-daily (source)
+[ ] Bot has access to #daily-summary (target)
+[ ] OpenAI API key is configured
+[ ] Cron schedule is correct (0 9 * * 1-5)
+[ ] Timezone is set properly
+[ ] Test execution completed successfully
+[ ] Sample summary posted to Slack
+[ ] Execution logs are visible in analytics
+
+================================================================================
+COST ESTIMATION
+================================================================================
+
+PER EXECUTION:
+- Slack API calls: Free (within rate limits)
+- GPT-4 API: ~$0.03-0.05 (depending on message volume)
+- Total per execution: ~$0.05
+
+MONTHLY COST (22 workdays):
+- 22 executions × $0.05 = ~$1.10/month
+
+================================================================================
+WORKFLOW STRUCTURE SUMMARY
+================================================================================
+
+Workflow: Slack Daily Standup Summarizer
+├── Trigger: Schedule (Cron: 0 9 * * 1-5)
+├── Action 1: Fetch Slack Messages
+│   ├── Integration: Slack
+│   ├── Channel: #engineering-daily
+│   └── Time Range: Last 24 hours
+├── Action 2: AI Summarization
+│   ├── Model: GPT-4
+│   ├── Temperature: 0.3
+│   └── Max Tokens: 1000
+└── Action 3: Post to Slack
+    ├── Integration: Slack
+    ├── Channel: #daily-summary
+    └── Format: Markdown
+
+================================================================================
+Document Version: 1.0
+Last Updated: January 16, 2025
+Platform: CogniFlow AI Automation Platform
+================================================================================

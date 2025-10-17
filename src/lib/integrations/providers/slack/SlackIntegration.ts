@@ -503,6 +503,23 @@ export class SlackIntegration extends BaseIntegration {
           { id: 'topic', name: 'Topic', type: 'string', description: 'Updated topic' },
           { id: 'channel', name: 'Channel', type: 'string', description: 'Channel ID' }
         ]
+      },
+      {
+        id: 'get_channel_history',
+        name: 'Get Channel History',
+        description: 'Fetch message history from a Slack channel',
+        requiresAuth: true,
+        inputs: [
+          { id: 'channel', name: 'Channel', type: 'string', required: true, description: 'Channel name (#general) or ID' },
+          { id: 'limit', name: 'Limit', type: 'number', required: false, description: 'Number of messages to fetch (default: 100)' },
+          { id: 'oldest', name: 'Oldest', type: 'string', required: false, description: 'Start timestamp (UNIX timestamp)' },
+          { id: 'latest', name: 'Latest', type: 'string', required: false, description: 'End timestamp (UNIX timestamp)' }
+        ],
+        outputs: [
+          { id: 'messages', name: 'Messages', type: 'array', description: 'Array of messages' },
+          { id: 'count', name: 'Count', type: 'number', description: 'Number of messages fetched' },
+          { id: 'has_more', name: 'Has More', type: 'boolean', description: 'Whether more messages are available' }
+        ]
       }
     ]
   }
@@ -607,6 +624,8 @@ export class SlackIntegration extends BaseIntegration {
         return await this.addReaction(inputs.channel, inputs.timestamp, inputs.name)
       case 'set_channel_topic':
         return await this.setChannelTopic(inputs.channel, inputs.topic)
+      case 'get_channel_history':
+        return await this.getChannelHistory(inputs.channel, inputs)
       default:
         throw new Error(`Unknown action: ${actionId}`)
     }
@@ -841,5 +860,36 @@ export class SlackIntegration extends BaseIntegration {
     }
   }
 
-  
+  // Get channel history
+  private async getChannelHistory(channel: string, options: any = {}): Promise<any> {
+    const params = new URLSearchParams()
+
+    // Add channel parameter
+    params.append('channel', channel)
+
+    // Add optional parameters
+    if (options.limit) {
+      params.append('limit', String(options.limit))
+    } else {
+      params.append('limit', '100') // Default to 100 messages
+    }
+
+    if (options.oldest) {
+      params.append('oldest', options.oldest)
+    }
+
+    if (options.latest) {
+      params.append('latest', options.latest)
+    }
+
+    const response = await this.makeSlackRequest(`conversations.history?${params.toString()}`)
+
+    return {
+      messages: response.messages || [],
+      count: response.messages?.length || 0,
+      has_more: response.has_more || false
+    }
+  }
+
+
 }

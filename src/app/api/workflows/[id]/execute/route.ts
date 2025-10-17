@@ -10,6 +10,7 @@ import {
   DEFAULT_RECOVERY_STRATEGIES,
   WorkflowExecutionError,
 } from '@/lib/workflow/error-handler'
+import { IntegrationRegistry } from '@/lib/integrations/IntegrationRegistry'
 
 export async function POST(
   request: NextRequest,
@@ -40,19 +41,33 @@ export async function POST(
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404 })
     }
 
-    const { data: hasAccess } = await supabase.rpc('check_organization_membership', {
-      org_id: (workflow as any).organization_id,
-      user_id: user.id,
-    })
+    // Check access - either through organization or if user created it
+    let hasAccess = false
+
+    if ((workflow as any).organization_id) {
+      // Check organization membership if workflow has an org
+      const { data: accessCheck } = await supabase.rpc('check_organization_membership', {
+        org_id: (workflow as any).organization_id,
+        user_id: user.id,
+      })
+      hasAccess = !!accessCheck
+    }
+
+    // Also allow access if user created the workflow
+    if (!hasAccess && (workflow as any).created_by === user.id) {
+      hasAccess = true
+    }
 
     if (!hasAccess) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
-    if ((workflow as any).status !== 'active') {
+    // Allow execution for active or draft workflows (draft for testing)
+    const allowedStatuses = ['active', 'draft']
+    if (!allowedStatuses.includes((workflow as any).status)) {
       return NextResponse.json(
         {
-          error: 'Workflow is not active',
+          error: `Workflow status is '${(workflow as any).status}'. Only active or draft workflows can be executed.`,
         },
         { status: 400 }
       )
@@ -211,20 +226,84 @@ async function executeWorkflowWithErrorHandling(
 }
 
 async function executeActionNode(node: any, previousResults: Record<string, any>) {
-  // Simulate action execution
-  await new Promise(resolve => setTimeout(resolve, 500))
+  const config = node.data?.config || {}
+  const actionType = node.data?.actionType
 
-  // Example: might throw IntegrationError (5% chance for testing)
-  if (Math.random() > 0.95) {
-    throw new IntegrationError(
-      'Failed to connect to integration service',
-      node.data?.integration || 'unknown',
-      true,
-      { nodeId: node.id }
-    )
+  console.log(`Executing action node:`, { actionType, config, nodeData: node.data })
+
+  // Map ActionNode types to integration actions
+  if (actionType === 'sendSlack') {
+    try {
+      const inputs = {
+        channel: config.channel || '#general',
+        text: config.message || 'Test message',
+        username: config.asBot ? 'Workflow Bot' : undefined,
+        thread_ts: config.threadReply || undefined
+      }
+
+      console.log('Executing Slack send_message with inputs:', inputs)
+      const result = await IntegrationRegistry.executeAction('slack', 'send_message', inputs)
+      console.log('Slack message sent successfully:', result)
+
+      return {
+        success: true,
+        data: result,
+        integration: 'slack',
+        action: 'send_message'
+      }
+    } catch (error: any) {
+      console.error('Slack message failed:', error)
+      throw new IntegrationError(
+        `Failed to send Slack message: ${error.message}`,
+        'slack',
+        true,
+        { nodeId: node.id, error: error.message }
+      )
+    }
   }
 
-  return { success: true, data: { message: 'Action completed' } }
+  if (actionType === 'fetchSlackHistory') {
+    try {
+      // Calculate timestamp for "oldest" if "From (Hours Ago)" is provided
+      const hoursAgo = config.oldest || 24
+      const oldestTimestamp = Math.floor((Date.now() - (hoursAgo * 60 * 60 * 1000)) / 1000)
+
+      const inputs = {
+        channel: config.channel || '#general',
+        limit: config.limit || 100,
+        oldest: String(oldestTimestamp)
+      }
+
+      console.log('Executing Slack get_channel_history with inputs:', inputs)
+      const result = await IntegrationRegistry.executeAction('slack', 'get_channel_history', inputs)
+      console.log('Slack history fetched successfully:', { messageCount: result.count })
+
+      return {
+        success: true,
+        data: result,
+        integration: 'slack',
+        action: 'get_channel_history'
+      }
+    } catch (error: any) {
+      console.error('Slack fetch history failed:', error)
+      throw new IntegrationError(
+        `Failed to fetch Slack history: ${error.message}`,
+        'slack',
+        true,
+        { nodeId: node.id, error: error.message }
+      )
+    }
+  }
+
+  // Add more action type mappings here as needed
+  // For now, simulate other actions
+  console.log('Action type not yet implemented, simulating:', actionType)
+  await new Promise(resolve => setTimeout(resolve, 500))
+  return {
+    success: true,
+    data: { message: `Action ${actionType} completed (simulated)` },
+    actionType
+  }
 }
 
 async function executeAIAgentNode(

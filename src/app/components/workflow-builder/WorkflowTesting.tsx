@@ -190,13 +190,12 @@ export const WorkflowTesting: React.FC<WorkflowTestingProps> = ({
       const triggerData = inputData || (testInput ? JSON.parse(testInput) : {})
 
       // Call workflow execution API
-      const response = await fetch('/api/workflows/execute', {
+      const response = await fetch(`/api/workflows/${workflowId}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          workflowId,
-          triggerData,
-          debugMode: isDebugMode,
+          trigger_data: triggerData,
+          debug_mode: isDebugMode,
         }),
       })
 
@@ -205,29 +204,13 @@ export const WorkflowTesting: React.FC<WorkflowTestingProps> = ({
       const result = await response.json()
       const duration = Date.now() - startTime
 
-      // Fetch the execution log
-      const { data: execution } = await supabase
-        .from('execution_logs')
-        .select(
-          `
-          *,
-          steps:execution_steps(*)
-        `
-        )
-        .eq('id', result.executionId)
-        .single()
-
-      if (execution) {
-        setExecutionLogs(prev => [execution, ...prev])
-        setSelectedExecution(execution)
-      }
-
       toast({
         title: 'Execution Complete',
-        description: `Completed in ${duration}ms with status: ${result.status}`,
+        description: `Execution started with ID: ${result.execution_id || 'unknown'}`,
       })
 
-      onExecutionComplete?.(execution)
+      // Refresh execution history to show the new execution
+      setTimeout(() => fetchExecutionHistory(), 1000)
     } catch (error: any) {
       console.error('Execution error:', error)
       toast({
@@ -271,12 +254,11 @@ export const WorkflowTesting: React.FC<WorkflowTestingProps> = ({
         testCases.map(async testCase => {
           const startTime = Date.now()
           try {
-            const response = await fetch('/api/workflows/execute', {
+            const response = await fetch(`/api/workflows/${workflowId}/execute`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                workflowId,
-                triggerData: testCase.input_data,
+                trigger_data: testCase.input_data,
               }),
             })
 

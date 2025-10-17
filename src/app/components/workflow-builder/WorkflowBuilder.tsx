@@ -32,6 +32,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { TriggerNode } from '@/components/workflow-builder/nodes/TriggerNode'
 import { ActionNode } from '@/components/workflow-builder/nodes/ActionNode'
 import { ConditionNode } from '@/components/workflow-builder/nodes/ConditionNode'
+import { AIAgentNode } from '@/components/workflow-builder/nodes/AIAgentNode'
 import { NodeInspector } from './NodeInspector'
 import { IntegrationRegistry } from '@/lib/integrations/IntegrationRegistry'
 
@@ -53,6 +54,7 @@ import {
   Webhook,
   Clock,
   MousePointer,
+  Bot,
 } from 'lucide-react'
 
 // Defining node types
@@ -61,6 +63,7 @@ const nodeType = {
   trigger: TriggerNode,
   action: ActionNode,
   condition: ConditionNode,
+  aiAgent: AIAgentNode,
 }
 
 const initialNodes: Node[] = [
@@ -92,8 +95,8 @@ export function WorkflowBuilder({
   onExecute,
 }: WorkflowBuilderProps) {
   const { toast } = useToast()
-  const [nodes, setNodes] = useState<Node[]>(initialNodes)
-  const [edges, setEdges] = useState<Edge[]>(initialEdges)
+  const [nodes, setNodes] = useState<Node[]>(initialWorkflow?.nodes || initialNodes)
+  const [edges, setEdges] = useState<Edge[]>(initialWorkflow?.edges || initialEdges)
   const [workflowName, setWorkflowName] = useState(
     initialWorkflow?.name || 'Untitled Workflow'
   )
@@ -167,6 +170,14 @@ export function WorkflowBuilder({
           mapping: {
             'output.name': 'input.firstName + " " + input.lastName'
           }
+        }
+      case 'aiAgent':
+        return {
+          agentType: 'textAnalysis',
+          model: 'gpt-4',
+          temperature: 0.7,
+          maxTokens: 1000,
+          config: {}
         }
       default:
         return {}
@@ -480,6 +491,16 @@ export function WorkflowBuilder({
               >
                 <Code className="h-4 w-4" />
                 Transform
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => addNode('aiAgent')}
+                className="h-16 flex-col gap-1"
+              >
+                <Bot className="h-4 w-4" />
+                AI Agent
               </Button>
             </div>
           </div>

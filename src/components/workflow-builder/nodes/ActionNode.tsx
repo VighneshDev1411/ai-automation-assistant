@@ -102,6 +102,19 @@ const actionTypes = {
       { key: 'threadReply', label: 'Thread Reply', type: 'text' as const, placeholder: 'Optional thread timestamp' },
     ] as FieldConfig[]
   },
+  fetchSlackHistory: {
+    label: 'Fetch Slack History',
+    icon: <Download className="h-4 w-4" />,
+    description: 'Fetch message history from Slack channel',
+    color: 'bg-violet-500',
+    category: 'Communication',
+    fields: [
+      { key: 'workspace', label: 'Workspace', type: 'select' as const, options: ['Demo Workspace', 'Your Workspace', 'Production Workspace'], required: true },
+      { key: 'channel', label: 'Channel', type: 'select' as const, options: ['#general', '#random', '#demo-workflow', '#engineering-daily'], required: true },
+      { key: 'limit', label: 'Message Limit', type: 'number' as const, placeholder: '100', default: 100 },
+      { key: 'oldest', label: 'From (Hours Ago)', type: 'number' as const, placeholder: '24', default: 24 },
+    ] as FieldConfig[]
+  },
   createCalendarEvent: {
     label: 'Create Calendar Event',
     icon: <Calendar className="h-4 w-4" />,
@@ -216,7 +229,7 @@ export const ActionNode = memo(({ data, selected }: NodeProps) => {
 
   // Fetch Slack channels when dialog opens and action is Slack
   useEffect(() => {
-    if (isConfigOpen && localActionType === 'sendSlack') {
+    if (isConfigOpen && (localActionType === 'sendSlack' || localActionType === 'fetchSlackHistory')) {
       fetchSlackData()
     }
   }, [isConfigOpen, localActionType])
@@ -421,11 +434,11 @@ export const ActionNode = memo(({ data, selected }: NodeProps) => {
                               <Select
                                 value={localConfig[field.key] || field.default || ''}
                                 onValueChange={(value) => handleFieldChange(field.key, value)}
-                                disabled={localActionType === 'sendSlack' && isLoadingSlackData}
+                                disabled={(localActionType === 'sendSlack' || localActionType === 'fetchSlackHistory') && isLoadingSlackData}
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder={
-                                    isLoadingSlackData && localActionType === 'sendSlack'
+                                    isLoadingSlackData && (localActionType === 'sendSlack' || localActionType === 'fetchSlackHistory')
                                       ? 'Loading...'
                                       : `Select ${field.label.toLowerCase()}`
                                   } />
@@ -436,7 +449,7 @@ export const ActionNode = memo(({ data, selected }: NodeProps) => {
                                     let options = field.options || []
 
                                     // Override with dynamic data for Slack
-                                    if (localActionType === 'sendSlack') {
+                                    if (localActionType === 'sendSlack' || localActionType === 'fetchSlackHistory') {
                                       if (field.key === 'workspace' && slackWorkspaces.length > 0) {
                                         options = slackWorkspaces
                                       } else if (field.key === 'channel' && slackChannels.length > 0) {
