@@ -337,11 +337,6 @@ export function WorkflowBuilder({
     if (onSave) {
       onSave(workflow)
     }
-
-    toast({
-      title: 'Workflow Saved',
-      description: `${workflowName} has been saved successfully`,
-    })
   }
 
   // Executing the workflow
@@ -369,11 +364,6 @@ export function WorkflowBuilder({
     if (onExecute) {
       onExecute(workflow)
     }
-
-    toast({
-      title: 'Workflow Executed',
-      description: `${workflowName} is now running`,
-    })
   }
 
   const getTriggerConfig = () => {

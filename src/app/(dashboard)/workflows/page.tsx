@@ -3,8 +3,7 @@
 import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-// import { WorkflowTemplates } from '@/components/workflow-builder/WorkflowTemplates'
-import { WorkflowTemplates } from '../components/workflow-builder/WorkflowTemplates'
+import { WorkflowTemplates } from '@/app/components/workflow-builder/WorkflowTemplates'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -232,6 +231,36 @@ function WorkflowsContent() {
     }
   }
 
+  const handleToggleStatus = async (workflow: any) => {
+    try {
+      const newStatus = workflow.status === 'active' ? 'paused' : 'active'
+
+      const { error } = await supabase
+        .from('workflows')
+        .update({ status: newStatus })
+        .eq('id', workflow.id)
+
+      if (error) throw error
+
+      // Update local state
+      setWorkflows(workflows.map(w =>
+        w.id === workflow.id ? { ...w, status: newStatus } : w
+      ))
+
+      toast({
+        title: 'Workflow Updated',
+        description: `Workflow ${newStatus === 'active' ? 'activated' : 'paused'} successfully`
+      })
+    } catch (error: any) {
+      console.error('Error toggling workflow status:', error)
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update workflow status',
+        variant: 'destructive'
+      })
+    }
+  }
+
   const filteredWorkflows = workflows.filter(workflow =>
     workflow.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     workflow.description?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -264,17 +293,23 @@ function WorkflowsContent() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Workflows</h1>
-          <p className="text-muted-foreground mt-1">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            Workflows
+          </h1>
+          <p className="text-muted-foreground">
             Manage and execute your automation workflows
           </p>
         </div>
-        <Button onClick={() => router.push('/workflow-builder')}>
-          <Plus className="mr-2 h-4 w-4" />
+        <Button
+          onClick={() => router.push('/workflow-builder')}
+          size="lg"
+          className="shadow-lg hover:shadow-xl transition-shadow"
+        >
+          <Plus className="mr-2 h-5 w-5" />
           New Workflow
         </Button>
       </div>
@@ -332,23 +367,26 @@ function WorkflowsContent() {
               {filteredWorkflows.map((workflow) => (
                 <Card
                   key={workflow.id}
-                  className="hover:border-primary cursor-pointer transition-colors"
+                  className="group hover:border-primary hover:shadow-xl cursor-pointer transition-all duration-300 overflow-hidden border-2 bg-card/50 backdrop-blur-sm"
                   onClick={() => router.push(`/workflow-builder?id=${workflow.id}`)}
                 >
-                  <CardHeader>
+                  <CardHeader className="pb-3 relative">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -z-10 group-hover:bg-primary/10 transition-colors"></div>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           {getStatusIcon(workflow.status)}
-                          <CardTitle className="text-lg">{workflow.name}</CardTitle>
+                          <CardTitle className="text-lg group-hover:text-primary transition-colors font-semibold">
+                            {workflow.name}
+                          </CardTitle>
                         </div>
-                        <CardDescription className="line-clamp-2">
+                        <CardDescription className="line-clamp-2 text-sm">
                           {workflow.description || 'No description'}
                         </CardDescription>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -362,6 +400,26 @@ function WorkflowsContent() {
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
+                          {workflow.status !== 'archived' && (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleToggleStatus(workflow)
+                              }}
+                            >
+                              {workflow.status === 'active' ? (
+                                <>
+                                  <Clock className="mr-2 h-4 w-4" />
+                                  Pause
+                                </>
+                              ) : (
+                                <>
+                                  <Play className="mr-2 h-4 w-4" />
+                                  Activate
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation()
@@ -385,17 +443,17 @@ function WorkflowsContent() {
                       </DropdownMenu>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
+                  <CardContent className="pt-4 space-y-4">
+                    <div className="flex items-center justify-between pt-3 border-t">
                       <div className="flex items-center gap-2">
                         {getStatusBadge(workflow.status)}
-                        <span className="text-xs text-muted-foreground">
+                        <Badge variant="outline" className="text-xs">
                           v{workflow.version || 1}
-                        </span>
+                        </Badge>
                       </div>
                       <Button
                         size="sm"
-                        variant="outline"
+                        className="group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
                         onClick={(e) => {
                           e.stopPropagation()
                           router.push(`/workflow-builder?id=${workflow.id}`)
@@ -405,8 +463,9 @@ function WorkflowsContent() {
                         Run
                       </Button>
                     </div>
-                    <div className="mt-4 text-xs text-muted-foreground">
-                      Updated {new Date(workflow.updated_at).toLocaleDateString()}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      <span>Updated {new Date(workflow.updated_at).toLocaleDateString()}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -419,7 +478,7 @@ function WorkflowsContent() {
         <TabsContent value="templates" className="mt-6">
           <WorkflowTemplates
             onSelectTemplate={handleCreateFromTemplate}
-            onImport={(config:any) => {
+            onImport={(_config:any) => {
               toast({
                 title: 'Import',
                 description: 'Workflow configuration imported'

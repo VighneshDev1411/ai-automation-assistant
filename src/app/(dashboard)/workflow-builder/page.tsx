@@ -351,9 +351,9 @@ function WorkflowBuilderContent() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         {/* Workflow Builder Canvas */}
-        <div className={`flex-1 ${showToolsPanel ? 'mr-96' : ''} transition-all`}>
+        <div className="flex-1">
           <WorkflowBuilder
             workflowId={workflow.id}
             initialWorkflow={workflow}
@@ -364,7 +364,7 @@ function WorkflowBuilderContent() {
 
         {/* Right Tools Panel */}
         {showToolsPanel && (
-          <div className="w-96 border-l bg-background overflow-y-auto">
+          <div className="absolute right-0 top-0 bottom-0 w-96 border-l bg-background overflow-y-auto shadow-lg z-10">
             <Tabs value={activeToolTab} onValueChange={setActiveToolTab}>
               <div className="border-b p-4">
                 <TabsList className="grid w-full grid-cols-2">

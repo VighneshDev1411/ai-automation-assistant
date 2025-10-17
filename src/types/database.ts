@@ -40,6 +40,26 @@ export type Database = {
         >
         Update: Partial<Database['public']['Tables']['organizations']['Insert']>
       }
+      organization_members: {
+        Row: {
+          id: string
+          organization_id: string
+          user_id: string
+          role: 'owner' | 'admin' | 'member' | 'viewer'
+          invited_by: string | null
+          invited_at: string
+          joined_at: string | null
+        }
+        Insert: {
+          organization_id: string
+          user_id: string
+          role?: 'owner' | 'admin' | 'member' | 'viewer'
+          invited_by?: string | null
+          invited_at?: string
+          joined_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['organization_members']['Insert']>
+      }
       workflows: {
         Row: {
           id: string
