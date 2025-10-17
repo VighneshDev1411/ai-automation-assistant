@@ -52,7 +52,7 @@ async function updateSchedule() {
     .eq('id', schedule.id)
 
   if (updateError) {
-    console.error('❌ Error updating schedule:', updateError)
+    console.error('❌ Error updating schedul', updateError)
     return
   }
 
