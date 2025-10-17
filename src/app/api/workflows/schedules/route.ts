@@ -13,7 +13,7 @@ const scheduleQuerySchema = z.object({
 const createScheduleSchema = z.object({
   workflowId: z.string().uuid(),
   cron: z.string().min(1),
-  timezone: z.string().default('UTC'),
+  timezone: z.string().default('America/Chicago'),
   startDate: z.string().optional(),
   endDate: z.string().optional()
 })

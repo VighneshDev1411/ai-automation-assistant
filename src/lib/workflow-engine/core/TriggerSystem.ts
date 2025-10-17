@@ -353,14 +353,14 @@ export class TriggerSystem {
     // Calculate next run time
     const nextRunAt = this.calculateNextRun(
       scheduleConfig.cron,
-      scheduleConfig.timezone
+      scheduleConfig.timezone || 'America/Chicago'
     )
 
     const { error } = await this.supabase.from('workflow_schedules').insert({
       id: scheduleId,
       workflow_id: workflowId,
       cron_expression: scheduleConfig.cron,
-      timezone: scheduleConfig.timezone || 'UTC',
+      timezone: scheduleConfig.timezone || 'America/Chicago',
       start_date: scheduleConfig.startDate,
       end_date: scheduleConfig.endDate,
       next_run_at: nextRunAt,
@@ -1033,13 +1033,23 @@ scheduleId: string, enabled: boolean  ): Promise<{ status: string; message: stri
 
   private calculateNextRun(
     cronExpression: string,
-    timezone: string = 'UTC'
+    timezone: string = 'America/Chicago'
   ): string {
-    // This would use a proper cron parser library in production
-    // For now, return a simple calculation
-    const now = new Date()
-    now.setMinutes(now.getMinutes() + 1) // Next minute as placeholder
-    return now.toISOString()
+    try {
+      const cronParser = require('cron-parser')
+      const interval = cronParser.parseExpression(cronExpression, {
+        tz: timezone,
+        currentDate: new Date()
+      })
+      const nextDate = interval.next().toDate()
+      return nextDate.toISOString()
+    } catch (error) {
+      console.error('Error parsing cron expression:', error)
+      // Fallback: add 1 day
+      const now = new Date()
+      now.setDate(now.getDate() + 1)
+      return now.toISOString()
+    }
   }
 
   private generateSecret(length: number = 32): string {

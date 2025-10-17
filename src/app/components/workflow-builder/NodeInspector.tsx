@@ -131,48 +131,32 @@ export function NodeInspector({ node, onUpdate, onDelete, onClose }: NodeInspect
 
   const renderTriggerConfig = () => (
     <div className="space-y-4">
-      <div>
-        <Label>Trigger Type</Label>
-        <Select 
-          value={config.type || 'webhook'} 
-          onValueChange={(value) => handleConfigChange('type', value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select trigger type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="webhook">Webhook</SelectItem>
-            <SelectItem value="schedule">Schedule</SelectItem>
-            <SelectItem value="manual">Manual</SelectItem>
-            <SelectItem value="email">Email Received</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <p className="text-sm text-blue-900 font-medium mb-2">
+          ⚙️ Configure Trigger
+        </p>
+        <p className="text-xs text-blue-700">
+          Click the <strong>Settings icon</strong> on the trigger node (in the canvas) to configure trigger type, schedule, webhook path, and other settings.
+        </p>
       </div>
 
-      {config.type === 'webhook' && (
-        <div>
-          <Label>Webhook Path</Label>
-          <Input
-            value={config.path || '/webhook/demo-form'}
-            onChange={(e) => handleConfigChange('path', e.target.value)}
-            placeholder="/webhook/your-endpoint"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Full URL: {process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}{config.path || '/webhook/demo-form'}
-          </p>
+      {node?.data?.triggerType ? (
+        <div className="p-3 bg-muted rounded">
+          <p className="text-xs font-medium mb-2">Current Configuration:</p>
+          <div className="text-xs space-y-1">
+            <div><strong>Type:</strong> {String(node.data.triggerType)}</div>
+            {(node.data.config as any)?.schedule ? (
+              <div><strong>Schedule:</strong> {(node.data.config as any).schedule}</div>
+            ) : null}
+            {(node.data.config as any)?.timezone ? (
+              <div><strong>Timezone:</strong> {(node.data.config as any).timezone}</div>
+            ) : null}
+            {(node.data.config as any)?.path ? (
+              <div><strong>Path:</strong> {(node.data.config as any).path}</div>
+            ) : null}
+          </div>
         </div>
-      )}
-
-      {config.type === 'schedule' && (
-        <div>
-          <Label>Cron Expression</Label>
-          <Input
-            value={config.cron || '0 9 * * 1-5'}
-            onChange={(e) => handleConfigChange('cron', e.target.value)}
-            placeholder="0 9 * * 1-5 (weekdays at 9 AM)"
-          />
-        </div>
-      )}
+      ) : null}
     </div>
   )
 

@@ -1,7 +1,7 @@
 'use client'
 
-import React, { memo, useState } from 'react'
-import { Handle, Position, NodeProps } from '@xyflow/react'
+import React, { memo, useState, useEffect } from 'react'
+import { Handle, Position, NodeProps, useReactFlow } from '@xyflow/react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -72,7 +72,7 @@ const triggerTypes = {
     color: 'bg-blue-500',
     fields: [
       { key: 'schedule', label: 'Cron Expression', type: 'text' as const, placeholder: '0 9 * * 1-5', required: true },
-      { key: 'timezone', label: 'Timezone', type: 'select' as const, options: ['UTC', 'America/New_York', 'America/Los_Angeles', 'Europe/London'], default: 'UTC' },
+      { key: 'timezone', label: 'Timezone', type: 'select' as const, options: ['America/Chicago', 'America/New_York', 'America/Los_Angeles', 'America/Denver', 'America/Phoenix', 'America/Anchorage', 'Pacific/Honolulu', 'UTC', 'Europe/London', 'Europe/Paris', 'Asia/Tokyo'], default: 'America/Chicago' },
       { key: 'enabled', label: 'Enabled', type: 'boolean' as const, default: true },
     ] as FieldConfig[]
   },
@@ -122,11 +122,51 @@ interface TriggerNodeData {
   webhookUrl?: string
 }
 
-export const TriggerNode = memo(({ data, selected }: NodeProps) => {
+export const TriggerNode = memo(({ data, selected, id }: NodeProps) => {
   const { toast } = useToast()
+  const { setNodes } = useReactFlow()
   const nodeData = data as unknown as TriggerNodeData
   const [isConfigOpen, setIsConfigOpen] = useState(false)
-  const [localConfig, setLocalConfig] = useState(nodeData.config || {})
+
+  // Clean up conflicting fields based on trigger type
+  const cleanConfig = (config: Record<string, any>, triggerType?: string, rootData?: any) => {
+    if (!triggerType) return config
+
+    const cleaned = { ...config }
+
+    // FIX: If schedule is at root level instead of inside config, move it
+    if (rootData?.schedule && !cleaned.schedule) {
+      cleaned.schedule = rootData.schedule
+    }
+    if (rootData?.timezone && !cleaned.timezone) {
+      cleaned.timezone = rootData.timezone
+    }
+    if (rootData?.enabled !== undefined && cleaned.enabled === undefined) {
+      cleaned.enabled = rootData.enabled
+    }
+
+    // Remove webhook-specific fields from schedule triggers
+    if (triggerType === 'schedule') {
+      delete cleaned.path
+      delete cleaned.method
+      delete cleaned.authentication
+      delete cleaned.responseFormat
+      delete cleaned.cron  // Remove old 'cron' field, use 'schedule' instead
+      delete cleaned.type  // Remove old 'type' field
+    }
+
+    // Remove schedule-specific fields from webhook triggers
+    if (triggerType === 'webhook') {
+      delete cleaned.schedule
+      delete cleaned.timezone
+      delete cleaned.enabled
+      delete cleaned.cron
+    }
+
+    return cleaned
+  }
+
+  const [localConfig, setLocalConfig] = useState(cleanConfig(nodeData.config || {}, nodeData.triggerType, nodeData))
 
   // Ensure triggerType is valid, default to 'webhook' if not
   const validTriggerType = (nodeData.triggerType && triggerTypes[nodeData.triggerType as keyof typeof triggerTypes])
@@ -134,6 +174,12 @@ export const TriggerNode = memo(({ data, selected }: NodeProps) => {
     : 'webhook'
 
   const [localTriggerType, setLocalTriggerType] = useState<keyof typeof triggerTypes>(validTriggerType)
+
+  // Sync local config when node data changes
+  useEffect(() => {
+    const cleaned = cleanConfig(nodeData.config || {}, nodeData.triggerType, nodeData)
+    setLocalConfig(cleaned)
+  }, [nodeData.config, nodeData.triggerType])
 
   const currentTrigger = triggerTypes[localTriggerType] || triggerTypes.webhook
   const isConfigured = nodeData.triggerType && Object.keys(nodeData.config || {}).length > 0
@@ -154,18 +200,40 @@ export const TriggerNode = memo(({ data, selected }: NodeProps) => {
       return
     }
 
-    // Update node data
-    nodeData.triggerType = localTriggerType
-    nodeData.config = localConfig
-    nodeData.label = `${currentTrigger.label} Trigger`
+    // Clean config to remove conflicting fields
+    const cleanedConfig = cleanConfig(localConfig, localTriggerType)
 
-    // Generate webhook URL if webhook type
-    if (localTriggerType === 'webhook' && localConfig.path) {
-      nodeData.webhookUrl = `${window.location.origin}/api/webhooks${localConfig.path}`
-    }
+    // Update node data using React Flow's setNodes
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id === id) {
+          // Create clean data object with ONLY the correct structure
+          const newData: any = {
+            triggerType: localTriggerType,
+            config: cleanedConfig,
+            label: `${currentTrigger.label} Trigger`,
+          }
+
+          // Add webhook URL if needed
+          if (localTriggerType === 'webhook' && cleanedConfig.path) {
+            newData.webhookUrl = `${window.location.origin}/api/webhooks${cleanedConfig.path}`
+          }
+
+          // Remove any root-level schedule/cron/path fields
+          return {
+            ...node,
+            data: newData,
+          }
+        }
+        return node
+      })
+    )
+
+    // Update local state with cleaned config
+    setLocalConfig(cleanedConfig)
 
     setIsConfigOpen(false)
-    
+
     toast({
       title: "Configuration Saved",
       description: `${currentTrigger.label} trigger configured successfully`,
