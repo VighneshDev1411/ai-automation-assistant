@@ -9,6 +9,7 @@ import { WorkflowTesting } from '@/app/components/workflow-builder/WorkflowTesti
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/components/ui/use-toast'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Settings,
   GitBranch,
@@ -19,6 +20,8 @@ import {
   Loader2,
   ChevronRight,
   Share2,
+  Monitor,
+  Smartphone,
 } from 'lucide-react'
 
 function WorkflowBuilderContent() {
@@ -35,6 +38,19 @@ function WorkflowBuilderContent() {
   const [executing, setExecuting] = useState(false)
   const [showToolsPanel, setShowToolsPanel] = useState(false)
   const [activeToolTab, setActiveToolTab] = useState('versions')
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect mobile viewport
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768) // Tailwind 'md' breakpoint
+    }
+
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   useEffect(() => {
     loadWorkflow()
@@ -373,6 +389,75 @@ function WorkflowBuilderContent() {
             Back to Workflows
           </Button>
         </div>
+      </div>
+    )
+  }
+
+  // Show mobile-friendly message instead of builder
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background to-muted p-4 flex items-center justify-center">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center space-y-4">
+            <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Monitor className="h-8 w-8 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">Desktop Required</CardTitle>
+            <CardDescription className="text-base">
+              The workflow builder works best on desktop computers and tablets
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted">
+                <Smartphone className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium mb-1">Why desktop?</p>
+                  <p className="text-muted-foreground">
+                    Building workflows requires a larger screen for the visual canvas,
+                    drag-and-drop interactions, and detailed configuration panels.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted">
+                <Monitor className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium mb-1">Recommended</p>
+                  <p className="text-muted-foreground">
+                    Use a desktop or laptop with a screen width of at least 768px for the best experience.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Button
+                className="w-full"
+                onClick={() => router.push('/workflows')}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Workflows
+              </Button>
+
+              {workflow.id && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => router.push(`/workflows/${workflow.id}`)}
+                >
+                  View Workflow Details
+                </Button>
+              )}
+            </div>
+
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">
+                You can still view and manage your workflows on mobile
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }

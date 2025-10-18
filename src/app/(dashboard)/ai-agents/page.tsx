@@ -260,29 +260,30 @@ export default function AIAgentsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="max-w-7xl mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
       {/* Header Section */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Brain className="h-8 w-8 text-blue-500" />
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+            <Brain className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
             AI Agents
           </h1>
-          <p className="text-muted-foreground">Manage and monitor your intelligent AI agents</p>
+          <p className="text-sm sm:text-base text-muted-foreground">Manage and monitor your intelligent AI agents</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={loadAgents}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={loadAgents} size="sm" className="sm:size-default">
+            <RefreshCw className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
           <Link href="/ai-agents/compare">
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" size="sm" className="gap-2 sm:size-default">
               <Brain className="h-4 w-4" />
-              Compare Models
+              <span className="hidden sm:inline">Compare Models</span>
+              <span className="sm:hidden">Compare</span>
             </Button>
           </Link>
           <Link href="/ai-agents/configure">
-            <Button className="gap-2">
+            <Button size="sm" className="gap-2 sm:size-default">
               <Plus className="h-4 w-4" />
               Create Agent
             </Button>
@@ -292,67 +293,68 @@ export default function AIAgentsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'agents' | 'logs')}>
-        <TabsList>
-          <TabsTrigger value="agents">
-            <Bot className="mr-2 h-4 w-4" />
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="agents" className="flex-1 sm:flex-initial text-sm sm:text-base">
+            <Bot className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
             Agents
           </TabsTrigger>
-          <TabsTrigger value="logs">
-            <ScrollText className="mr-2 h-4 w-4" />
-            Execution Logs
+          <TabsTrigger value="logs" className="flex-1 sm:flex-initial text-sm sm:text-base">
+            <ScrollText className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Execution Logs</span>
+            <span className="sm:hidden">Logs</span>
           </TabsTrigger>
         </TabsList>
 
         {/* Agents Tab */}
-        <TabsContent value="agents" className="space-y-6">
+        <TabsContent value="agents" className="space-y-4 sm:space-y-6">
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Bot className="h-8 w-8 text-blue-500" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Total Agents</p>
-                <p className="text-2xl font-bold">{agents.length}</p>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <Bot className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
+              <div className="sm:ml-2">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Agents</p>
+                <p className="text-xl sm:text-2xl font-bold">{agents.length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Play className="h-8 w-8 text-green-500" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Active Agents</p>
-                <p className="text-2xl font-bold">{agents.filter(a => a.isActive).length}</p>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <Play className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
+              <div className="sm:ml-2">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Active Agents</p>
+                <p className="text-xl sm:text-2xl font-bold">{agents.filter(a => a.isActive).length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Brain className="h-8 w-8 text-purple-500" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Total Requests</p>
-                <p className="text-2xl font-bold">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <Brain className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500" />
+              <div className="sm:ml-2">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Requests</p>
+                <p className="text-xl sm:text-2xl font-bold">
                   {agents.reduce((sum, agent) => sum + (agent.usageStats?.totalRequests || 0), 0).toLocaleString()}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <DollarSign className="h-8 w-8 text-orange-500" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Total Cost</p>
-                <p className="text-2xl font-bold">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500" />
+              <div className="sm:ml-2">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Cost</p>
+                <p className="text-xl sm:text-2xl font-bold">
                   ${agents.reduce((sum, agent) => sum + (agent.usageStats?.totalCost || 0), 0).toFixed(2)}
                 </p>
               </div>
@@ -363,55 +365,55 @@ export default function AIAgentsPage() {
 
       {/* Search and Filters */}
       <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row gap-4">
+        <CardContent className="p-3 sm:p-4 md:p-6">
+          <div className="flex flex-col sm:flex-col lg:flex-row gap-3 sm:gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-2.5 sm:top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search agents by name, description, or tags..."
+                  placeholder="Search agents..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-9 sm:h-10 text-sm sm:text-base"
                 />
               </div>
             </div>
-            
+
             {/* Filter dropdowns - keeping same as before */}
           </div>
         </CardContent>
       </Card>
 
       {/* Agents Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
         {filteredAgents.map((agent) => (
           <Card key={agent.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`h-10 w-10 rounded-full flex items-center justify-center text-white ${
+            <CardHeader className="pb-3 p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start sm:items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                  <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center text-white flex-shrink-0 ${
                     agent.type === 'conversational' ? 'bg-blue-500' :
                     agent.type === 'analytical' ? 'bg-purple-500' :
                     agent.type === 'task' ? 'bg-green-500' : 'bg-orange-500'
                   }`}>
-                    <Bot className="h-5 w-5" />
+                    <Bot className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <div>
-                    <CardTitle className="text-lg">{agent.name}</CardTitle>
-                    <div className="flex items-center gap-2 mt-1">
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-base sm:text-lg truncate">{agent.name}</CardTitle>
+                    <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1">
                       <Badge variant="secondary" className="text-xs capitalize">
                         {agent.type}
                       </Badge>
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-xs truncate max-w-[120px]">
                         {agent.model}
                       </Badge>
                     </div>
                   </div>
                 </div>
-                
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" className="flex-shrink-0">
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -445,7 +447,7 @@ export default function AIAgentsPage() {
                         </>
                       )}
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       className="text-red-600"
                       onClick={() => handleDeleteAgent(agent.id!, agent.name)}
                     >
@@ -455,11 +457,11 @@ export default function AIAgentsPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              
-              <div className="flex items-center justify-between mt-3">
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-3">
                 <div className="flex items-center gap-2">
                   <div className={`h-2 w-2 rounded-full ${agent.isActive ? 'bg-green-500' : 'bg-gray-400'}`} />
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-xs sm:text-sm text-muted-foreground">
                     {agent.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
@@ -469,39 +471,39 @@ export default function AIAgentsPage() {
               </div>
             </CardHeader>
             
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
               {agent.description && (
-                <p className="text-sm text-muted-foreground">{agent.description}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{agent.description}</p>
               )}
 
               {/* Performance Metrics */}
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
                 <div>
                   <div className="flex justify-between mb-1">
-                    <span className="text-muted-foreground">Quality</span>
-                    <span>{agent.performance?.responseQuality || 85}%</span>
+                    <span className="text-muted-foreground truncate">Quality</span>
+                    <span className="flex-shrink-0">{agent.performance?.responseQuality || 85}%</span>
                   </div>
                   <Progress value={agent.performance?.responseQuality || 85} className="h-1" />
                 </div>
                 <div>
                   <div className="flex justify-between mb-1">
-                    <span className="text-muted-foreground">Satisfaction</span>
-                    <span>{agent.performance?.userSatisfaction || 80}%</span>
+                    <span className="text-muted-foreground truncate">Satisfaction</span>
+                    <span className="flex-shrink-0">{agent.performance?.userSatisfaction || 80}%</span>
                   </div>
                   <Progress value={agent.performance?.userSatisfaction || 80} className="h-1" />
                 </div>
               </div>
 
               {/* Usage Stats */}
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-2 border-t">
                 <div className="text-center">
-                  <div className="text-lg font-semibold">
+                  <div className="text-base sm:text-lg font-semibold">
                     {(agent.usageStats?.totalRequests || 0).toLocaleString()}
                   </div>
                   <div className="text-xs text-muted-foreground">Requests</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-lg font-semibold">
+                  <div className="text-base sm:text-lg font-semibold">
                     ${(agent.usageStats?.totalCost || 0).toFixed(2)}
                   </div>
                   <div className="text-xs text-muted-foreground">Cost</div>
@@ -522,8 +524,8 @@ export default function AIAgentsPage() {
               {/* Tools */}
               {agent.tools && agent.tools.length > 0 && (
                 <div className="flex items-center gap-2">
-                  <Settings className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
+                  <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                  <span className="text-xs sm:text-sm text-muted-foreground">
                     {agent.tools.length} tool{agent.tools.length !== 1 ? 's' : ''} enabled
                   </span>
                 </div>
@@ -536,10 +538,10 @@ export default function AIAgentsPage() {
       {/* Empty State */}
       {filteredAgents.length === 0 && !loading && (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Bot className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No agents found</h3>
-            <p className="text-muted-foreground text-center mb-4">
+          <CardContent className="flex flex-col items-center justify-center py-8 sm:py-12 px-4">
+            <Bot className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
+            <h3 className="text-base sm:text-lg font-semibold mb-2">No agents found</h3>
+            <p className="text-sm sm:text-base text-muted-foreground text-center mb-4 max-w-md">
               {searchTerm || filterType !== 'all' || filterStatus !== 'all'
                 ? 'Try adjusting your search criteria or filters'
                 : 'Create your first AI agent to get started'
@@ -547,7 +549,7 @@ export default function AIAgentsPage() {
             </p>
             {!searchTerm && filterType === 'all' && filterStatus === 'all' && (
               <Link href="/ai-agents/configure">
-                <Button className="gap-2">
+                <Button className="gap-2" size="sm">
                   <Plus className="h-4 w-4" />
                   Create Your First Agent
                 </Button>
