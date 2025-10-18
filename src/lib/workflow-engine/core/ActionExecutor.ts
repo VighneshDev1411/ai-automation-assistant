@@ -4,6 +4,7 @@ import { SupabaseClient } from '@supabase/supabase-js'
 import { GmailIntegration } from '@/lib/integrations/providers/google/GmailIntegration'
 import { SlackIntegration } from '@/lib/integrations/providers/slack/SlackIntegration'
 import { MicrosoftIntegration } from '@/lib/integrations/providers/microsoft/MicrosoftIntegration'
+import { NotionIntegration } from '@/lib/integrations/notion/NotionIntegration'
 import { AIAgentManager, AI_MODELS } from '@/lib/ai/AIAgentManager'
 
 export interface WorkflowExecutionContext {
@@ -771,6 +772,9 @@ export class ActionExecutor {
           ]
         }
         return new MicrosoftIntegration(microsoftConfig, credentials)
+
+      case 'notion':
+        return new NotionIntegration(credentials)
 
       default:
         throw new Error(`Provider not implemented: ${provider}`)

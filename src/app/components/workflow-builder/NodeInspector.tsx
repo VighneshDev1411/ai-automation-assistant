@@ -191,6 +191,9 @@ export function NodeInspector({ node, onUpdate, onDelete, onClose }: NodeInspect
             <SelectItem value="gmail">
               📧 Gmail
             </SelectItem>
+            <SelectItem value="notion">
+              📝 Notion
+            </SelectItem>
             <SelectItem value="sheets">
               📊 Google Sheets
             </SelectItem>

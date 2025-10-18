@@ -59,7 +59,7 @@ interface FieldConfig {
 
 // Action types configuration
 const actionTypes = {
-  sendEmail: {
+  sendGmail: {
     label: 'Send Email',
     icon: <Mail className="h-4 w-4" />,
     description: 'Send email via Gmail, Outlook, or SMTP',
@@ -201,6 +201,18 @@ const actionTypes = {
       { key: 'emailReport', label: 'Email Report', type: 'boolean' as const, default: false },
     ] as FieldConfig[]
   },
+  queryNotionDatabase: {
+    label: 'Query Notion Database',
+    icon: <FileText className="h-4 w-4" />,
+    description: 'Query a Notion database with filters',
+    color: 'bg-black',
+    category: 'Integration',
+    fields: [
+      { key: 'databaseId', label: 'Database ID', type: 'text' as const, placeholder: '32-character database ID', required: true },
+      { key: 'filter', label: 'Filter (JSON)', type: 'json' as const, placeholder: '{"property": "Status", "select": {"equals": "Open"}}' },
+      { key: 'pageSize', label: 'Page Size', type: 'number' as const, placeholder: '100', default: 100 },
+    ] as FieldConfig[]
+  },
 }
 
 interface ActionNodeData {
@@ -218,20 +230,34 @@ export const ActionNode = memo(({ data, selected, id }: NodeProps) => {
   const nodeData = data as unknown as ActionNodeData
   const [isConfigOpen, setIsConfigOpen] = useState(false)
   const [localConfig, setLocalConfig] = useState(nodeData.config || {})
+
+  // Legacy action type migration map
+  const migrateLegacyActionType = (actionType?: string): keyof typeof actionTypes => {
+    const migrations: Record<string, keyof typeof actionTypes> = {
+      'sendEmail': 'sendGmail',
+      'queryNotion': 'queryNotionDatabase',
+    }
+
+    if (!actionType) return 'sendGmail'
+    if (actionType in migrations) return migrations[actionType]
+    if (actionType in actionTypes) return actionType as keyof typeof actionTypes
+    return 'sendGmail' // fallback
+  }
+
   const [localActionType, setLocalActionType] = useState<keyof typeof actionTypes>(
-    nodeData.actionType || 'sendEmail'
+    migrateLegacyActionType(nodeData.actionType)
   )
   const [slackChannels, setSlackChannels] = useState<string[]>([])
   const [slackWorkspaces, setSlackWorkspaces] = useState<string[]>([])
   const [isLoadingSlackData, setIsLoadingSlackData] = useState(false)
 
-  const currentAction = actionTypes[localActionType]
+  const currentAction = actionTypes[localActionType] || actionTypes.sendGmail // fallback to sendGmail
   const isConfigured = nodeData.actionType && Object.keys(nodeData.config || {}).length > 0
 
   // Sync local state with node data when it changes
   useEffect(() => {
     if (nodeData.actionType) {
-      setLocalActionType(nodeData.actionType)
+      setLocalActionType(migrateLegacyActionType(nodeData.actionType))
     }
     if (nodeData.config) {
       setLocalConfig(nodeData.config)
@@ -651,7 +677,7 @@ export const ActionNode = memo(({ data, selected, id }: NodeProps) => {
 
               {/* Show key configuration details */}
               <div className="text-xs text-muted-foreground space-y-1">
-                {localActionType === 'sendEmail' && localConfig.to && (
+                {localActionType === 'sendGmail' && localConfig.to && (
                   <div>To: {localConfig.to}</div>
                 )}
                 {localActionType === 'createRecord' && localConfig.table && (

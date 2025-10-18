@@ -1,0 +1,534 @@
+================================================================================
+AI AUTOMATION PLATFORM - FEATURE ROADMAP
+================================================================================
+
+Timeline: 6-8 weeks (part-time, 2-3 hours/day)
+Last Updated: October 18, 2025
+
+================================================================================
+PHASE 1: CORE FIXES & POLISH (3-5 days)
+================================================================================
+
+1.1 Fix Cron Scheduling
+    - Debug why cron triggers aren't firing
+    - Implement proper cron job queue system
+    - Add cron execution history
+    - Test with multiple schedules
+    - Add timezone handling
+    Status: NOT STARTED
+    Priority: HIGH
+    Files: src/lib/workflow-engine/triggers/CronTrigger.ts
+
+1.2 HTML Email Support
+    - Add HTML/rich text editor for email bodies
+    - Support HTML templates with CSS
+    - Add email preview functionality
+    - Support inline images
+    - Test across email clients (Gmail, Outlook, etc.)
+    Status: NOT STARTED
+    Priority: HIGH
+    Files: src/lib/integrations/gmail/GmailIntegration.ts
+
+1.3 Improved Error Handling
+    - Add retry logic for failed nodes
+    - Better error messages for users
+    - Error notifications (email/slack when workflow fails)
+    - Graceful degradation
+    - Dead letter queue for failed executions
+    Status: PARTIAL (basic error handling exists)
+    Priority: MEDIUM
+    Files: src/lib/workflow/error-handler.ts
+
+1.4 Workflow Execution History UI
+    - Dashboard showing all workflow runs
+    - Execution details page (timeline, logs, errors)
+    - Filter by status, date, workflow
+    - Export execution logs
+    - Execution metrics (duration, success rate)
+    Status: NOT STARTED
+    Priority: MEDIUM
+    Files: NEW - src/app/workflows/[id]/executions/page.tsx
+
+1.5 Better Testing & Debugging
+    - "Dry run" mode (simulate without actually executing)
+    - Step-by-step debugging
+    - Variable inspector (see data at each step)
+    - Test mode for integrations
+    - Mock data for testing
+    Status: NOT STARTED
+    Priority: LOW
+    Files: NEW - src/lib/workflow-engine/debug/
+
+================================================================================
+PHASE 2: MORE INTEGRATIONS (1-2 weeks)
+================================================================================
+
+2.1 Google Sheets Integration
+    - OAuth authentication
+    - Read spreadsheet data
+    - Write/append rows
+    - Update cells
+    - Create new sheets
+    - Batch operations
+    Estimated Time: 2 days
+    Priority: HIGH
+    Files: NEW - src/lib/integrations/google-sheets/
+
+2.2 Airtable Integration
+    - API key authentication
+    - List bases and tables
+    - Query records with filters
+    - Create/update/delete records
+    - Support for all field types
+    - Attachment handling
+    Estimated Time: 2 days
+    Priority: MEDIUM
+    Files: NEW - src/lib/integrations/airtable/
+
+2.3 Linear/Jira Integration
+    - OAuth authentication
+    - Create issues/tickets
+    - Update issue status
+    - Search and filter issues
+    - Add comments
+    - Webhook support for triggers
+    Estimated Time: 3 days
+    Priority: MEDIUM
+    Files: NEW - src/lib/integrations/linear/, src/lib/integrations/jira/
+
+2.4 Generic Webhook Support
+    - Send HTTP requests (GET, POST, PUT, DELETE)
+    - Custom headers and auth
+    - Request body templating
+    - Response parsing
+    - Webhook receivers (incoming webhooks as triggers)
+    - Signature verification
+    Estimated Time: 2 days
+    Priority: HIGH
+    Files: NEW - src/lib/integrations/webhook/
+
+2.5 Twilio Integration
+    - Send SMS
+    - Send WhatsApp messages
+    - Make phone calls
+    - Receive SMS (webhook trigger)
+    Estimated Time: 1 day
+    Priority: LOW
+    Files: NEW - src/lib/integrations/twilio/
+
+2.6 Stripe Integration
+    - Create customers
+    - Process payments
+    - Create invoices
+    - Webhook triggers (payment succeeded, failed, etc.)
+    - Subscription management
+    Estimated Time: 2 days
+    Priority: LOW
+    Files: NEW - src/lib/integrations/stripe/
+
+================================================================================
+PHASE 3: ADVANCED AI FEATURES (1 week)
+================================================================================
+
+3.1 Multiple AI Model Support
+    - Support GPT-4, GPT-4-turbo, GPT-3.5-turbo
+    - Add Claude (Anthropic) support
+    - Add Google Gemini support
+    - Add open-source models (Llama, Mistral via API)
+    - Model selection in UI
+    - Fallback to different model on failure
+    Estimated Time: 2 days
+    Priority: HIGH
+    Files: src/app/api/workflows/[id]/execute/route.ts (executeAIAgentNode)
+
+3.2 Custom System Prompts
+    - Allow users to set system prompt per agent
+    - Prompt templates library
+    - Prompt versioning
+    - A/B testing for prompts
+    Estimated Time: 1 day
+    Priority: MEDIUM
+    Files: src/components/workflow-builder/nodes/AIAgentNode.tsx
+
+3.3 AI Agent Chaining
+    - Output of one AI agent feeds into another
+    - Support for multi-step reasoning
+    - Agent collaboration (debate, consensus)
+    - Validation agent (checks output quality)
+    Estimated Time: 2 days
+    Priority: MEDIUM
+    Files: NEW - src/lib/workflow-engine/ai/AgentChain.ts
+
+3.4 Token Usage & Cost Management
+    - Real-time token counting
+    - Cost estimation before execution
+    - Budget limits per workflow
+    - Monthly spending dashboard
+    - Cost optimization suggestions
+    Estimated Time: 1 day
+    Priority: MEDIUM
+    Files: NEW - src/app/dashboard/ai-usage/page.tsx
+
+3.5 AI Response Caching
+    - Cache identical prompts
+    - Configurable TTL
+    - Cost savings from cache hits
+    - Cache invalidation strategies
+    Estimated Time: 1 day
+    Priority: LOW
+    Files: NEW - src/lib/workflow-engine/ai/ResponseCache.ts
+
+3.6 Structured Output
+    - Force AI to return JSON
+    - Schema validation for AI responses
+    - Retry on invalid format
+    - Support for function calling
+    Estimated Time: 1 day
+    Priority: MEDIUM
+    Files: src/app/api/workflows/[id]/execute/route.ts
+
+================================================================================
+PHASE 4: WORKFLOW TEMPLATES & SHARING (3-4 days)
+================================================================================
+
+4.1 Save Workflows as Templates
+    - "Save as Template" button
+    - Template metadata (name, description, category)
+    - Template preview/thumbnail
+    - Template variables (customizable values)
+    Estimated Time: 1 day
+    Priority: HIGH
+    Files: NEW - src/app/templates/page.tsx
+
+4.2 Template Marketplace/Library
+    - Browse templates by category
+    - Search and filter templates
+    - Template ratings and reviews
+    - "Use Template" button (clone to workspace)
+    - Popular templates section
+    Estimated Time: 2 days
+    Priority: MEDIUM
+    Files: NEW - src/app/marketplace/page.tsx
+
+4.3 Import/Export Functionality
+    - Export workflow as JSON
+    - Import workflow from JSON
+    - Export entire workspace
+    - Import with conflict resolution
+    - Version compatibility checks
+    Estimated Time: 1 day
+    Priority: HIGH
+    Files: NEW - src/lib/workflow-engine/import-export/
+
+4.4 Version Control for Workflows
+    - Track workflow changes
+    - Version history
+    - Rollback to previous version
+    - Compare versions (diff view)
+    - Branch/fork workflows
+    Estimated Time: 2 days
+    Priority: LOW
+    Files: NEW - src/lib/workflow-engine/versioning/
+
+================================================================================
+PHASE 5: ANALYTICS & MONITORING (1 week)
+================================================================================
+
+5.1 Execution Dashboard
+    - Overview of all workflow executions
+    - Success/failure charts
+    - Execution timeline
+    - Filter by workflow, date, status
+    - Export reports
+    Estimated Time: 2 days
+    Priority: HIGH
+    Files: NEW - src/app/analytics/page.tsx
+
+5.2 Success/Failure Metrics
+    - Success rate per workflow
+    - Average execution time
+    - Most common errors
+    - Slowest nodes/bottlenecks
+    - Failure trend analysis
+    Estimated Time: 1 day
+    Priority: MEDIUM
+    Files: NEW - src/lib/analytics/metrics.ts
+
+5.3 Cost Analytics
+    - AI token costs per workflow
+    - Integration API call costs
+    - Monthly spending breakdown
+    - Cost per execution
+    - Budget alerts
+    Estimated Time: 1 day
+    Priority: MEDIUM
+    Files: NEW - src/app/analytics/costs/page.tsx
+
+5.4 Email Delivery Tracking
+    - Track email open rates
+    - Track link clicks
+    - Bounce detection
+    - Spam score checking
+    - Delivery status webhooks
+    Estimated Time: 2 days
+    Priority: LOW
+    Files: src/lib/integrations/gmail/tracking.ts
+
+5.5 Performance Monitoring
+    - Execution time per node
+    - Memory usage tracking
+    - Database query performance
+    - API response times
+    - Bottleneck identification
+    Estimated Time: 1 day
+    Priority: LOW
+    Files: NEW - src/lib/monitoring/performance.ts
+
+5.6 Alerting System
+    - Alert on workflow failure
+    - Alert on unusual behavior
+    - Alert on budget exceeded
+    - Custom alert rules
+    - Multiple notification channels (email, Slack, SMS)
+    Estimated Time: 1 day
+    Priority: MEDIUM
+    Files: NEW - src/lib/monitoring/alerts.ts
+
+================================================================================
+PHASE 6: ADVANCED WORKFLOW FEATURES (1-2 weeks)
+================================================================================
+
+6.1 Improved Conditional Branching
+    - Multiple conditions (AND/OR logic)
+    - Switch/case statements
+    - Nested conditions
+    - Conditional expressions (JavaScript eval)
+    - Better UI for building conditions
+    Estimated Time: 2 days
+    Priority: HIGH
+    Files: src/components/workflow-builder/nodes/ConditionNode.tsx
+
+6.2 Loops and Iterations
+    - For-each loops (iterate over arrays)
+    - While loops (conditional iteration)
+    - Map/filter/reduce operations
+    - Batch processing
+    - Parallel vs sequential iteration
+    Estimated Time: 3 days
+    Priority: HIGH
+    Files: NEW - src/components/workflow-builder/nodes/LoopNode.tsx
+
+6.3 Sub-Workflows
+    - Call another workflow as a node
+    - Pass data to sub-workflow
+    - Receive output from sub-workflow
+    - Recursive workflows (with limits)
+    - Reusable workflow components
+    Estimated Time: 2 days
+    Priority: MEDIUM
+    Files: NEW - src/components/workflow-builder/nodes/SubWorkflowNode.tsx
+
+6.4 Variables and Data Transformation
+    - Global workflow variables
+    - Set/get variable nodes
+    - Data transformation node (map, filter, transform)
+    - JSON path queries
+    - String operations (concat, split, replace)
+    - Math operations
+    Estimated Time: 2 days
+    Priority: MEDIUM
+    Files: NEW - src/components/workflow-builder/nodes/TransformNode.tsx
+
+6.5 Advanced Filtering
+    - Filter arrays based on conditions
+    - SQL-like queries for JSON data
+    - Aggregations (sum, avg, count, etc.)
+    - Group by operations
+    - Sorting and pagination
+    Estimated Time: 1 day
+    Priority: LOW
+    Files: NEW - src/lib/workflow-engine/data/filters.ts
+
+6.6 Delay/Wait Node
+    - Wait for X seconds/minutes/hours
+    - Wait until specific time
+    - Wait for external event (webhook)
+    - Timeout handling
+    - Resume execution after delay
+    Estimated Time: 2 days
+    Priority: MEDIUM
+    Files: NEW - src/components/workflow-builder/nodes/DelayNode.tsx
+
+6.7 Parallel Execution
+    - Execute multiple branches in parallel
+    - Wait for all branches to complete
+    - Wait for first branch to complete (race)
+    - Parallel execution limits
+    - Resource pooling
+    Estimated Time: 2 days
+    Priority: LOW
+    Files: src/lib/workflow-engine/execution/parallel.ts
+
+================================================================================
+PHASE 7: PRODUCTION POLISH (1 week)
+================================================================================
+
+7.1 Security Hardening
+    - Rate limiting on API endpoints
+    - Input validation and sanitization
+    - SQL injection prevention
+    - XSS protection
+    - CSRF tokens
+    - API key rotation
+    - Audit logging
+    Estimated Time: 2 days
+    Priority: HIGH
+    Files: Multiple files across the codebase
+
+7.2 Performance Optimization
+    - Database query optimization
+    - Add database indexes
+    - API response caching
+    - Code splitting
+    - Lazy loading components
+    - Image optimization
+    - CDN for static assets
+    Estimated Time: 2 days
+    Priority: MEDIUM
+    Files: Multiple files
+
+7.3 Comprehensive Testing
+    - Unit tests for core functions
+    - Integration tests for workflows
+    - E2E tests for critical flows
+    - Load testing
+    - Security testing
+    - Test coverage > 80%
+    Estimated Time: 3 days
+    Priority: HIGH
+    Files: NEW - tests/ directory
+
+7.4 Documentation
+    - User documentation (how to use platform)
+    - Developer documentation (how to add integrations)
+    - API documentation
+    - Video tutorials
+    - Example workflows
+    - Troubleshooting guide
+    Estimated Time: 2 days
+    Priority: MEDIUM
+    Files: NEW - docs/ directory
+
+7.5 Deployment & DevOps
+    - CI/CD pipeline
+    - Staging environment
+    - Production deployment
+    - Database migrations
+    - Backup and recovery
+    - Monitoring and logging (Sentry, LogRocket)
+    - Health checks
+    Estimated Time: 2 days
+    Priority: HIGH
+    Files: NEW - .github/workflows/, deployment configs
+
+================================================================================
+OPTIONAL: NICE-TO-HAVE FEATURES
+================================================================================
+
+- Mobile app (React Native)
+- Browser extension (trigger workflows from any website)
+- Desktop app (Electron)
+- Collaboration features (team workspaces, permissions)
+- Workflow marketplace (buy/sell templates)
+- AI assistant for building workflows (natural language)
+- Voice commands (Alexa/Google Assistant integration)
+- Visual workflow canvas improvements (minimap, zoom controls, auto-layout)
+- Workflow scheduling calendar view
+- Workflow dependencies (trigger based on other workflow completion)
+- Data connectors (databases, data warehouses)
+- Custom code nodes (JavaScript/Python execution)
+- Workflow analytics predictions (ML-based)
+- Multi-language support (i18n)
+- Dark mode
+- Custom branding (white-label)
+
+================================================================================
+TIMELINE SUMMARY
+================================================================================
+
+Phase 1: Core Fixes & Polish          →  3-5 days
+Phase 2: More Integrations             →  1-2 weeks (7-14 days)
+Phase 3: Advanced AI Features          →  1 week (5-7 days)
+Phase 4: Templates & Sharing           →  3-4 days
+Phase 5: Analytics & Monitoring        →  1 week (5-7 days)
+Phase 6: Advanced Workflow Features    →  1-2 weeks (7-14 days)
+Phase 7: Production Polish             →  1 week (5-7 days)
+
+TOTAL: 6-8 weeks (35-50 days) @ 2-3 hours/day
+
+If working full-time (8 hours/day): ~1.5-2 months
+If working part-time (4 hours/day): ~3-4 months
+If working part-time (2-3 hours/day): ~4-6 months
+
+================================================================================
+PRIORITIZED "MUST-HAVE" ROADMAP (Fastest Impact)
+================================================================================
+
+Week 1-2:
+  ✓ Fix cron scheduling
+  ✓ HTML email support
+  ✓ Basic execution dashboard
+  ✓ Webhook integration
+
+Week 3-4:
+  ✓ Google Sheets integration
+  ✓ Multiple AI models (GPT-4, Claude)
+  ✓ Improved error handling
+  ✓ Token cost tracking
+
+Week 5-6:
+  ✓ Workflow templates
+  ✓ Import/export
+  ✓ Loops and iterations
+  ✓ Better conditional logic
+
+Week 7-8:
+  ✓ Performance optimization
+  ✓ Security hardening
+  ✓ Basic testing
+  ✓ Production deployment
+
+================================================================================
+CURRENT STATUS
+================================================================================
+
+✅ COMPLETED:
+- Basic workflow engine (trigger → action → condition → email)
+- Notion integration (OAuth + database queries)
+- Gmail integration (OAuth + send emails)
+- Slack integration (OAuth + send messages)
+- AI Agent with dynamic prompts
+- Template variable system
+- Conditional branching with edge routing
+- Visual workflow builder
+- Supabase backend
+- User authentication
+- Workflow storage
+
+🚧 IN PROGRESS:
+- Cron scheduling (implemented but not working)
+
+❌ NOT STARTED:
+- Everything else in this roadmap
+
+================================================================================
+NOTES
+================================================================================
+
+- Time estimates are approximate and may vary based on complexity
+- Some features may be combined or split during implementation
+- Security and testing should be ongoing throughout all phases
+- User feedback should drive feature prioritization
+- Consider MVP approach: ship early, iterate often
+
+================================================================================

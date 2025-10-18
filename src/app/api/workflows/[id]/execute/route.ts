@@ -194,11 +194,44 @@ async function executeWorkflowWithErrorHandling(
   console.log('Edges:', JSON.stringify(edges, null, 2))
 
   const results: Record<string, any> = {}
+  const executed = new Set<string>()
 
-  // Execute nodes in order
-  for (const node of nodes) {
+  // Build adjacency map for efficient edge lookup
+  const edgeMap = new Map<string, Array<{ target: string; sourceHandle?: string }>>()
+  for (const edge of edges) {
+    if (!edgeMap.has(edge.source)) {
+      edgeMap.set(edge.source, [])
+    }
+    edgeMap.get(edge.source)!.push({
+      target: edge.target,
+      sourceHandle: edge.sourceHandle
+    })
+  }
+
+  // Find trigger node (starting point)
+  const triggerNode = nodes.find((n: any) => n.type === 'trigger')
+  if (!triggerNode) {
+    throw new Error('No trigger node found in workflow')
+  }
+
+  // Recursive function to execute nodes following edges
+  const executeNode = async (nodeId: string): Promise<void> => {
+    // Skip if already executed
+    if (executed.has(nodeId)) {
+      console.log(`⏭️ Skipping already executed node: ${nodeId}`)
+      return
+    }
+
+    const node = nodes.find((n: any) => n.id === nodeId)
+    if (!node) {
+      console.warn(`⚠️ Node ${nodeId} not found, skipping`)
+      return
+    }
+
+    executed.add(nodeId)
+
     try {
-      console.log(`Executing node: ${node.id} (${node.type})`)
+      console.log(`▶️ Executing node: ${node.id} (${node.type})`)
 
       // Execute based on node type
       switch (node.type) {
@@ -226,9 +259,40 @@ async function executeWorkflowWithErrorHandling(
           )
       }
 
-      console.log(`Node ${node.id} completed successfully`)
+      console.log(`✅ Node ${node.id} completed successfully`)
+
+      // Find and execute next nodes based on edges
+      const outgoingEdges = edgeMap.get(node.id) || []
+
+      if (node.type === 'condition' && results[node.id]) {
+        // For condition nodes, only follow the branch that matches the result
+        const conditionResult = results[node.id].result
+        const branchToFollow = conditionResult ? 'true' : 'false'
+
+        console.log(`🔀 Condition result: ${conditionResult}, following ${branchToFollow} branch`)
+
+        // Filter edges to only the matching branch
+        const branchEdges = outgoingEdges.filter(edge => {
+          // Edge sourceHandle indicates which branch (e.g., 'true' or 'false')
+          return edge.sourceHandle === branchToFollow
+        })
+
+        console.log(`📍 Following ${branchEdges.length} edge(s) on ${branchToFollow} branch`)
+
+        // Execute next nodes in the selected branch
+        for (const edge of branchEdges) {
+          await executeNode(edge.target)
+        }
+      } else {
+        // For non-condition nodes, execute all connected nodes
+        console.log(`📍 Following ${outgoingEdges.length} outgoing edge(s)`)
+
+        for (const edge of outgoingEdges) {
+          await executeNode(edge.target)
+        }
+      }
     } catch (error: any) {
-      console.error(`Node ${node.id} failed:`, error)
+      console.error(`❌ Node ${node.id} failed:`, error)
 
       // Wrap in appropriate error type
       if (!(error instanceof NodeExecutionError)) {
@@ -244,6 +308,9 @@ async function executeWorkflowWithErrorHandling(
     }
   }
 
+  // Start execution from trigger node
+  await executeNode(triggerNode.id)
+
   return results
 }
 
@@ -254,7 +321,18 @@ async function executeActionNode(
   supabase: any
 ) {
   const config = node.data?.config || {}
-  const actionType = node.data?.actionType
+  let actionType = node.data?.actionType
+
+  // Migrate legacy action types
+  const legacyMigrations: Record<string, string> = {
+    'sendEmail': 'sendGmail',
+    'queryNotion': 'queryNotionDatabase',
+  }
+
+  if (actionType && actionType in legacyMigrations) {
+    console.log(`⚠️ Migrating legacy action type: ${actionType} -> ${legacyMigrations[actionType]}`)
+    actionType = legacyMigrations[actionType]
+  }
 
   console.log(`Executing action node:`, { actionType, config, nodeData: node.data })
 
@@ -269,8 +347,45 @@ async function executeActionNode(
       // Escape special regex characters in node ID
       const escapedNodeId = nodeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-      // Match patterns like {{$actions.nodeId.result.response}} or {{$prev.nodeId.response}}
-      const patterns = [
+      // Match patterns like:
+      // - {{step_1.result.count}}
+      // - {{step_1.result.pages}}
+      // - {{$actions.nodeId.result.response}}
+      // - {{$prev.nodeId.response}}
+
+      // Helper function to safely extract nested property
+      const getNestedProperty = (obj: any, path: string): any => {
+        return path.split('.').reduce((current, prop) => current?.[prop], obj)
+      }
+
+      // Replace all {{nodeId.path.to.value}} patterns
+      const variablePattern = new RegExp(`\\{\\{${escapedNodeId}\\.([^}]+)\\}\\}`, 'g')
+      result = result.replace(variablePattern, (_match, path) => {
+        let value = getNestedProperty(nodeResult, path)
+
+        // If path starts with "result.", try replacing with "data." as fallback
+        if (value === undefined && path.startsWith('result.')) {
+          const dataPath = path.replace(/^result\./, 'data.')
+          value = getNestedProperty(nodeResult, dataPath)
+        }
+
+        // Format the value appropriately
+        if (value === undefined || value === null) return ''
+        if (Array.isArray(value)) {
+          // Format array of tickets/items nicely
+          return value.map((item, idx) => {
+            if (typeof item === 'object') {
+              return `${idx + 1}. ${JSON.stringify(item, null, 2)}`
+            }
+            return `${idx + 1}. ${item}`
+          }).join('\n')
+        }
+        if (typeof value === 'object') return JSON.stringify(value, null, 2)
+        return String(value)
+      })
+
+      // Legacy patterns for backward compatibility
+      const legacyPatterns = [
         new RegExp(`\\{\\{\\$actions\\.${escapedNodeId}\\.result\\.response\\}\\}`, 'g'),
         new RegExp(`\\{\\{\\$actions\\.${escapedNodeId}\\.response\\}\\}`, 'g'),
         new RegExp(`\\{\\{\\$prev\\.${escapedNodeId}\\.response\\}\\}`, 'g'),
@@ -280,10 +395,58 @@ async function executeActionNode(
                         (nodeResult as any)?.data?.response ||
                         JSON.stringify(nodeResult)
 
-      patterns.forEach(pattern => {
+      legacyPatterns.forEach(pattern => {
         result = result.replace(pattern, replacement)
       })
     }
+
+    // Support common variables
+    result = result.replace(/\{\{date\}\}/g, new Date().toLocaleDateString())
+    result = result.replace(/\{\{datetime\}\}/g, new Date().toLocaleString())
+    result = result.replace(/\{\{timestamp\}\}/g, new Date().toISOString())
+
+    // Handle generic step_X references by matching to actual node results
+    // This allows {{step_1.result.count}} to work even if node ID is "action-xyz"
+    const stepPattern = /\{\{step_(\d+)\.([^}]+)\}\}/g
+    result = result.replace(stepPattern, (_match, stepNum, path) => {
+      // Get the Nth action node (step_1 = first action, step_2 = second action, etc.)
+      const actionNodes = Object.entries(previousResults)
+        .filter(([id, _]) => id.startsWith('action-'))
+        .sort((a, b) => a[0].localeCompare(b[0])) // Sort by node ID for consistency
+
+      const stepIndex = parseInt(stepNum) - 1
+      if (stepIndex >= 0 && stepIndex < actionNodes.length) {
+        const [_, nodeResult] = actionNodes[stepIndex]
+
+        // Helper function to safely extract nested property
+        const getNestedProperty = (obj: any, path: string): any => {
+          return path.split('.').reduce((current, prop) => current?.[prop], obj)
+        }
+
+        let value = getNestedProperty(nodeResult, path)
+
+        // If path starts with "result.", try replacing with "data." as fallback
+        if (value === undefined && path.startsWith('result.')) {
+          const dataPath = path.replace(/^result\./, 'data.')
+          value = getNestedProperty(nodeResult, dataPath)
+        }
+
+        // Format the value
+        if (value === undefined || value === null) return ''
+        if (Array.isArray(value)) {
+          return value.map((item, idx) => {
+            if (typeof item === 'object') {
+              return `${idx + 1}. ${JSON.stringify(item, null, 2)}`
+            }
+            return `${idx + 1}. ${item}`
+          }).join('\n')
+        }
+        if (typeof value === 'object') return JSON.stringify(value, null, 2)
+        return String(value)
+      }
+
+      return '' // Return empty if step not found
+    })
 
     // Also support generic {{$prev.response}} - gets the most recent AI agent response
     const aiAgentResults = Object.entries(previousResults)
@@ -372,6 +535,9 @@ async function executeActionNode(
 
   if (actionType === 'queryNotionDatabase') {
     try {
+      console.log('📝 Attempting to query Notion database...')
+      console.log('📝 Config:', JSON.stringify(config, null, 2))
+
       const { data: integration, error: integrationError } = await supabase
         .from('integrations')
         .select('credentials')
@@ -380,17 +546,50 @@ async function executeActionNode(
         .eq('status', 'connected')
         .maybeSingle()
 
+      console.log('📝 Integration lookup result:', {
+        found: !!integration,
+        error: integrationError?.message,
+        provider: 'notion',
+        orgId: workflow.organization_id
+      })
+
       if (integrationError || !integration) {
         throw new Error('Notion integration not connected. Please connect Notion in integrations page.')
       }
 
+      console.log('📝 Integration credentials structure:', {
+        hasCredentials: !!integration.credentials,
+        credentialsKeys: integration.credentials ? Object.keys(integration.credentials) : [],
+        hasAccessToken: !!(integration.credentials as any)?.access_token,
+        accessTokenLength: (integration.credentials as any)?.access_token?.length
+      })
+
       const notion = new NotionIntegration(integration.credentials)
 
-      // Build filter based on config
-      const filter = config.filter || {
-        property: config.filterProperty || 'Status',
-        select: { equals: config.filterValue || 'Open' }
+      // Parse filter from JSON string if needed
+      let filter
+      if (typeof config.filter === 'string') {
+        try {
+          filter = JSON.parse(config.filter)
+        } catch (e) {
+          console.warn('Failed to parse filter JSON, using default')
+          filter = {
+            property: 'Status',
+            select: { equals: 'Open' }
+          }
+        }
+      } else {
+        filter = config.filter || {
+          property: config.filterProperty || 'Status',
+          select: { equals: config.filterValue || 'Open' }
+        }
       }
+
+      console.log('📝 Querying Notion with:', {
+        databaseId: config.databaseId,
+        filter,
+        pageSize: config.pageSize || 100
+      })
 
       const tickets = await notion.queryDatabase({
         databaseId: config.databaseId,
@@ -398,16 +597,20 @@ async function executeActionNode(
         pageSize: config.pageSize || 100
       })
 
-      console.log('Notion database queried successfully:', { ticketCount: tickets.length })
+      console.log('✅ Notion database queried successfully:', { ticketCount: tickets.length })
 
       return {
         success: true,
-        data: { tickets, count: tickets.length },
+        data: {
+          tickets,
+          pages: tickets,  // Alias for backwards compatibility
+          count: tickets.length
+        },
         integration: 'notion',
         action: 'query_database'
       }
     } catch (error: any) {
-      console.error('Notion query failed:', error)
+      console.error('❌ Notion query failed:', error)
       throw new IntegrationError(
         `Failed to query Notion database: ${error.message}`,
         'notion',
@@ -419,6 +622,10 @@ async function executeActionNode(
 
   if (actionType === 'sendGmail') {
     try {
+      console.log('📧 Attempting to send Gmail...')
+      console.log('📧 Config:', JSON.stringify(config, null, 2))
+      console.log('📧 Workflow org ID:', workflow.organization_id)
+
       const { data: integration, error: integrationError } = await supabase
         .from('integrations')
         .select('credentials')
@@ -426,6 +633,13 @@ async function executeActionNode(
         .eq('organization_id', workflow.organization_id)
         .eq('status', 'connected')
         .maybeSingle()
+
+      console.log('📧 Integration lookup result:', {
+        found: !!integration,
+        error: integrationError?.message,
+        provider: 'google',
+        orgId: workflow.organization_id
+      })
 
       if (integrationError || !integration) {
         throw new Error('Gmail integration not connected. Please connect Gmail in integrations page.')
@@ -437,6 +651,13 @@ async function executeActionNode(
       const emailBody = replaceTemplateVariables(config.body || '')
       const emailSubject = replaceTemplateVariables(config.subject || '')
 
+      console.log('📧 Sending email with:', {
+        to: config.to,
+        subject: emailSubject,
+        bodyLength: emailBody.length,
+        isHtml: config.isHtml !== false
+      })
+
       const result = await gmail.sendEmail({
         to: config.to,
         subject: emailSubject,
@@ -446,7 +667,7 @@ async function executeActionNode(
         isHtml: config.isHtml !== false
       })
 
-      console.log('Gmail sent successfully:', { messageId: result.id })
+      console.log('✅ Gmail sent successfully:', { messageId: result.id })
 
       return {
         success: true,
@@ -455,7 +676,7 @@ async function executeActionNode(
         action: 'send_email'
       }
     } catch (error: any) {
-      console.error('Gmail send failed:', error)
+      console.error('❌ Gmail send failed:', error)
       throw new IntegrationError(
         `Failed to send Gmail: ${error.message}`,
         'gmail',
@@ -505,28 +726,86 @@ async function executeAIAgentNode(
       )
     }
 
-    // Get the messages from previous Slack fetch action
-    const slackMessages = Object.values(previousResults)
-      .find((result: any) => result?.data?.messages)
+    // Get custom prompt from node config or use default
+    const agentConfig = node.data?.config || {}
+    const customPrompt = agentConfig.customPrompt || node.data?.prompt || ''
 
-    const messagesText = slackMessages?.data?.messages
-      ?.map((msg: any) => msg.text)
-      ?.join('\n\n') || 'No messages found'
+    console.log('🤖 AI Agent - Custom prompt:', customPrompt)
+    console.log('🤖 AI Agent - Previous results:', JSON.stringify(previousResults, null, 2))
 
-    console.log('🤖 AI Agent - Messages to summarize:', messagesText)
+    // Replace template variables in the prompt with actual data from previous results
+    const replaceTemplateVariables = (text: string): string => {
+      if (!text) return text
+      let result = text
 
-    // Build the prompt
-    const systemPrompt = 'You are a helpful assistant that summarizes team standup messages.'
-    const userPrompt = `Summarize the following standup updates in bullet points grouped by person.
+      // Helper to extract nested properties
+      const getNestedProperty = (obj: any, path: string): any => {
+        return path.split('.').reduce((current, prop) => current?.[prop], obj)
+      }
 
-Messages:
-${messagesText}
+      // Replace {{step_X.path}} patterns
+      const stepPattern = /\{\{step_(\d+)\.?([^}]*)\}\}/g
+      result = result.replace(stepPattern, (_match, stepNum, path) => {
+        const actionNodes = Object.entries(previousResults)
+          .filter(([id, _]) => id.startsWith('action-'))
+          .sort((a, b) => a[0].localeCompare(b[0]))
 
-Instructions:
-- Group by person (use @username)
-- Extract key points: what they did, what they're working on, blockers
-- Keep it concise (max 3 bullets per person)
-- Format as markdown`
+        const stepIndex = parseInt(stepNum) - 1
+        if (stepIndex >= 0 && stepIndex < actionNodes.length) {
+          const [_, nodeResult] = actionNodes[stepIndex]
+
+          // If no path specified (just {{step_1}}), return the whole result
+          if (!path) {
+            return JSON.stringify(nodeResult, null, 2)
+          }
+
+          let value = getNestedProperty(nodeResult, path)
+
+          // Fallback 1: try data. if result. doesn't work
+          if (value === undefined && path.startsWith('result.')) {
+            const dataPath = path.replace(/^result\./, 'data.')
+            value = getNestedProperty(nodeResult, dataPath)
+          }
+
+          // Fallback 2: if just "result" with no suffix, try "data"
+          if (value === undefined && path === 'result') {
+            value = nodeResult.data
+          }
+
+          // Format the value as JSON for AI consumption
+          if (value === undefined || value === null) return ''
+          if (typeof value === 'object') return JSON.stringify(value, null, 2)
+          return String(value)
+        }
+        return ''
+      })
+
+      // Replace {{nodeId.path}} patterns for direct node references
+      for (const [nodeId, nodeResult] of Object.entries(previousResults)) {
+        const escapedNodeId = nodeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const pattern = new RegExp(`\\{\\{${escapedNodeId}\\.([^}]+)\\}\\}`, 'g')
+
+        result = result.replace(pattern, (_match, path) => {
+          let value = getNestedProperty(nodeResult, path)
+          if (value === undefined && path.startsWith('result.')) {
+            const dataPath = path.replace(/^result\./, 'data.')
+            value = getNestedProperty(nodeResult, dataPath)
+          }
+          if (value === undefined || value === null) return ''
+          if (typeof value === 'object') return JSON.stringify(value, null, 2)
+          return String(value)
+        })
+      }
+
+      return result
+    }
+
+    const processedPrompt = replaceTemplateVariables(customPrompt)
+    console.log('🤖 AI Agent - Processed prompt:', processedPrompt)
+
+    // Build the prompt - use custom prompt or fallback to generic
+    const systemPrompt = agentConfig.systemPrompt || 'You are a helpful AI assistant.'
+    const userPrompt = processedPrompt || 'Please help with the task.'
 
     // Call OpenAI API
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -613,10 +892,22 @@ Instructions:
 }
 
 async function executeConditionNode(node: any, previousResults: Record<string, any>) {
-  const conditionType = node.data?.conditionType || 'simple'
+  const config = node.data?.config || {}
+  let conditionType = node.data?.conditionType
   const condition = node.data?.condition || 'true'
 
-  console.log('Evaluating condition:', { conditionType, condition, nodeId: node.id })
+  // Auto-detect condition type from config if not explicitly set
+  if (!conditionType) {
+    if (config.field && config.operator) {
+      conditionType = 'comparison'
+    } else if (config.sourceNodeId) {
+      conditionType = 'dataExists'
+    } else {
+      conditionType = 'simple'
+    }
+  }
+
+  console.log('Evaluating condition:', { conditionType, condition, config, nodeId: node.id })
 
   try {
     let result = false
@@ -680,42 +971,137 @@ async function executeConditionNode(node: any, previousResults: Record<string, a
 
       case 'comparison': {
         // Support simple comparisons like "count > 0", "status == 'active'"
-        const sourceNodeId = node.data?.sourceNodeId
-        const field = node.data?.field || 'count'
-        const operator = node.data?.operator || '>'
-        const value = node.data?.value || 0
+        // Field can be in format "nodeId.path.to.field" or just "field"
+        let sourceNodeId = node.data?.sourceNodeId || config.sourceNodeId
+        let field = config.field || node.data?.field || 'count'
+        const operator = config.operator || node.data?.operator || '>'
+        let value = config.value || node.data?.value || 0
+
+        // Convert string numbers to actual numbers for comparison
+        if (typeof value === 'string' && !isNaN(Number(value))) {
+          value = Number(value)
+        }
+
+        // Helper function to extract nested property
+        const getNestedProperty = (obj: any, path: string): any => {
+          return path.split('.').reduce((current, prop) => current?.[prop], obj)
+        }
+
+        // Check if field contains a node ID reference (e.g., "step_1.result.count")
+        // If field starts with "step_", extract the step number and convert to actual node
+        if (field.startsWith('step_')) {
+          const stepMatch = field.match(/^step_(\d+)\.(.+)$/)
+          if (stepMatch) {
+            const stepNum = parseInt(stepMatch[1])
+            const fieldPath = stepMatch[2] // e.g., "result.count" or "data.count"
+
+            // Get the Nth action node
+            const actionNodes = Object.entries(previousResults)
+              .filter(([id, _]) => id.startsWith('action-'))
+              .sort((a, b) => a[0].localeCompare(b[0]))
+
+            const stepIndex = stepNum - 1
+            if (stepIndex >= 0 && stepIndex < actionNodes.length) {
+              sourceNodeId = actionNodes[stepIndex][0]
+              field = fieldPath // Update field to the path without step_X prefix
+
+              console.log('🔍 Mapped step reference:', {
+                original: `step_${stepNum}.${fieldPath}`,
+                mappedNodeId: sourceNodeId,
+                mappedField: field
+              })
+            }
+          }
+        }
+
+        // Check if field contains a node ID reference (e.g., "nodeId.result.count")
+        // Extract the actual node ID from previousResults by trying all node IDs
+        if (!sourceNodeId && field.includes('.')) {
+          // Try to find a matching node by checking if field starts with any node ID
+          for (const [nodeId, nodeResult] of Object.entries(previousResults)) {
+            // Skip trigger nodes
+            if ((nodeResult as any).triggered) continue
+
+            // Try to extract value using the full field path
+            const fieldValue = getNestedProperty(nodeResult, field)
+            if (fieldValue !== undefined) {
+              sourceNodeId = nodeId
+              // Field path is relative to the node result, not the node ID
+              // So we keep the field as is
+              break
+            }
+          }
+        }
+
+        // If we still don't have a source node, try to match field to most recent action node
+        if (!sourceNodeId) {
+          const actionResults = Object.entries(previousResults)
+            .filter(([id, _]) => id.startsWith('action-'))
+            .reverse()
+
+          if (actionResults.length > 0) {
+            sourceNodeId = actionResults[0][0]
+          }
+        }
 
         if (sourceNodeId && previousResults[sourceNodeId]) {
           const nodeResult = previousResults[sourceNodeId]
           let fieldValue
 
-          // Extract field value from result
-          if (nodeResult.data && field in nodeResult.data) {
-            fieldValue = nodeResult.data[field]
-          } else if (field in nodeResult) {
-            fieldValue = nodeResult[field]
+          // Extract field value from result using nested path
+          fieldValue = getNestedProperty(nodeResult, field)
+
+          // If field starts with "result.", try replacing with "data." as fallback
+          if (fieldValue === undefined && field.startsWith('result.')) {
+            const dataPath = field.replace(/^result\./, 'data.')
+            fieldValue = getNestedProperty(nodeResult, dataPath)
+            console.log(`🔄 Tried fallback path: ${field} -> ${dataPath}, found: ${fieldValue}`)
           }
+
+          // Also try without the field path in case it's already at root
+          if (fieldValue === undefined) {
+            if (nodeResult.data && field in nodeResult.data) {
+              fieldValue = nodeResult.data[field]
+            } else if (field in nodeResult) {
+              fieldValue = nodeResult[field]
+            }
+          }
+
+          console.log('🔍 Comparison values:', {
+            sourceNodeId,
+            field,
+            fieldValue,
+            operator,
+            compareValue: value,
+            nodeResult: JSON.stringify(nodeResult, null, 2)
+          })
 
           // Perform comparison
           switch (operator) {
             case '>':
+            case 'greater_than':
               result = fieldValue > value
               break
             case '>=':
+            case 'greater_than_or_equal':
               result = fieldValue >= value
               break
             case '<':
+            case 'less_than':
               result = fieldValue < value
               break
             case '<=':
+            case 'less_than_or_equal':
               result = fieldValue <= value
               break
             case '==':
             case '===':
+            case 'equals':
               result = fieldValue === value
               break
             case '!=':
             case '!==':
+            case 'not_equals':
               result = fieldValue !== value
               break
             default:
