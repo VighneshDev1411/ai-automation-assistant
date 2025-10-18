@@ -158,6 +158,7 @@ export function WorkflowBuilder({
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
+  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null)
 
   // Node change handlers
 
@@ -470,6 +471,50 @@ export function WorkflowBuilder({
     setSelectedNode(null)
   }, [])
 
+  // Drag and drop handlers
+  const onDragStart = (event: React.DragEvent, nodeType: string) => {
+    event.dataTransfer.setData('application/reactflow', nodeType)
+    event.dataTransfer.effectAllowed = 'move'
+  }
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+  }, [])
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault()
+
+      const nodeType = event.dataTransfer.getData('application/reactflow')
+      if (!nodeType || !reactFlowInstance) return
+
+      const position = reactFlowInstance.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      })
+
+      const newNode: Node = {
+        id: `${nodeType}-${Date.now()}`,
+        type: nodeType,
+        position,
+        data: {
+          label: `New ${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)}`,
+          config: getDefaultConfig(nodeType),
+        },
+      }
+
+      setNodes((nds) => [...nds, newNode])
+      setSelectedNode(newNode.id)
+
+      toast({
+        title: 'Node Added',
+        description: `${newNode.data.label} added to workflow`,
+      })
+    },
+    [reactFlowInstance, toast]
+  )
+
   return (
     <div className="flex h-screen bg-background">
       {/* Left Sidebar - Node Palette */}
@@ -505,12 +550,17 @@ export function WorkflowBuilder({
           {/* Node Palette */}
           <div>
             <h3 className="font-medium mb-3">Add Components</h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              Click or drag components to the canvas
+            </p>
             <div className="grid grid-cols-2 gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => addNode('trigger')}
-                className="h-16 flex-col gap-1"
+                onDragStart={(e) => onDragStart(e, 'trigger')}
+                draggable
+                className="h-16 flex-col gap-1 cursor-grab active:cursor-grabbing"
               >
                 <Zap className="h-4 w-4" />
                 Trigger
@@ -520,7 +570,9 @@ export function WorkflowBuilder({
                 variant="outline"
                 size="sm"
                 onClick={() => addNode('action')}
-                className="h-16 flex-col gap-1"
+                onDragStart={(e) => onDragStart(e, 'action')}
+                draggable
+                className="h-16 flex-col gap-1 cursor-grab active:cursor-grabbing"
               >
                 <Play className="h-4 w-4" />
                 Action
@@ -530,7 +582,9 @@ export function WorkflowBuilder({
                 variant="outline"
                 size="sm"
                 onClick={() => addNode('condition')}
-                className="h-16 flex-col gap-1"
+                onDragStart={(e) => onDragStart(e, 'condition')}
+                draggable
+                className="h-16 flex-col gap-1 cursor-grab active:cursor-grabbing"
               >
                 <GitBranch className="h-4 w-4" />
                 Condition
@@ -540,7 +594,9 @@ export function WorkflowBuilder({
                 variant="outline"
                 size="sm"
                 onClick={() => addNode('transform')}
-                className="h-16 flex-col gap-1"
+                onDragStart={(e) => onDragStart(e, 'transform')}
+                draggable
+                className="h-16 flex-col gap-1 cursor-grab active:cursor-grabbing"
               >
                 <Code className="h-4 w-4" />
                 Transform
@@ -550,7 +606,9 @@ export function WorkflowBuilder({
                 variant="outline"
                 size="sm"
                 onClick={() => addNode('aiAgent')}
-                className="h-16 flex-col gap-1"
+                onDragStart={(e) => onDragStart(e, 'aiAgent')}
+                draggable
+                className="h-16 flex-col gap-1 cursor-grab active:cursor-grabbing"
               >
                 <Bot className="h-4 w-4" />
                 AI Agent
@@ -614,7 +672,7 @@ export function WorkflowBuilder({
       </Card>
 
       {/* Main Canvas */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative" ref={reactFlowWrapper}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -623,6 +681,9 @@ export function WorkflowBuilder({
           onConnect={onConnect}
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
+          onInit={setReactFlowInstance}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
           nodeTypes={nodeType}
           fitView
           attributionPosition="bottom-left"
