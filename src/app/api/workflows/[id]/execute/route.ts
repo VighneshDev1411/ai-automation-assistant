@@ -554,7 +554,18 @@ async function executeActionNode(
       })
 
       if (integrationError || !integration) {
-        throw new Error('Notion integration not connected. Please connect Notion in integrations page.')
+        const errorDetails = []
+        if (!workflow.organization_id) {
+          errorDetails.push('Workflow has no organization_id set')
+        }
+        if (integrationError) {
+          errorDetails.push(`Database error: ${integrationError.message}`)
+        }
+        if (!integration) {
+          errorDetails.push('No Notion integration found for this organization')
+        }
+
+        throw new Error(`Notion integration not connected. ${errorDetails.join('. ')}. Please connect Notion in the integrations page.`)
       }
 
       console.log('📝 Integration credentials structure:', {
@@ -642,7 +653,18 @@ async function executeActionNode(
       })
 
       if (integrationError || !integration) {
-        throw new Error('Gmail integration not connected. Please connect Gmail in integrations page.')
+        const errorDetails = []
+        if (!workflow.organization_id) {
+          errorDetails.push('Workflow has no organization_id set')
+        }
+        if (integrationError) {
+          errorDetails.push(`Database error: ${integrationError.message}`)
+        }
+        if (!integration) {
+          errorDetails.push('No Gmail integration found for this organization')
+        }
+
+        throw new Error(`Gmail integration not connected. ${errorDetails.join('. ')}. Please connect Gmail in the integrations page.`)
       }
 
       const gmail = new GmailIntegration(integration.credentials)
