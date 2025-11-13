@@ -1,9 +1,20 @@
-name: Trigger Workflow Scheduler
+name: Trigger Workflow Scheduler (Backup)
+
+# NOTE: This is a BACKUP scheduler. The primary cron scheduler is Vercel Cron.
+# Vercel Cron is configured in vercel.json and runs every 5 minutes.
+#
+# This GitHub Actions workflow serves as a fallback if Vercel Cron fails,
+# or can be used for manual triggering via workflow_dispatch.
+#
+# To use this workflow as the primary scheduler:
+# 1. Set CRON_SECRET in GitHub repository secrets
+# 2. Set VERCEL_PROJECT_URL in GitHub repository secrets
+# 3. Enable the schedule trigger below (currently disabled)
 
 on:
-  schedule:
-    # Runs every minute (GitHub Actions minimum is every 5 minutes)
-    - cron: '*/5 * * * *'
+  # Uncomment to enable scheduled execution via GitHub Actions
+  # schedule:
+  #   - cron: '*/5 * * * *'  # Runs every 5 minutes
   workflow_dispatch: # Allow manual trigger
 
 jobs:
@@ -20,9 +31,12 @@ jobs:
           body=$(echo "$response" | head -n-1)
 
           echo "HTTP Status: $http_code"
-          echo "Response: $body"
+          echo "Response Body: $body"
 
           if [ "$http_code" != "200" ]; then
             echo "::error::Cron trigger failed with status $http_code"
+            echo "::error::Response: $body"
             exit 1
           fi
+
+          echo "✓ Cron trigger executed successfully"

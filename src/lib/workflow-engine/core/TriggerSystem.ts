@@ -857,41 +857,40 @@ scheduleId: string, enabled: boolean  ): Promise<{ status: string; message: stri
     executionId: string
   ): Promise<void> {
     try {
-      // Simulate workflow execution - replace with actual execution logic
       const startTime = Date.now()
 
-      // In a real implementation, this would:
-      // 1. Load workflow definition
-      // 2. Execute each step
-      // 3. Handle conditions and branching
-      // 4. Process integrations
-      // 5. Handle errors and retries
+      // Import and use WorkflowEngine for actual execution
+      const { WorkflowEngine } = await import('./WorkflowEngine')
+      const workflowEngine = new WorkflowEngine(this.supabase)
 
-      // For now, simulate execution time
-      await new Promise(resolve =>
-        setTimeout(resolve, Math.random() * 3000 + 1000)
+      // Execute the workflow using WorkflowEngine
+      // The WorkflowEngine.executeWorkflow method handles:
+      // 1. Loading workflow definition
+      // 2. Executing each step
+      // 3. Handling conditions and branching
+      // 4. Processing integrations
+      // 5. Handling errors and retries
+      await workflowEngine.executeWorkflow(
+        workflowId,
+        triggerData,
+        userId,
+        executionId
       )
 
       const endTime = Date.now()
       const duration = endTime - startTime
 
-      // Mark as completed
+      // Update execution with completion time and duration
       const { error: updateError } = await this.supabase
         .from('workflow_executions')
         .update({
-          status: 'completed',
           completed_at: new Date().toISOString(),
           duration_ms: duration,
-          result_data: {
-            message: 'Workflow completed successfully',
-            steps: 3,
-            duration: duration,
-          },
         })
         .eq('id', executionId)
 
       if (updateError) {
-        console.error('Failed to update execution status:', updateError)
+        console.error('Failed to update execution completion time:', updateError)
       }
     } catch (error) {
       console.error('Error in async workflow execution:', error)

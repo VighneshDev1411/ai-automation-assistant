@@ -6,20 +6,33 @@ import { TriggerSystem } from '@/lib/workflow-engine/core/TriggerSystem'
 // Add this to vercel.json as a cron job
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now()
+
   try {
-    // Optional: Verify the request is from authorized cron service
+    // Verify the request is from authorized cron service
     const authHeader = request.headers.get('authorization')
     const cronSecret = process.env.CRON_SECRET
+
+    // Check if request is from Vercel Cron (has x-vercel-cron header)
+    const isVercelCron = request.headers.get('x-vercel-cron')
 
     // Only check auth if CRON_SECRET is explicitly set in environment
     if (cronSecret && cronSecret !== 'undefined' && cronSecret.trim() !== '') {
       if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
-        console.error('[CRON] Unauthorized access attempt')
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        // Allow Vercel Cron even without secret
+        if (!isVercelCron) {
+          console.error('[CRON] Unauthorized access attempt from non-Vercel source')
+          return NextResponse.json({
+            error: 'Unauthorized',
+            message: 'CRON_SECRET is required for non-Vercel cron requests'
+          }, { status: 401 })
+        }
       }
       console.log('[CRON] Authorized request via secret')
+    } else if (isVercelCron) {
+      console.log('[CRON] Vercel Cron request (no CRON_SECRET configured)')
     } else {
-      console.log('[CRON] Public access (no CRON_SECRET set)')
+      console.log('[CRON] Public access (no CRON_SECRET set) - consider setting CRON_SECRET for security')
     }
 
     const supabase = await createClient()
@@ -99,20 +112,31 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const executionTime = Date.now() - startTime
+
     return NextResponse.json({
+      success: true,
       message: 'Cron execution completed',
       executedCount: executedSchedules.length,
       failedCount: failedSchedules.length,
+      totalSchedulesChecked: schedules.length,
       executed: executedSchedules,
       failed: failedSchedules,
+      executionTimeMs: executionTime,
       timestamp: now.toISOString()
     })
 
   } catch (error) {
-    console.error('Cron execution error:', error)
+    console.error('[CRON] Execution error:', error)
+    const executionTime = Date.now() - startTime
+
     return NextResponse.json({
+      success: false,
       error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      executionTimeMs: executionTime,
+      timestamp: new Date().toISOString()
     }, { status: 500 })
   }
 }
