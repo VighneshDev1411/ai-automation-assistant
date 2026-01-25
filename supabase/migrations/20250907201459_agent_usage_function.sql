@@ -55,8 +55,9 @@ CREATE INDEX IF NOT EXISTS idx_ai_agents_model
 ON ai_agents(model);
 
 -- Add index on profiles for better join performance
-CREATE INDEX IF NOT EXISTS idx_profiles_organization_id 
-ON profiles(organization_id);
+-- Note: profiles don't have organization_id, they link via organization_members
+-- CREATE INDEX IF NOT EXISTS idx_profiles_organization_id 
+-- ON profiles(organization_id);
 
 -- Add RLS (Row Level Security) policies if not already exist
 DO $$ 
@@ -127,14 +128,14 @@ CREATE TABLE IF NOT EXISTS ai_usage_logs (
   cost DECIMAL(10,6) DEFAULT 0,
   status VARCHAR(50) DEFAULT 'success',
   error_message TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  
-  -- Indexes for performance
-  INDEX idx_usage_logs_agent_id (agent_id),
-  INDEX idx_usage_logs_organization_id (organization_id),
-  INDEX idx_usage_logs_created_at (created_at DESC),
-  INDEX idx_usage_logs_workflow_id (workflow_id)
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Create indexes separately
+CREATE INDEX IF NOT EXISTS idx_usage_logs_agent_id ON ai_usage_logs(agent_id);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_organization_id ON ai_usage_logs(organization_id);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_created_at ON ai_usage_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_workflow_id ON ai_usage_logs(workflow_id);
 
 -- RLS for usage logs
 ALTER TABLE ai_usage_logs ENABLE ROW LEVEL SECURITY;
@@ -161,13 +162,13 @@ CREATE TABLE IF NOT EXISTS ai_error_logs (
   error_message TEXT NOT NULL,
   error_stack TEXT,
   request_data JSONB,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  
-  -- Indexes
-  INDEX idx_error_logs_agent_id (agent_id),
-  INDEX idx_error_logs_organization_id (organization_id),
-  INDEX idx_error_logs_created_at (created_at DESC)
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Create indexes for error logs
+CREATE INDEX IF NOT EXISTS idx_error_logs_agent_id ON ai_error_logs(agent_id);
+CREATE INDEX IF NOT EXISTS idx_error_logs_organization_id ON ai_error_logs(organization_id);
+CREATE INDEX IF NOT EXISTS idx_error_logs_created_at ON ai_error_logs(created_at DESC);
 
 -- RLS for error logs
 ALTER TABLE ai_error_logs ENABLE ROW LEVEL SECURITY;

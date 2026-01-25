@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useAuth } from '@/lib/auth/auth-context'
 import { createClient } from '@/lib/supabase/client'
+import { createOrganization } from './actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -223,35 +224,26 @@ export default function OnboardingPage() {
       
       if (!user) throw new Error('User not authenticated')
 
-      // Create organization
-      const { data: org, error: orgError } = await supabase
-        .from('organizations')
-        .insert({
-          name: data.organizationName,
-          slug: data.organizationSlug,
-          description: data.organizationDescription || null,
-        })
-        .select()
-        .single()
+      console.log('Creating organization via server action:', data)
 
-      if (orgError) throw orgError
+      // Use server action instead of direct client call
+      const result = await createOrganization({
+        name: data.organizationName,
+        slug: data.organizationSlug,
+        description: data.organizationDescription || null,
+        userId: user.id,
+      })
 
-      // Add user as owner of the organization
-      const { error: memberError } = await supabase
-        .from('organization_members')
-        .insert({
-          organization_id: org.id,
-          user_id: user.id,
-          role: 'owner',
-          joined_at: new Date().toISOString(),
-        })
+      if (!result.success) {
+        console.error('Organization creation failed:', result.error)
+        throw new Error(result.error?.message || 'Failed to create organization')
+      }
 
-      if (memberError) throw memberError
-
+      console.log('Organization created successfully:', result.organization)
       setCurrentStep(3)
     } catch (error: any) {
       console.error('Organization creation error:', error)
-      if (error.code === '23505') {
+      if (error.message?.includes('slug already exists') || error.code === '23505') {
         setError('Organization slug already exists. Please choose a different one.')
       } else {
         setError(error.message || 'Failed to create organization')

@@ -2,6 +2,7 @@
 const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react'],
+    serverComponentsExternalPackages: ['cron-parser'],
   },
   images: {
     domains: ['images.unsplash.com', 'avatars.githubusercontent.com'],
@@ -11,6 +12,13 @@ const nextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
+  },
+  // Ensure cron-parser works in API routes
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = [...(config.externals || []), 'cron-parser']
+    }
+    return config
   },
 }
 

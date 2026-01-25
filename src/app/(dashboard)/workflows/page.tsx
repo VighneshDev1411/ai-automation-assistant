@@ -30,6 +30,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  Calendar,
 } from 'lucide-react'
 
 function WorkflowsContent() {
@@ -405,6 +406,15 @@ function WorkflowsContent() {
                           >
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(`/schedules`)
+                            }}
+                          >
+                            <Calendar className="mr-2 h-4 w-4" />
+                            Schedule
                           </DropdownMenuItem>
                           {workflow.status !== 'archived' && (
                             <DropdownMenuItem

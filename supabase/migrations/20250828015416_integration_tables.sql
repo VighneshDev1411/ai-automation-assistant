@@ -59,7 +59,8 @@ CREATE INDEX IF NOT EXISTS idx_integrations_status ON integrations(status);
 CREATE INDEX IF NOT EXISTS idx_integrations_user_id ON integrations(user_id);
 
 -- Create updated_at trigger
-CREATE TRIGGER update_integrations_updated_at 
+DROP TRIGGER IF EXISTS update_integrations_updated_at ON integrations;
+CREATE TRIGGER update_integrations_updated_at
     BEFORE UPDATE ON integrations
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

@@ -56,6 +56,7 @@ interface NavItem {
 const navigation: NavItem[] = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { title: 'Workflows', href: '/workflows', icon: Workflow, badgeKey: 'workflows' },
+  { title: 'Schedules', href: '/schedules', icon: Calendar },
   { title: 'Integrations', href: '/integrations', icon: Zap },
   { title: 'Analytics', href: '/analytics', icon: BarChart3 },
   { title: 'AI Agents', href: '/ai-agents', icon: Bot },
