@@ -394,16 +394,77 @@ export class WorkflowExecutionEngine {
   private async executeSendEmail(config: any): Promise<any> {
     const to = this.resolveVariables(config.to)
     const subject = this.resolveVariables(config.subject)
-    const body = this.resolveVariables(config.body)
+    const html = this.resolveVariables(config.html || config.body)
+    const text = this.resolveVariables(config.text || config.body)
+    const templateId = config.templateId
 
     console.log(`  → Sending email to ${to}`)
 
-    // TODO: Implement actual email sending
-    return {
-      sent: true,
-      to,
-      subject,
-      message: 'Email sent (simulated)'
+    try {
+      // Import email service dynamically
+      const { getEmailService } = await import('@/lib/email/email-service')
+      const emailService = getEmailService()
+
+      // Send email
+      const response = await emailService.sendEmail({
+        to: { email: to },
+        content: {
+          subject,
+          html,
+          text,
+        },
+      })
+
+      // Extract message ID from response
+      let messageId = null
+      if (response && response[0] && response[0].headers) {
+        messageId = response[0].headers['x-message-id']
+      }
+
+      // Log to database
+      try {
+        await this.supabase.from('email_logs').insert({
+          organization_id: this.context.organizationId,
+          workflow_id: this.context.workflowId,
+          template_id: templateId || null,
+          recipient_email: to,
+          subject,
+          status: 'sent',
+          provider_message_id: messageId,
+          sent_at: new Date().toISOString(),
+        })
+      } catch (logError) {
+        console.error('Failed to log email:', logError)
+      }
+
+      return {
+        sent: true,
+        to,
+        subject,
+        messageId,
+        provider: process.env.EMAIL_PROVIDER,
+      }
+    } catch (error: any) {
+      console.error('Failed to send email:', error)
+
+      // Log failure to database
+      try {
+        await this.supabase.from('email_logs').insert({
+          organization_id: this.context.organizationId,
+          workflow_id: this.context.workflowId,
+          recipient_email: to,
+          subject,
+          status: 'failed',
+          error_details: {
+            message: error.message,
+            stack: error.stack,
+          },
+        })
+      } catch (logError) {
+        console.error('Failed to log email error:', logError)
+      }
+
+      throw new Error(`Failed to send email: ${error.message}`)
     }
   }
 
