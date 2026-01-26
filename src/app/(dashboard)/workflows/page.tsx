@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useToast } from '@/components/ui/use-toast'
+import { ScheduleDialog } from '@/components/workflows/ScheduleDialog'
 import {
   Plus,
   Search,
@@ -45,6 +46,8 @@ function WorkflowsContent() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState(defaultTab)
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
+  const [selectedWorkflow, setSelectedWorkflow] = useState<any>(null)
 
   useEffect(() => {
     if (activeTab === 'my-workflows') {
@@ -410,7 +413,8 @@ function WorkflowsContent() {
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation()
-                              router.push(`/schedules`)
+                              setSelectedWorkflow(workflow)
+                              setScheduleDialogOpen(true)
                             }}
                           >
                             <Calendar className="mr-2 h-4 w-4" />
@@ -503,6 +507,23 @@ function WorkflowsContent() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Schedule Dialog */}
+      {selectedWorkflow && (
+        <ScheduleDialog
+          open={scheduleDialogOpen}
+          onOpenChange={setScheduleDialogOpen}
+          workflowId={selectedWorkflow.id}
+          workflowName={selectedWorkflow.name}
+          onScheduleCreated={() => {
+            toast({
+              title: 'Schedule Created',
+              description: `Workflow "${selectedWorkflow.name}" has been scheduled successfully`
+            })
+            setScheduleDialogOpen(false)
+          }}
+        />
+      )}
     </div>
   )
 }

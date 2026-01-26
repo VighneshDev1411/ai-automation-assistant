@@ -117,18 +117,41 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Calculate next run time based on cron expression
+// Calculate next run time based on cron expression (simple approximation)
 function calculateNextRun(cronExpression: string, timezone: string = 'America/Chicago'): string {
-  const cronParser = require('cron-parser')
-
   try {
-    const interval = cronParser.parseExpression(cronExpression, {
-      tz: timezone,
-      currentDate: new Date()
-    })
+    const now = new Date()
+    const parts = cronExpression.trim().split(' ')
+    
+    if (parts.length !== 5) {
+      // Fallback: add 24 hours
+      const nextRun = new Date()
+      nextRun.setHours(nextRun.getHours() + 24)
+      return nextRun.toISOString()
+    }
 
-    const nextDate = interval.next().toDate()
-    return nextDate.toISOString()
+    const [minute, hour] = parts
+    
+    // Handle */N patterns
+    if (minute.startsWith('*/')) {
+      const minutes = parseInt(minute.slice(2))
+      return new Date(now.getTime() + minutes * 60000).toISOString()
+    }
+    
+    // Handle specific hour:minute
+    if (/^\d+$/.test(minute) && /^\d+$/.test(hour)) {
+      const nextRun = new Date(now)
+      nextRun.setHours(parseInt(hour), parseInt(minute), 0, 0)
+      
+      if (nextRun <= now) {
+        nextRun.setDate(nextRun.getDate() + 1)
+      }
+      
+      return nextRun.toISOString()
+    }
+
+    // Default: add 1 hour
+    return new Date(now.getTime() + 3600000).toISOString()
 
   } catch (error) {
     console.error('Error parsing cron expression:', error)

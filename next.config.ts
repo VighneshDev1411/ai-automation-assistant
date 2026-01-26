@@ -2,7 +2,7 @@
 const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react'],
-    serverComponentsExternalPackages: ['cron-parser'],
+    serverComponentsExternalPackages: ['cron-parser', 'bullmq', 'ioredis'],
   },
   images: {
     domains: ['images.unsplash.com', 'avatars.githubusercontent.com'],
@@ -13,10 +13,16 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Ensure cron-parser works in API routes
+  // Ensure cron-parser and bullmq work in API routes
   webpack: (config, { isServer }) => {
     if (isServer) {
-      config.externals = [...(config.externals || []), 'cron-parser']
+      // Externalize packages that need to run in Node.js environment
+      config.externals = [
+        ...(config.externals || []),
+        'cron-parser',
+        'bullmq',
+        'ioredis',
+      ]
     }
     return config
   },

@@ -1039,13 +1039,38 @@ scheduleId: string, enabled: boolean  ): Promise<{ status: string; message: stri
     timezone: string = 'America/Chicago'
   ): string {
     try {
-      const cronParser = require('cron-parser')
-      const interval = cronParser.parseExpression(cronExpression, {
-        tz: timezone,
-        currentDate: new Date()
-      })
-      const nextDate = interval.next().toDate()
-      return nextDate.toISOString()
+      const now = new Date()
+      const parts = cronExpression.trim().split(' ')
+      
+      if (parts.length !== 5) {
+        const fallback = new Date()
+        fallback.setDate(fallback.getDate() + 1)
+        return fallback.toISOString()
+      }
+
+      const [minute, hour] = parts
+      
+      // Handle */N patterns
+      if (minute.startsWith('*/')) {
+        const minutes = parseInt(minute.slice(2))
+        return new Date(now.getTime() + minutes * 60000).toISOString()
+      }
+      
+      // Handle specific hour:minute
+      if (/^\d+$/.test(minute) && /^\d+$/.test(hour)) {
+        const nextRun = new Date(now)
+        nextRun.setHours(parseInt(hour), parseInt(minute), 0, 0)
+        
+        if (nextRun <= now) {
+          nextRun.setDate(nextRun.getDate() + 1)
+        }
+        
+        return nextRun.toISOString()
+      }
+
+      // Default: add 1 hour
+      return new Date(now.getTime() + 3600000).toISOString()
+      
     } catch (error) {
       console.error('Error parsing cron expression:', error)
       // Fallback: add 1 day
