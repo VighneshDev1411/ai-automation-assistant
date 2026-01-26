@@ -402,68 +402,32 @@ export class WorkflowExecutionEngine {
 
     try {
       // Import email service dynamically
-      const { getEmailService } = await import('@/lib/email/email-service')
-      const emailService = getEmailService()
-
-      // Send email
-      const response = await emailService.sendEmail({
-        to: { email: to },
-        content: {
-          subject,
-          html,
-          text,
-        },
+      const emailModule = await import('@/lib/email/email-service')
+      
+      // Send email using the email service
+      const result = await emailModule.sendEmail({
+        to,
+        subject,
+        html,
+        text,
+        templateId,
       })
 
-      // Extract message ID from response
-      let messageId = null
-      if (response && response[0] && response[0].headers) {
-        messageId = response[0].headers['x-message-id']
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send email')
       }
 
-      // Log to database
-      try {
-        await this.supabase.from('email_logs').insert({
-          organization_id: this.context.organizationId,
-          workflow_id: this.context.workflowId,
-          template_id: templateId || null,
-          recipient_email: to,
-          subject,
-          status: 'sent',
-          provider_message_id: messageId,
-          sent_at: new Date().toISOString(),
-        })
-      } catch (logError) {
-        console.error('Failed to log email:', logError)
-      }
+      const messageId = result.messageId
 
       return {
         sent: true,
         to,
         subject,
         messageId,
-        provider: process.env.EMAIL_PROVIDER,
+        provider: result.provider || process.env.EMAIL_PROVIDER,
       }
     } catch (error: any) {
       console.error('Failed to send email:', error)
-
-      // Log failure to database
-      try {
-        await this.supabase.from('email_logs').insert({
-          organization_id: this.context.organizationId,
-          workflow_id: this.context.workflowId,
-          recipient_email: to,
-          subject,
-          status: 'failed',
-          error_details: {
-            message: error.message,
-            stack: error.stack,
-          },
-        })
-      } catch (logError) {
-        console.error('Failed to log email error:', logError)
-      }
-
       throw new Error(`Failed to send email: ${error.message}`)
     }
   }
@@ -653,11 +617,11 @@ export class WorkflowExecutionEngine {
 
     switch (operation) {
       case 'sum':
-        return data.reduce((sum, item) => sum + (Number(item[field]) || 0), 0)
+        return data.reduce((sum: number, item: any) => sum + (Number(item[field]) || 0), 0)
       case 'count':
         return data.length
       case 'average':
-        const sum = data.reduce((s, item) => s + (Number(item[field]) || 0), 0)
+        const sum = data.reduce((s: number, item: any) => s + (Number(item[field]) || 0), 0)
         return sum / data.length
       default:
         return data
