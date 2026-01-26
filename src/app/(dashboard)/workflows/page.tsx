@@ -271,6 +271,49 @@ function WorkflowsContent() {
     }
   }
 
+  const handleExecuteWorkflow = async (workflow: any) => {
+    try {
+      toast({
+        title: 'Executing Workflow',
+        description: `Starting execution of "${workflow.name}"...`,
+      })
+
+      const response = await fetch(`/api/workflows/${workflow.id}/execute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          input: {
+            manual: true,
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to execute workflow')
+      }
+
+      toast({
+        title: 'Workflow Executing',
+        description: `"${workflow.name}" is now running! Job ID: ${data.jobId}`,
+      })
+
+      // Optionally redirect to execution logs
+      // router.push(`/workflows/${workflow.id}/executions/${data.jobId}`)
+    } catch (error: any) {
+      console.error('Error executing workflow:', error)
+      toast({
+        title: 'Execution Failed',
+        description: error.message || 'Failed to execute workflow',
+        variant: 'destructive',
+      })
+    }
+  }
+
   const filteredWorkflows = workflows.filter(workflow =>
     workflow.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     workflow.description?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -409,6 +452,15 @@ function WorkflowsContent() {
                           >
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleExecuteWorkflow(workflow)
+                            }}
+                          >
+                            <Play className="mr-2 h-4 w-4" />
+                            Execute Now
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={(e) => {

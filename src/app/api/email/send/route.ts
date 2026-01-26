@@ -1,7 +1,7 @@
 // src/app/api/email/send/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getEmailService } from '@/lib/email/email-service'
+import { sendEmail } from '@/lib/email/email-service'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -83,24 +83,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get email service
-    const emailService = getEmailService()
-
     // Send email
-    const response = await emailService.sendEmail({
-      to: typeof to === 'string' ? { email: to } : to,
-      content: {
-        subject,
-        html: finalHtml,
-        text: finalText,
-      },
+    const result = await sendEmail({
+      to: typeof to === 'string' ? to : to.email,
+      subject,
+      html: finalHtml,
+      text: finalText,
+      templateId,
+      templateVars: variables,
     })
 
-    // Extract message ID from response (SendGrid format)
-    let messageId = null
-    if (response && response[0] && response[0].headers) {
-      messageId = response[0].headers['x-message-id']
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to send email')
     }
+
+    const messageId = result.messageId
 
     // Log to database
     const { data: logEntry, error: logError } = await supabase

@@ -2,8 +2,8 @@
 const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react'],
-    serverComponentsExternalPackages: ['cron-parser', 'bullmq', 'ioredis'],
   },
+  serverExternalPackages: ['cron-parser', 'bullmq', 'ioredis'],
   images: {
     domains: ['images.unsplash.com', 'avatars.githubusercontent.com'],
   },
