@@ -46,23 +46,18 @@ CREATE POLICY "Organization owners can update organization" ON organizations
     );
 
 -- Organization members policies
+-- Use SECURITY DEFINER function to avoid infinite recursion
 DROP POLICY IF EXISTS "Users can read organization memberships" ON organization_members;
 CREATE POLICY "Users can read organization memberships" ON organization_members
     FOR SELECT USING (
-        user_id = auth.uid() OR 
-        organization_id IN (
-            SELECT organization_id FROM organization_members 
-            WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
-        )
+        user_id = auth.uid() OR
+        organization_id IN (SELECT get_user_organizations(auth.uid()))
     );
 
 DROP POLICY IF EXISTS "Organization admins can manage members" ON organization_members;
 CREATE POLICY "Organization admins can manage members" ON organization_members
     FOR ALL USING (
-        organization_id IN (
-            SELECT organization_id FROM organization_members 
-            WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
-        )
+        check_organization_membership(organization_id, auth.uid(), 'admin')
     );
 
 -- Workflows policies
