@@ -55,9 +55,22 @@ CREATE POLICY "Users can read organization memberships" ON organization_members
     );
 
 DROP POLICY IF EXISTS "Organization admins can manage members" ON organization_members;
-CREATE POLICY "Organization admins can manage members" ON organization_members
-    FOR ALL USING (
+
+CREATE POLICY "Admins can insert organization members" ON organization_members
+    FOR INSERT WITH CHECK (
         check_organization_membership(organization_id, auth.uid(), 'admin')
+    );
+
+CREATE POLICY "Admins can update organization members" ON organization_members
+    FOR UPDATE USING (
+        check_organization_membership(organization_id, auth.uid(), 'admin')
+        AND role != 'owner'
+    );
+
+CREATE POLICY "Admins can delete organization members" ON organization_members
+    FOR DELETE USING (
+        check_organization_membership(organization_id, auth.uid(), 'admin')
+        AND role != 'owner'
     );
 
 -- Workflows policies

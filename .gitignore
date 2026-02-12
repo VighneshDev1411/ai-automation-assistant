@@ -70,3 +70,4 @@ logs/
 .idea/
 *.sublime-project
 *.sublime-workspace
+.env*.local

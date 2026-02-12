@@ -76,40 +76,28 @@ END $$;
 DROP POLICY IF EXISTS "Users can view agents from their organization" ON ai_agents;
 CREATE POLICY "Users can view agents from their organization" ON ai_agents
   FOR SELECT USING (
-    organization_id IN (
-      SELECT organization_id FROM profiles 
-      WHERE id = auth.uid()
-    )
+    organization_id IN (SELECT get_user_organizations(auth.uid()))
   );
 
--- Policy: Users can insert agents for their organization  
+-- Policy: Users can insert agents for their organization
 DROP POLICY IF EXISTS "Users can create agents for their organization" ON ai_agents;
 CREATE POLICY "Users can create agents for their organization" ON ai_agents
   FOR INSERT WITH CHECK (
-    organization_id IN (
-      SELECT organization_id FROM profiles 
-      WHERE id = auth.uid()
-    )
+    organization_id IN (SELECT get_user_organizations(auth.uid()))
   );
 
 -- Policy: Users can update agents from their organization
 DROP POLICY IF EXISTS "Users can update agents from their organization" ON ai_agents;
 CREATE POLICY "Users can update agents from their organization" ON ai_agents
   FOR UPDATE USING (
-    organization_id IN (
-      SELECT organization_id FROM profiles 
-      WHERE id = auth.uid()
-    )
+    organization_id IN (SELECT get_user_organizations(auth.uid()))
   );
 
 -- Policy: Users can delete agents from their organization
 DROP POLICY IF EXISTS "Users can delete agents from their organization" ON ai_agents;
 CREATE POLICY "Users can delete agents from their organization" ON ai_agents
   FOR DELETE USING (
-    organization_id IN (
-      SELECT organization_id FROM profiles 
-      WHERE id = auth.uid()
-    )
+    organization_id IN (SELECT get_user_organizations(auth.uid()))
   );
 
 -- Create usage logs table for detailed tracking (optional)
@@ -142,10 +130,7 @@ ALTER TABLE ai_usage_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view usage logs from their organization" ON ai_usage_logs
   FOR SELECT USING (
-    organization_id IN (
-      SELECT organization_id FROM profiles 
-      WHERE id = auth.uid()
-    )
+    organization_id IN (SELECT get_user_organizations(auth.uid()))
   );
 
 CREATE POLICY "Service can insert usage logs" ON ai_usage_logs
@@ -175,10 +160,7 @@ ALTER TABLE ai_error_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view error logs from their organization" ON ai_error_logs
   FOR SELECT USING (
-    organization_id IN (
-      SELECT organization_id FROM profiles 
-      WHERE id = auth.uid()
-    )
+    organization_id IN (SELECT get_user_organizations(auth.uid()))
   );
 
 CREATE POLICY "Service can insert error logs" ON ai_error_logs

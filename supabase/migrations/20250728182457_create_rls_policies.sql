@@ -15,42 +15,42 @@ ALTER TABLE api_usage ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- Helper function to get user's organizations
-CREATE OR REPLACE FUNCTION get_user_organizations(user_id UUID)
+CREATE OR REPLACE FUNCTION get_user_organizations(p_user_id UUID)
 RETURNS SETOF UUID AS $$
 BEGIN
     RETURN QUERY
-    SELECT organization_id 
-    FROM organization_members 
-    WHERE organization_members.user_id = $1;
+    SELECT om.organization_id
+    FROM organization_members om
+    WHERE om.user_id = p_user_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Helper function to check organization membership and role
-CREATE OR REPLACE FUNCTION check_organization_membership(org_id UUID, user_id UUID, required_role user_role DEFAULT NULL)
+CREATE OR REPLACE FUNCTION check_organization_membership(p_org_id UUID, p_user_id UUID, p_required_role user_role DEFAULT NULL)
 RETURNS BOOLEAN AS $$
 DECLARE
-    user_role_value user_role;
+    v_user_role user_role;
 BEGIN
-    SELECT role INTO user_role_value
-    FROM organization_members
-    WHERE organization_id = org_id AND user_id = user_id;
-    
-    IF user_role_value IS NULL THEN
+    SELECT om.role INTO v_user_role
+    FROM organization_members om
+    WHERE om.organization_id = p_org_id AND om.user_id = p_user_id;
+
+    IF v_user_role IS NULL THEN
         RETURN FALSE;
     END IF;
-    
-    IF required_role IS NULL THEN
+
+    IF p_required_role IS NULL THEN
         RETURN TRUE;
     END IF;
-    
+
     -- Role hierarchy: owner > admin > member > viewer
-    CASE required_role
+    CASE p_required_role
         WHEN 'owner' THEN
-            RETURN user_role_value = 'owner';
+            RETURN v_user_role = 'owner';
         WHEN 'admin' THEN
-            RETURN user_role_value IN ('owner', 'admin');
+            RETURN v_user_role IN ('owner', 'admin');
         WHEN 'member' THEN
-            RETURN user_role_value IN ('owner', 'admin', 'member');
+            RETURN v_user_role IN ('owner', 'admin', 'member');
         WHEN 'viewer' THEN
             RETURN TRUE; -- All roles can view
     END CASE;
@@ -69,10 +69,10 @@ CREATE POLICY "Users can update own profile" ON profiles
 -- Users can view profiles of members in their organizations
 CREATE POLICY "Users can view organization member profiles" ON profiles
     FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM organization_members om1
-            JOIN organization_members om2 ON om1.organization_id = om2.organization_id
-            WHERE om1.user_id = auth.uid() AND om2.user_id = profiles.id
+        id IN (
+            SELECT om.user_id
+            FROM organization_members om
+            WHERE om.organization_id IN (SELECT get_user_organizations(auth.uid()))
         )
     );
 

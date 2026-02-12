@@ -64,36 +64,36 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create helper function for checking membership
+-- Create helper function for checking membership (with prefixed params to avoid column ambiguity)
 CREATE OR REPLACE FUNCTION check_organization_membership(
-    org_id UUID,
-    user_id UUID,
-    required_role TEXT DEFAULT 'member'
+    p_org_id UUID,
+    p_user_id UUID,
+    p_required_role TEXT DEFAULT 'member'
 )
 RETURNS BOOLEAN AS $$
 DECLARE
-    user_role TEXT;
+    v_user_role TEXT;
 BEGIN
-    SELECT role INTO user_role
-    FROM organization_members
-    WHERE organization_id = org_id 
-    AND user_id = user_id 
-    AND joined_at IS NOT NULL;
-    
-    IF user_role IS NULL THEN
+    SELECT om.role INTO v_user_role
+    FROM organization_members om
+    WHERE om.organization_id = p_org_id
+      AND om.user_id = p_user_id
+      AND om.joined_at IS NOT NULL;
+
+    IF v_user_role IS NULL THEN
         RETURN FALSE;
     END IF;
-    
+
     -- Check role hierarchy: owner > admin > member > viewer
-    CASE required_role
+    CASE p_required_role
         WHEN 'owner' THEN
-            RETURN user_role = 'owner';
+            RETURN v_user_role = 'owner';
         WHEN 'admin' THEN
-            RETURN user_role IN ('owner', 'admin');
+            RETURN v_user_role IN ('owner', 'admin');
         WHEN 'member' THEN
-            RETURN user_role IN ('owner', 'admin', 'member');
+            RETURN v_user_role IN ('owner', 'admin', 'member');
         WHEN 'viewer' THEN
-            RETURN user_role IN ('owner', 'admin', 'member', 'viewer');
+            RETURN v_user_role IN ('owner', 'admin', 'member', 'viewer');
         ELSE
             RETURN FALSE;
     END CASE;
