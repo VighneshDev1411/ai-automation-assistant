@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS webhook_logs (
     response_body JSONB DEFAULT '{}'::jsonb,
     
     -- Execution tracking
-    execution_id UUID REFERENCES workflow_executions(id) ON DELETE SET NULL,
+    execution_id UUID REFERENCES execution_logs(id) ON DELETE SET NULL,
     success BOOLEAN NOT NULL DEFAULT false,
     error_message TEXT,
     
@@ -57,23 +57,23 @@ CREATE INDEX IF NOT EXISTS idx_webhook_logs_success ON webhook_logs(success);
 CREATE INDEX IF NOT EXISTS idx_webhook_logs_execution_id ON webhook_logs(execution_id) WHERE execution_id IS NOT NULL;
 
 -- ============================================
--- 4. Add trigger_type to workflow_executions
+-- 4. Add trigger_type to execution_logs
 -- ============================================
 
 DO $$ 
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'workflow_executions' 
+        WHERE table_name = 'execution_logs' 
         AND column_name = 'trigger_type'
     ) THEN
-        ALTER TABLE workflow_executions 
+        ALTER TABLE execution_logs 
         ADD COLUMN trigger_type VARCHAR(50) DEFAULT 'manual';
     END IF;
 END $$;
 
 -- Add index for trigger type queries
-CREATE INDEX IF NOT EXISTS idx_workflow_executions_trigger_type ON workflow_executions(trigger_type);
+CREATE INDEX IF NOT EXISTS idx_execution_logs_trigger_type ON execution_logs(trigger_type);
 
 -- ============================================
 -- 5. RLS Policies for webhook_logs
@@ -156,7 +156,7 @@ COMMENT ON COLUMN workflows.webhook_enabled IS 'Whether webhook trigger is enabl
 COMMENT ON COLUMN workflows.webhook_secret IS 'Secret key for webhook authentication';
 COMMENT ON COLUMN workflows.webhook_auth_type IS 'Authentication type: none, api_key, bearer_token, hmac';
 COMMENT ON COLUMN workflows.webhook_config IS 'Additional webhook configuration (rate limits, IP whitelist, etc.)';
-COMMENT ON COLUMN workflow_executions.trigger_type IS 'How the workflow was triggered: manual, schedule, webhook, email';
+COMMENT ON COLUMN execution_logs.trigger_type IS 'How the workflow was triggered: manual, schedule, webhook, email';
 
 -- ============================================
 -- 9. Grant necessary permissions
@@ -176,6 +176,6 @@ BEGIN
     RAISE NOTICE 'Migration 20260126000002 completed successfully!';
     RAISE NOTICE 'Added webhook support to workflows table';
     RAISE NOTICE 'Created webhook_logs table with RLS policies';
-    RAISE NOTICE 'Added trigger_type to workflow_executions';
+    RAISE NOTICE 'Added trigger_type to execution_logs';
     RAISE NOTICE 'Created helper functions for webhook management';
 END $$;

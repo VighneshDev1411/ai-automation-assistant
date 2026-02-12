@@ -8,7 +8,7 @@
 CREATE TABLE IF NOT EXISTS email_logs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   workflow_id UUID REFERENCES workflows(id) ON DELETE CASCADE,
-  execution_id UUID REFERENCES workflow_executions(id) ON DELETE CASCADE,
+  execution_id UUID REFERENCES execution_logs(id) ON DELETE CASCADE,
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   
   -- Email details
