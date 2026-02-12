@@ -29,19 +29,18 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { ThemeToggle } from '@/components/common/theme-toggle'
-import { 
-  Sparkles, 
-  Loader2, 
-  AlertCircle, 
-  CheckCircle, 
-  Mail, 
+import {
+  Sparkles,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  Mail,
   ArrowLeft,
   Eye,
   EyeOff,
   Shield,
-  Zap 
 } from 'lucide-react'
-import { FaGoogle, FaGithub, FaMicrosoft } from 'react-icons/fa'
+import { FaGoogle, FaGithub } from 'react-icons/fa'
 
 const registerSchema = z.object({
   fullName: z.string()
@@ -67,7 +66,7 @@ type RegisterForm = z.infer<typeof registerSchema>
 
 export default function RegisterPage() {
   const router = useRouter()
-  const { user, signUp, signInWithProvider } = useAuth()
+  const { user, profile, loading, signUp, signInWithProvider } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [providerLoading, setProviderLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -76,12 +75,17 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  // Redirect if already authenticated
+  // Redirect authenticated users based on onboarding status
   useEffect(() => {
-    if (user) {
+    if (loading) return
+    if (!user) return
+
+    if (profile?.onboarded) {
       router.replace('/dashboard')
+    } else {
+      router.replace('/onboarding')
     }
-  }, [user, router])
+  }, [user, profile, loading, router])
 
   const form = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
@@ -98,18 +102,17 @@ export default function RegisterPage() {
     try {
       setIsLoading(true)
       setError(null)
-      
+
       const result = await signUp(values.email, values.password, {
         full_name: values.fullName,
       })
-      
+
       if (result.needsConfirmation) {
         setEmailConfirmationSent(true)
         setRegisteredEmail(values.email)
-      } else {
-        // User was signed in immediately
-        router.push('/onboarding')
       }
+      // If no confirmation needed, the useEffect redirect above will fire
+      // once the auth context updates with the new user
     } catch (error: any) {
       console.error('Registration error:', error)
       setError(error.message || 'Failed to create account')
@@ -123,6 +126,7 @@ export default function RegisterPage() {
       setProviderLoading(provider)
       setError(null)
       await signInWithProvider(provider)
+      // Browser will redirect to OAuth provider, then back to /auth/callback
     } catch (error: any) {
       console.error('Provider sign in error:', error)
       setError(error.message || `Failed to sign in with ${provider}`)
@@ -138,10 +142,8 @@ export default function RegisterPage() {
         <div className="absolute top-4 right-4">
           <ThemeToggle />
         </div>
-        
-        {/* <Card className="w-full max-w-md glass-card"> */}
-      <Card className="w-full max-w-md clean-card">
 
+        <Card className="w-full max-w-md">
           <CardHeader className="text-center space-y-2">
             <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
               <CheckCircle className="w-6 h-6 text-green-600" />
@@ -152,7 +154,7 @@ export default function RegisterPage() {
               <span className="font-medium text-foreground">{registeredEmail}</span>
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent className="space-y-4">
             <Alert>
               <Mail className="h-4 w-4" />
@@ -161,7 +163,7 @@ export default function RegisterPage() {
                 The link will expire in 24 hours.
               </AlertDescription>
             </Alert>
-            
+
             <div className="text-center text-sm text-muted-foreground">
               Didn't receive the email? Check your spam folder or{' '}
               <button
@@ -176,7 +178,7 @@ export default function RegisterPage() {
               </button>
             </div>
           </CardContent>
-          
+
           <CardFooter>
             <Button
               variant="outline"
@@ -201,8 +203,8 @@ export default function RegisterPage() {
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      
-      <Card className="w-full max-w-md glass-card">
+
+      <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mb-4">
             <Sparkles className="w-6 h-6 text-white" />
@@ -212,7 +214,7 @@ export default function RegisterPage() {
             Join thousands of teams automating their workflows
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           {error && (
             <Alert variant="destructive">
@@ -226,7 +228,7 @@ export default function RegisterPage() {
             <Button
               variant="outline"
               onClick={() => handleProviderSignIn('google')}
-              disabled={!!providerLoading}
+              disabled={!!providerLoading || isLoading}
               className="w-full"
             >
               {providerLoading === 'google' ? (
@@ -236,11 +238,11 @@ export default function RegisterPage() {
               )}
               Continue with Google
             </Button>
-            
+
             <Button
               variant="outline"
               onClick={() => handleProviderSignIn('github')}
-              disabled={!!providerLoading}
+              disabled={!!providerLoading || isLoading}
               className="w-full"
             >
               {providerLoading === 'github' ? (
@@ -391,9 +393,9 @@ export default function RegisterPage() {
                 )}
               />
 
-              <Button 
-                type="submit" 
-                className="w-full" 
+              <Button
+                type="submit"
+                className="w-full"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -411,7 +413,7 @@ export default function RegisterPage() {
             </form>
           </Form>
         </CardContent>
-        
+
         <CardFooter className="flex flex-col space-y-4">
           <div className="text-center text-sm text-muted-foreground">
             Already have an account?{' '}

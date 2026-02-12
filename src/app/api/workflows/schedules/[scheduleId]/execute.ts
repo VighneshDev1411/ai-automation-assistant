@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase/supabase-test"
+import { getSupabase } from "@/lib/supabase/supabase-test"
 import { TriggerSystem } from "@/lib/workflow-engine/core/TriggerSystem"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -7,14 +7,14 @@ interface RouteParams {
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  const scheduler = new TriggerSystem(supabase)  // ✅ Create first
-  
+  const supabase = getSupabase()
+  const scheduler = new TriggerSystem(supabase)
+
   try {
     const { scheduleId } = params
     const body = await request.json()
     const { triggerData, userId } = body
 
-    // ✅ Get schedule directly from database
     const { data: schedule, error } = await supabase
       .from('workflow_schedules')
       .select('*, workflows!inner(id, name)')
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function GET(request: NextRequest) {
-  const scheduler = new TriggerSystem(supabase)  // ✅ Create first
+  const scheduler = new TriggerSystem(getSupabase())
   
   try {
     const url = new URL(request.url)

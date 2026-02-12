@@ -27,11 +27,11 @@ import {
 } from '@/components/ui/form'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ThemeToggle } from '@/components/common/theme-toggle'
-import { 
-  Eye, 
-  EyeOff, 
-  AlertCircle, 
-  Sparkles, 
+import {
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Sparkles,
   Loader2,
   LogIn,
   Mail,
@@ -48,7 +48,6 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
-// Loading component for Suspense fallback
 function LoginPageLoading() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted">
@@ -64,7 +63,6 @@ function LoginPageLoading() {
   )
 }
 
-// Main login form component that uses useSearchParams
 function LoginFormContent() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -73,14 +71,19 @@ function LoginFormContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const { user, signIn, signInWithProvider } = useAuth()
+  const { user, profile, loading, signIn, signInWithProvider } = useAuth()
 
-  // Redirect if already authenticated
+  // Redirect authenticated users based on onboarding status
   useEffect(() => {
-    if (user) {
+    if (loading) return
+    if (!user) return
+
+    if (profile?.onboarded) {
       router.replace('/dashboard')
+    } else {
+      router.replace('/onboarding')
     }
-  }, [user, router])
+  }, [user, profile, loading, router])
 
   // Handle error from URL params
   useEffect(() => {
@@ -104,7 +107,7 @@ function LoginFormContent() {
 
     try {
       await signIn(values.email, values.password)
-      // Navigation handled by AuthContext
+      // Redirect is handled by the useEffect above once user state updates
     } catch (err: any) {
       console.error('Login error:', err)
       setError(err.message || 'Invalid email or password. Please try again.')
@@ -119,6 +122,7 @@ function LoginFormContent() {
 
     try {
       await signInWithProvider(provider)
+      // Browser will redirect to OAuth provider, then back to /auth/callback
     } catch (err: any) {
       console.error(`${provider} login error:`, err)
       setError(err.message || `Failed to sign in with ${provider}. Please try again.`)
@@ -163,7 +167,7 @@ function LoginFormContent() {
               variant="outline"
               className="w-full"
               onClick={() => handleProviderSignIn('google')}
-              disabled={!!providerLoading}
+              disabled={!!providerLoading || isLoading}
             >
               {providerLoading === 'google' ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -178,7 +182,7 @@ function LoginFormContent() {
               variant="outline"
               className="w-full"
               onClick={() => handleProviderSignIn('github')}
-              disabled={!!providerLoading}
+              disabled={!!providerLoading || isLoading}
             >
               {providerLoading === 'github' ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -308,7 +312,6 @@ function LoginFormContent() {
   )
 }
 
-// Main page component with Suspense boundary
 export default function LoginPage() {
   return (
     <Suspense fallback={<LoginPageLoading />}>

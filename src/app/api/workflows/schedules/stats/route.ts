@@ -1,10 +1,10 @@
-import { supabase } from '@/lib/supabase/supabase-test'
+import { getSupabase } from '@/lib/supabase/supabase-test'
 import { TriggerSystem } from '@/lib/workflow-engine/core/TriggerSystem'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
   try {
-    const scheduler = new TriggerSystem(supabase)
+    const scheduler = new TriggerSystem(getSupabase())
     const stats = await scheduler.getStats()
 
     // Enhanced statistics

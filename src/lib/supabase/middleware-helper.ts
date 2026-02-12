@@ -8,23 +8,7 @@ export async function updateSession(request: NextRequest) {
     },
   })
 
-  // Define public routes that don't require authentication
-  const publicRoutes = [
-    '/login',
-    '/register',
-    '/signup',
-    '/forgot-password',
-    '/verify-email',
-    '/auth/callback',
-    '/',
-    '/api/cron/execute-schedules', // Allow cron endpoint without auth
-  ]
-
-  const isPublicRoute = publicRoutes.some(route =>
-    request.nextUrl.pathname === route ||
-    request.nextUrl.pathname.startsWith('/auth/') ||
-    request.nextUrl.pathname.startsWith('/api/cron/')
-  )
+  const pathname = request.nextUrl.pathname
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,83 +19,67 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: any) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
+          request.cookies.set({ name, value, ...options })
           response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
+            request: { headers: request.headers },
           })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
+          response.cookies.set({ name, value, ...options })
         },
         remove(name: string, options: any) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
+          request.cookies.set({ name, value: '', ...options })
           response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
+            request: { headers: request.headers },
           })
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
+          response.cookies.set({ name, value: '', ...options })
         },
       },
     }
   )
 
-  // Skip auth check for public routes
-  let user = null
-  let error = null
+  // Always refresh the session (keeps cookies alive)
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
 
-  if (!isPublicRoute) {
-    // Only check auth for protected routes
-    const result = await supabase.auth.getUser()
-    user = result.data.user
-    error = result.error
+  // Protected dashboard routes
+  const isProtectedRoute =
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/workflows') ||
+    pathname.startsWith('/ai-agents') ||
+    pathname.startsWith('/integrations') ||
+    pathname.startsWith('/analytics')
 
-    // Handle authentication errors on protected routes
-    if (error) {
-      console.error('Auth error in middleware:', error)
+  // Auth pages where logged-in users should be redirected away
+  const isAuthPage =
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/signup'
 
-      // Clear invalid session and redirect to login
-      const clearResponse = NextResponse.redirect(new URL('/login', request.url))
-      clearResponse.cookies.delete('sb-access-token')
-      clearResponse.cookies.delete('sb-refresh-token')
-      return clearResponse
-    }
-  }
-
-  // Protect dashboard routes
-  const isDashboardRoute = request.nextUrl.pathname.startsWith('/dashboard') ||
-                          request.nextUrl.pathname.startsWith('/workflows') ||
-                          request.nextUrl.pathname.startsWith('/ai-agents') ||
-                          request.nextUrl.pathname.startsWith('/integrations') ||
-                          request.nextUrl.pathname.startsWith('/analytics')
-
-  if (isDashboardRoute && !user) {
+  // If user has an auth error or no user on protected routes, redirect to login
+  if (isProtectedRoute && (error || !user)) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // Redirect authenticated users away from auth pages
-  const isAuthRoute = request.nextUrl.pathname === '/login' ||
-                     request.nextUrl.pathname === '/signup' ||
-                     request.nextUrl.pathname === '/auth/callback'
+  if (isAuthPage && user && !error) {
+    // Check onboarding status to redirect to the right place
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('onboarded')
+      .eq('id', user.id)
+      .single()
 
-  if (isAuthRoute && user && request.nextUrl.pathname !== '/auth/callback') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    if (profile?.onboarded) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    } else {
+      return NextResponse.redirect(new URL('/onboarding', request.url))
+    }
+  }
+
+  // Onboarding page: must be authenticated
+  if (pathname === '/onboarding' && (error || !user)) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   return response

@@ -1,6 +1,5 @@
-// import { supabase } from '@/lib/supabase/storage'ss
 import React, { useState } from 'react'
-import { supabase } from "../supabase/supabase-test"
+import { getSupabase } from "../supabase/supabase-test"
 
 
 export type PermissionLevel = 'view' | 'edit' | 'admin' | 'owner'
@@ -83,7 +82,7 @@ export class FileSharingService {
 
         // Store permission in database
 
-        const { data, error } = await supabase
+        const { data, error } = await getSupabase()
           .from('file_permissions')
           .insert(permission)
           .select()
@@ -139,7 +138,7 @@ export class FileSharingService {
       }
 
       // Store in database
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from('share_links')
         .insert(shareLink)
         .select()
@@ -156,7 +155,7 @@ export class FileSharingService {
 
   async getFilePermissions(fileId: string): Promise<FilePermission[]> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from('file_permissions')
         .select('*')
         .eq('fileId', fileId)
@@ -174,7 +173,7 @@ export class FileSharingService {
     updates: Partial<FilePermission>
   ): Promise<{ success: boolean }> {
     try {
-      const { error } = await supabase
+      const { error } = await getSupabase()
         .from('file_permissions')
         .update(updates)
         .eq('id', permissionId)
@@ -189,7 +188,7 @@ export class FileSharingService {
 
   async revokeAccess(permissionId: string): Promise<{ success: boolean }> {
     try {
-      const { error } = await supabase
+      const { error } = await getSupabase()
         .from('file_permissions')
         .delete()
         .eq('id', permissionId)
@@ -207,7 +206,7 @@ export class FileSharingService {
     userId: string
   ): Promise<PermissionLevel | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from('file_permissions')
         .select('permissionLevel')
         .eq('fileId', fileId)
@@ -230,7 +229,7 @@ export class FileSharingService {
     password?: string
   ): Promise<{ valid: boolean; fileId?: string }> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from('share_links')
         .select('*')
         .eq('shortCode', shortCode)
@@ -255,7 +254,7 @@ export class FileSharingService {
       }
 
       // Update access stats
-      await supabase
+      await getSupabase()
         .from('share_links')
         .update({
           currentDownloads: data.currentDownloads + 1,
@@ -281,13 +280,13 @@ export class FileSharingService {
   }> {
     try {
       // Get permission count
-      const { count: permissionCount } = await supabase
+      const { count: permissionCount } = await getSupabase()
         .from('file_permissions')
         .select('*', { count: 'exact', head: true })
         .eq('fileId', fileId)
 
       // Get share links stats
-      const { data: links } = await supabase
+      const { data: links } = await getSupabase()
         .from('share_links')
         .select('currentDownloads')
         .eq('fileId', fileId)
