@@ -26,6 +26,27 @@ export async function createOrganization(data: {
     // This is safe because we've already verified the user is authenticated
     const serviceSupabase = await createServiceClient()
 
+    // Check if user already has an organization with this slug (e.g. clicked Next twice)
+    const { data: existingOrg } = await serviceSupabase
+      .from('organizations')
+      .select('*, organization_members!inner(user_id)')
+      .eq('slug', data.slug)
+      .eq('organization_members.user_id', data.userId)
+      .single()
+
+    if (existingOrg) {
+      console.log('Organization already exists, reusing:', existingOrg.id)
+      // Mark user as onboarded
+      await serviceSupabase
+        .from('profiles')
+        .update({ onboarded: true })
+        .eq('id', data.userId)
+
+      revalidatePath('/dashboard')
+      revalidatePath('/onboarding')
+      return { success: true, organization: existingOrg }
+    }
+
     // Create organization
     const { data: org, error: orgError } = await serviceSupabase
       .from('organizations')
