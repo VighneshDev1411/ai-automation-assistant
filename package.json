@@ -18,7 +18,7 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:reset": "supabase db reset",
-    "generate-types": "supabase gen types typescript --project-id hpelxxyntnhbtslphsar > src/types/database.ts"
+    "generate-types": "supabase gen types typescript --project-id lbokwzaegclteujkvlas > src/types/database.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.61.0",
