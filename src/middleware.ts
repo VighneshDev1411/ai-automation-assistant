@@ -7,21 +7,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match only necessary paths:
-     * - Auth pages (login, register, signup)
-     * - Protected routes (dashboard, workflows, ai-agents, integrations, analytics)
-     * - Onboarding
-     * Exclude: API routes, static files, images
-     */
-    '/login',
-    '/register',
-    '/signup',
-    '/onboarding',
-    '/dashboard/:path*',
-    '/workflows/:path*',
-    '/ai-agents/:path*',
-    '/integrations/:path*',
-    '/analytics/:path*',
+    // TEMPORARILY DISABLED - Testing if middleware is causing 504 errors
+    // Will re-enable once Supabase connection issues are resolved
   ],
 }

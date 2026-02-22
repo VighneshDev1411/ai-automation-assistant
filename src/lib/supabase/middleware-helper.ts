@@ -36,11 +36,27 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Always refresh the session (keeps cookies alive)
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
+  // Refresh session with timeout protection
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Supabase timeout')), 5000) // 5s timeout
+  })
+
+  let user = null
+  let error = null
+
+  try {
+    const result = await Promise.race([
+      supabase.auth.getUser(),
+      timeoutPromise
+    ]) as any
+
+    user = result?.data?.user || null
+    error = result?.error || null
+  } catch (e) {
+    console.error('[MIDDLEWARE] Auth check timeout or error:', e)
+    // On timeout, just proceed without auth check
+    return response
+  }
 
   // Protected dashboard routes
   const isProtectedRoute =
