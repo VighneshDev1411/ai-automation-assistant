@@ -9,62 +9,87 @@ export default function HomePage() {
   const router = useRouter()
   const [status, setStatus] = useState('checking')
   const [debugInfo, setDebugInfo] = useState('')
+  const [showDebug, setShowDebug] = useState(false)
 
   useEffect(() => {
+    // Set a timeout to show debug info if taking too long
+    const debugTimeout = setTimeout(() => {
+      setShowDebug(true)
+    }, 3000)
+
     const checkAuthAndRedirect = async () => {
       try {
+        console.log('[HOME] Starting auth check...')
         const supabase = createClient()
-        
+
         // Get current session directly from Supabase
+        console.log('[HOME] Getting session...')
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-        
-        setDebugInfo(`Session: ${!!session}, Error: ${!!sessionError}`)
-        
+
+        console.log('[HOME] Session result:', { hasSession: !!session, error: sessionError })
+        setDebugInfo(`Session: ${!!session}, Error: ${sessionError?.message || 'none'}`)
+
         if (sessionError) {
-          console.error('Session error:', sessionError)
+          console.error('[HOME] Session error:', sessionError)
           setStatus('redirecting')
           router.push('/login')
           return
         }
 
         if (!session?.user) {
-          console.log('No session found, redirecting to login')
+          console.log('[HOME] No session found, redirecting to login')
           setStatus('redirecting')
           router.push('/login')
           return
         }
 
-        console.log('User found:', session.user.email)
+        console.log('[HOME] User found:', session.user.email)
 
         // Check if user has completed onboarding
-        const { data: profile } = await supabase
+        console.log('[HOME] Checking profile...')
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('onboarded')
           .eq('id', session.user.id)
           .single()
 
-        setDebugInfo(prev => prev + ` | Profile: ${!!profile}, Onboarded: ${profile?.onboarded}`)
+        console.log('[HOME] Profile result:', { profile, error: profileError })
+        setDebugInfo(prev => prev + ` | Profile: ${!!profile}, Onboarded: ${profile?.onboarded}, Error: ${profileError?.message || 'none'}`)
 
-        if (!profile || !profile.onboarded) {
-          console.log('User needs onboarding')
+        if (profileError) {
+          console.error('[HOME] Profile query error:', profileError)
+          // If profile doesn't exist, redirect to onboarding
           setStatus('redirecting')
           router.push('/onboarding')
           return
         }
 
-        console.log('User fully set up, going to dashboard')
+        if (!profile || !profile.onboarded) {
+          console.log('[HOME] User needs onboarding')
+          setStatus('redirecting')
+          router.push('/onboarding')
+          return
+        }
+
+        console.log('[HOME] User fully set up, going to dashboard')
         setStatus('redirecting')
         router.push('/dashboard')
-        
-      } catch (error) {
-        console.error('Auth check error:', error)
-        setDebugInfo(`Error: ${error}`)
+
+      } catch (error: any) {
+        console.error('[HOME] Auth check error:', error)
+        setDebugInfo(`Error: ${error?.message || String(error)}`)
         setStatus('redirecting')
         router.push('/login')
       }
     }
 
-    checkAuthAndRedirect()
+    checkAuthAndRedirect().finally(() => {
+      clearTimeout(debugTimeout)
+    })
+
+    return () => {
+      clearTimeout(debugTimeout)
+    }
   }, [router])
 
   return (
@@ -88,7 +113,13 @@ export default function HomePage() {
           </span>
         </div>
 
-       
+        {/* Debug info */}
+        {showDebug && debugInfo && (
+          <div className="mt-4 p-3 bg-muted rounded text-xs font-mono text-left max-w-md overflow-auto">
+            <p className="font-bold mb-1">Debug Info:</p>
+            <p className="text-muted-foreground">{debugInfo}</p>
+          </div>
+        )}
 
         {/* Manual navigation if stuck */}
         <div className="mt-8 space-y-2">
