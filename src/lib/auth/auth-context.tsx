@@ -246,17 +246,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const initAuth = async () => {
       try {
+        // Set a timeout to prevent hanging forever
+        const timeoutId = setTimeout(() => {
+          console.warn('[AUTH] Initialization timeout, forcing loading=false')
+          if (mountedRef.current) {
+            setLoading(false)
+          }
+        }, 8000) // 8 second timeout
+
         const {
           data: { session },
         } = await supabase.auth.getSession()
 
-        if (!mountedRef.current) return
+        if (!mountedRef.current) {
+          clearTimeout(timeoutId)
+          return
+        }
 
         if (session?.user) {
           setUser(session.user)
           setSession(session)
           await loadUserData(session.user)
         }
+
+        clearTimeout(timeoutId)
       } catch (error) {
         console.error('Auth init error:', error)
       } finally {
