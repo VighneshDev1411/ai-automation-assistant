@@ -61,20 +61,10 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Redirect authenticated users away from auth pages
+  // Redirect authenticated users away from auth pages to onboarding
+  // (Onboarding page will handle the final redirect to dashboard if already onboarded)
   if (isAuthPage && user && !error) {
-    // Check onboarding status to redirect to the right place
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('onboarded')
-      .eq('id', user.id)
-      .single()
-
-    if (profile?.onboarded) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
-    } else {
-      return NextResponse.redirect(new URL('/onboarding', request.url))
-    }
+    return NextResponse.redirect(new URL('/onboarding', request.url))
   }
 
   // Onboarding page: must be authenticated
