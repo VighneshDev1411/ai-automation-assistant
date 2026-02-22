@@ -35,11 +35,11 @@ export default function HomePage() {
         }
 
         console.log('User found:', session.user.email)
-        
-        // Check if user has profile and organization
+
+        // Check if user has completed onboarding
         const { data: profile } = await supabase
           .from('profiles')
-          .select('onboarded, organization_id')
+          .select('onboarded')
           .eq('id', session.user.id)
           .single()
 
