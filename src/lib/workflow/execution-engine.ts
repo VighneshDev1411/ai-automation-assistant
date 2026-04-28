@@ -190,6 +190,10 @@ export class WorkflowExecutionEngine {
           result = await this.executeAction(node)
           break
 
+        case 'aiAgent':
+          result = await this.executeAIAgent(node)
+          break
+
         case 'condition':
           result = await this.executeCondition(node)
           break
@@ -325,6 +329,95 @@ export class WorkflowExecutionEngine {
   }
 
   /**
+   * Execute AI Agent
+   */
+  private async executeAIAgent(node: WorkflowNode): Promise<any> {
+    const { config, model, prompt, agentType } = node.data
+
+    console.log(`  → Executing AI Agent: ${node.data.label}`)
+    console.log(`     Model: ${model || config?.model || 'gpt-4'}`)
+    console.log(`     Agent Type: ${agentType || config?.agentType || 'generic'}`)
+
+    try {
+      // Get input data from previous nodes
+      const inputData = this.getInputData(node)
+
+      // Resolve variables in prompt
+      const resolvedPrompt = this.resolveVariables(prompt || config?.prompt || '')
+      const systemPrompt = this.resolveVariables(config?.systemPrompt || '')
+
+      // Build context for AI
+      const aiContext = {
+        ...this.context.triggerData,
+        previousResults: this.context.nodeResults,
+        inputData,
+        variables: this.context.variables,
+      }
+
+      console.log(`     Prompt: ${resolvedPrompt.substring(0, 100)}...`)
+
+      // Call AI execution API
+      const aiApiUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const response = await fetch(`${aiApiUrl}/api/ai/execute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: model || config?.model || 'gpt-4',
+          prompt: resolvedPrompt,
+          systemPrompt,
+          context: aiContext,
+          temperature: config?.temperature || 0.7,
+          maxTokens: config?.maxTokens || 2000,
+          agentType: agentType || config?.agentType,
+          config,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.details || error.error || 'AI execution failed')
+      }
+
+      const aiResult = await response.json()
+
+      console.log(`  ✓ AI Agent completed`)
+      console.log(`     Response length: ${aiResult.result?.length || 0} chars`)
+      console.log(`     Tokens used: ${aiResult.usage?.total_tokens || 'N/A'}`)
+
+      return {
+        aiResponse: aiResult.result,
+        model: aiResult.model,
+        usage: aiResult.usage,
+        metadata: aiResult.metadata,
+        // Store structured output based on agent type
+        output: this.parseAIOutput(aiResult.result, agentType || config?.agentType),
+      }
+    } catch (error: any) {
+      console.error(`  ✗ AI Agent failed:`, error.message)
+      throw new Error(`AI Agent execution failed: ${error.message}`)
+    }
+  }
+
+  /**
+   * Parse AI output based on agent type
+   */
+  private parseAIOutput(aiResponse: string, agentType?: string): any {
+    // Try to parse as JSON first
+    try {
+      return JSON.parse(aiResponse)
+    } catch {
+      // Return as text if not JSON
+      return {
+        text: aiResponse,
+        agentType,
+        parsed: false,
+      }
+    }
+  }
+
+  /**
    * Execute HTTP request
    */
   private async executeHttpRequest(config: any): Promise<any> {
@@ -436,16 +529,55 @@ export class WorkflowExecutionEngine {
    * Send Slack message
    */
   private async executeSlackMessage(config: any): Promise<any> {
-    const channel = this.resolveVariables(config.channel)
-    const message = this.resolveVariables(config.message)
+    const channel = this.resolveVariables(config.channel || config.channelId || '#general')
+    const messageText = this.resolveVariables(config.message || config.text || config.template || '')
 
     console.log(`  → Sending Slack message to ${channel}`)
 
-    // TODO: Implement actual Slack API call
-    return {
-      sent: true,
-      channel,
-      message: 'Slack message sent (simulated)'
+    try {
+      // Import Slack service dynamically
+      const slackModule = await import('@/lib/integrations/slack-service')
+
+      // Check if Slack is configured
+      if (!slackModule.isSlackConfigured()) {
+        console.warn('⚠️ Slack not configured, simulating message send')
+        return {
+          sent: true,
+          simulated: true,
+          channel,
+          message: messageText,
+        }
+      }
+
+      // Format message with data
+      const messageData = {
+        ...this.context.triggerData,
+        ...this.context.variables,
+        ...this.getInputData({ id: 'current', type: 'action', position: { x: 0, y: 0 }, data: { label: '', config: {} } }),
+      }
+
+      const formatted = slackModule.formatSlackMessage(messageText, messageData)
+
+      // Send message
+      const result = await slackModule.sendSlackMessage({
+        channel,
+        text: formatted.text,
+        blocks: formatted.blocks,
+      })
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send Slack message')
+      }
+
+      return {
+        sent: true,
+        channel,
+        timestamp: result.timestamp,
+        messageId: result.messageId,
+      }
+    } catch (error: any) {
+      console.error('Failed to send Slack message:', error)
+      throw new Error(`Failed to send Slack message: ${error.message}`)
     }
   }
 

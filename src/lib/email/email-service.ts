@@ -6,6 +6,7 @@
 
 import { SendGridProvider } from './providers/sendgrid'
 import { SMTPProvider } from './providers/smtp'
+import { ResendProvider } from './providers/resend'
 import { createClient } from '@/lib/supabase/server'
 
 export interface EmailOptions {
@@ -42,9 +43,16 @@ export interface EmailProvider {
  * Get the configured email provider
  */
 function getEmailProvider(): EmailProvider {
-  const provider = process.env.EMAIL_PROVIDER || 'sendgrid'
+  const provider = process.env.EMAIL_PROVIDER || 'resend'
 
   switch (provider.toLowerCase()) {
+    case 'resend':
+      return new ResendProvider({
+        apiKey: process.env.RESEND_API_KEY!,
+        fromEmail: process.env.EMAIL_FROM_ADDRESS || 'noreply@cogniflow.com',
+        fromName: process.env.EMAIL_FROM_NAME || 'CogniFlow',
+      })
+
     case 'sendgrid':
       return new SendGridProvider({
         apiKey: process.env.SENDGRID_API_KEY!,
