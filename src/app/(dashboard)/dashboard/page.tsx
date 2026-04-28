@@ -100,15 +100,17 @@ export default function DashboardPage() {
     }
   }
 
-  // More robust checks
+  // Distinguish "still loading" from "settled but empty".
+  // organizations === [] is a valid settled state (user has no workspace yet),
+  // not a loading state — only `loading` itself signals data in flight.
   const profileLoaded = !!profile
-  const organizationsLoaded =
+  const hasOrganization =
     Array.isArray(organizations) && organizations.length > 0
 
   const shouldShowDashboard =
     !loading ||
     forceShowContent ||
-    (user && (profileLoaded || organizationsLoaded))
+    (user && (profileLoaded || hasOrganization))
 
   if (!shouldShowDashboard) {
     return (
@@ -182,8 +184,8 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Show refresh button prominently if still having issues */}
-        {(loading || !profileLoaded || !organizationsLoaded) && (
+        {/* Show refresh button prominently while data is genuinely in flight */}
+        {loading && !forceShowContent && (
           <div className="mb-8 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -326,15 +328,20 @@ export default function DashboardPage() {
                   Organization
                 </CardTitle>
                 <div className="flex items-center gap-2">
-                  {organizationsLoaded ? (
+                  {loading ? (
+                    <span className="status-badge warning">
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Loading
+                    </span>
+                  ) : hasOrganization ? (
                     <span className="status-badge success">
                       <CheckCircle className="h-3 w-3 mr-1" />
                       Ready
                     </span>
                   ) : (
                     <span className="status-badge warning">
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      Loading
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      Setup needed
                     </span>
                   )}
                 </div>
@@ -344,7 +351,19 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              {organizationsLoaded ? (
+              {loading ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    <span className="text-muted-foreground">
+                      Loading workspace...
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-purple-500 to-pink-600 rounded-full animate-pulse w-1/2"></div>
+                  </div>
+                </div>
+              ) : hasOrganization ? (
                 <div className="space-y-3">
                   <div>
                     <div className="text-2xl font-bold mb-1">
@@ -364,15 +383,23 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                    <span className="text-muted-foreground">
-                      Loading workspace...
-                    </span>
+                  <div>
+                    <div className="text-2xl font-bold mb-1">
+                      No workspace yet
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Create one to start building workflows.
+                    </p>
                   </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-purple-500 to-pink-600 rounded-full animate-pulse w-1/2"></div>
-                  </div>
+                  <Button
+                    onClick={() => router.push('/onboarding')}
+                    size="sm"
+                    variant="outline"
+                    className="btn-glass"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Set up workspace
+                  </Button>
                 </div>
               )}
             </CardContent>
@@ -417,7 +444,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {profileLoaded && organizationsLoaded && (
+                {profileLoaded && hasOrganization && (
                   <div className="flex items-center gap-2 pt-2 text-xs">
                     <CheckCircle className="h-3 w-3 text-green-500" />
                     <span className="text-green-600 dark:text-green-400 font-medium">
@@ -539,8 +566,44 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Welcome Message or Data Loading */}
-        {profileLoaded && organizationsLoaded ? (
+        {/* Welcome / Empty Workspace / Loading / Error */}
+        {loading && !forceShowContent ? (
+          <Card className="glass-card border-0 shadow-lg">
+            <CardContent className="p-8 text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Loader2 className="h-8 w-8 animate-spin text-white" />
+              </div>
+              <h3 className="text-2xl font-bold mb-3">Loading Your Data...</h3>
+              <p className="text-muted-foreground text-lg mb-6 max-w-2xl mx-auto">
+                Please wait while we load your profile and workspace
+                information. This should only take a moment.
+              </p>
+
+              <div className="space-y-3 mb-6 max-w-md mx-auto">
+                <div className="flex items-center gap-3 text-sm">
+                  {profileLoaded ? (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                  <span
+                    className={
+                      profileLoaded ? 'text-green-600' : 'text-muted-foreground'
+                    }
+                  >
+                    Profile: {profileLoaded ? 'Loaded' : 'Loading...'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <span className="text-muted-foreground">
+                    Workspace: Loading...
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : profileLoaded && hasOrganization ? (
           <Card className="glass-card border-0 shadow-lg">
             <CardContent className="p-8 text-center">
               <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
@@ -572,71 +635,59 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        ) : (
+        ) : profileLoaded ? (
           <Card className="glass-card border-0 shadow-lg">
             <CardContent className="p-8 text-center">
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Loader2 className="h-8 w-8 animate-spin text-white" />
+                <Building className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-2xl font-bold mb-3">Loading Your Data...</h3>
+              <h3 className="text-2xl font-bold mb-3">
+                Set up your workspace
+              </h3>
               <p className="text-muted-foreground text-lg mb-6 max-w-2xl mx-auto">
-                Please wait while we load your profile and workspace
-                information. This should only take a moment.
+                You don't have a workspace yet. Create one to start building
+                workflows and inviting your team.
               </p>
-
-              <div className="space-y-3 mb-6 max-w-md mx-auto">
-                <div className="flex items-center gap-3 text-sm">
-                  {profileLoaded ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                  <span
-                    className={
-                      profileLoaded ? 'text-green-600' : 'text-muted-foreground'
-                    }
-                  >
-                    Profile: {profileLoaded ? 'Loaded' : 'Loading...'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  {organizationsLoaded ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                  <span
-                    className={
-                      organizationsLoaded
-                        ? 'text-green-600'
-                        : 'text-muted-foreground'
-                    }
-                  >
-                    Workspace: {organizationsLoaded ? 'Loaded' : 'Loading...'}
-                  </span>
-                </div>
+              <Button
+                onClick={() => router.push('/onboarding')}
+                className="btn-shine bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create workspace
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="glass-card border-0 shadow-lg">
+            <CardContent className="p-8 text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <AlertCircle className="h-8 w-8 text-white" />
               </div>
-
-              {!profileLoaded && !organizationsLoaded && (
-                <Button
-                  onClick={handleRefresh}
-                  variant="outline"
-                  disabled={isRefreshing}
-                  className="btn-glass hover:bg-accent transition-colors"
-                >
-                  {isRefreshing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Refreshing...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Try Refresh
-                    </>
-                  )}
-                </Button>
-              )}
+              <h3 className="text-2xl font-bold mb-3">
+                We couldn't load your profile
+              </h3>
+              <p className="text-muted-foreground text-lg mb-6 max-w-2xl mx-auto">
+                Something went wrong fetching your account data. Try refreshing
+                — if the problem persists, sign out and back in.
+              </p>
+              <Button
+                onClick={handleRefresh}
+                variant="outline"
+                disabled={isRefreshing}
+                className="btn-glass hover:bg-accent transition-colors"
+              >
+                {isRefreshing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Refreshing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Try Refresh
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         )}
